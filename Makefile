@@ -2,6 +2,7 @@
 # deps
 update:; forge update
 build  :; forge build
+size  :; forge build --sizes
 
 # local tests without fork
 test  :; forge test

@@ -23,6 +23,10 @@ NOTE: if you create from template you may need to run the following command to f
 ```sh
 make build
 ```
+To print the size of each contract
+```sh
+make size
+```
 
 5. Run tests
 ```sh
