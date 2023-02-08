@@ -1,0 +1,7 @@
+{
+    "solidity.compileUsingRemoteVersion": "v0.8.14",
+    "solidity.remappings": [
+        "@openzeppelin/=./lib/openzeppelin-contracts/",
+        "forge-std/=lib/forge-std/src/"
+    ]
+  }

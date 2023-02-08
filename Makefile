@@ -1,6 +1,7 @@
 
 # deps
 update:; forge update
+build  :; forge build
 
 # local tests without fork
 test  :; forge test
