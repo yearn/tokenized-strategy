@@ -11,7 +11,7 @@
 3. Clone your newly created repository recursively to include modules.
 
 ```sh
-git clone --recursive https://github.com/myuser/foundry-yearn-strategy
+git clone --recursive https://github.com/myuser/yearn-base-strategy
 
 cd yearn-base-strategy
 ```
