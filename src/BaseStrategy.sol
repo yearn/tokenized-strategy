@@ -16,18 +16,20 @@ interface IBaseFee {
     function isCurrentBaseFeeAcceptable() external view returns (bool);
 }
 
-abstract contract BaseStrategy is Diamond {
+abstract contract BaseStrategy is Diamond, IBaseStrategy {
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
-
+    // Underlying asset the Strategy is earning yield on
     ERC20 public asset;
-    string private _name;
-    string private _symbol;
+    // The decimals of the underlying asset we will use as well
     uint8 private _decimals;
+    // The Name  of the strategy
+    string private _name;
+    // The symbol used for the ERC20 implementation
+    string private _symbol;
 
-    // TODO: initialize all variables with the library
     constructor(
         ERC20 _asset,
         string memory name_,
