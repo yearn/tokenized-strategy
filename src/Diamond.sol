@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: AGPL-3.0
+pragma solidity 0.8.14;
+
+import {SelectorHelper, IDiamond} from "./SelectorHelper.sol";
+
+// A loupe is a small magnifying glass used to look at diamonds.
+// These functions look at diamonds
+interface IDiamondLoupe {
+    struct Facet {
+        address facetAddress;
+        bytes4[] functionSelectors;
+    }
+
+    /// @notice Gets all facet addresses and their four byte function selectors.
+    /// @return facets_ Facet
+    function facets() external view returns (Facet[] memory facets_);
+
+    /// @notice Gets all the function selectors supported by a specific facet.
+    /// @param _facet The facet address.
+    /// @return facetFunctionSelectors_
+    function facetFunctionSelectors(address _facet) external view returns (bytes4[] memory facetFunctionSelectors_);
+
+    /// @notice Get all the facet addresses used by a diamond.
+    /// @return facetAddresses_
+    function facetAddresses() external view returns (address[] memory facetAddresses_);
+
+    /// @notice Gets the facet that supports the given selector.
+    /// @dev If facet is not found return address(0).
+    /// @param _functionSelector The function selector.
+    /// @return facetAddress_ The facet address.
+    function facetAddress(bytes4 _functionSelector) external view returns (address facetAddress_);
+}
+
+contract Diamond {
+
+    event DiamondCut(IDiamond.FacetCut[] _diamondCut, address _init, bytes _calldata);
+
+    // NOTE: These will be set to internal constants once the library has actually been deployed
+    address public baseLibrary;
+    address public selectorHelper;
+
+    bool initiliazed;
+
+    function _diamondSetup() internal {
+        require(!initiliazed, "!init");
+
+        // we can inititialize any default variables here if desired with a delegateCall and emit it in the event
+        emit DiamondCut(
+            // struct containing the address of the library, the add enum and array of all function selectors
+            SelectorHelper(selectorHelper).diamondCut(),
+            // init address to call if applicable
+            address(0),
+            // call data to send the init address if applicable
+            new bytes(0)    
+        );
+
+        // make sure we can't initiliaze again
+        initiliazed = true;
+    }
+
+    // TODO: Implement the Diamon Loupe function using the selector helper
+
+
+    // exeute a function on the baseLibrary and return any value.
+    fallback() external payable {
+        // load our target address
+        address _baseLibrary = baseLibrary;
+        // Execute external function from facet using delegatecall and return any value.
+        assembly {
+            // copy function selector and any arguments
+            calldatacopy(0, 0, calldatasize())
+             // execute function call using the facet
+            let result := delegatecall(gas(), _baseLibrary, 0, calldatasize(), 0, 0)
+            // get any return value
+            returndatacopy(0, 0, returndatasize())
+            // return any return value or error back to the caller
+            switch result
+                case 0 {
+                    revert(0, returndatasize())
+                }
+                default {
+                    return(0, returndatasize())
+                }
+        }
+    }
+
+    receive() external payable {}
+}

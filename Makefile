@@ -4,6 +4,9 @@ update:; forge update
 build  :; forge build
 size  :; forge build --sizes
 
+# storage inspection
+inspect :; forge inspect ${contract} storage-layout --pretty
+
 # local tests without fork
 test  :; forge test
 trace  :; forge test -vvv
