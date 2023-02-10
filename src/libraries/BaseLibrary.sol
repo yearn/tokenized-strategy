@@ -6,6 +6,8 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import {IBaseStrategy} from "../interfaces/IBaseStrategy.sol";
+
 library BaseLibrary {
     using SafeERC20 for ERC20;
     using Math for uint256;
@@ -59,6 +61,7 @@ library BaseLibrary {
 
 
     struct ERC20Data {
+        ERC20 asset;
         mapping(address => uint256) balances;
         mapping(address => mapping(address => uint256)) allowances;
         uint256 totalSupply;
@@ -79,9 +82,15 @@ library BaseLibrary {
         address treasury;
     }
 
+    struct AccessData {
+        address management;
+        address keeper;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                CONSTANT
     //////////////////////////////////////////////////////////////*/
+
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
@@ -97,108 +106,198 @@ library BaseLibrary {
     bytes32 internal constant PROFIT_LOCKING_STORAGE =
         bytes32(uint256(keccak256("yearn.profit.locking.storage")) - 1);
 
+    // storage slot to use for the permissined addresses for a strategy
+    bytes32 internal constant ACCESS_CONTROL_STORAGE =
+        bytes32(uint256(keccak256("yearn.access.control.storage")) - 1);
+
+
     /*//////////////////////////////////////////////////////////////
                     STORAGE GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     
-    function _erc20Storage() private pure returns (ERC20Data storage s) {
+
+    function _erc20Storage() private pure returns (ERC20Data storage e) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
         bytes32 slot = ERC20_STRATEGY_STORAGE;
         assembly {
-            s.slot := slot
+            e.slot := slot
         }
     }
 
-    function _assetsStorage() private pure returns (AssetsData storage s) {
+    function _assetsStorage() private pure returns (AssetsData storage a) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
         bytes32 slot = PROFIT_LOCKING_STORAGE;
         assembly {
-            s.slot := slot
+            a.slot := slot
         }
     }
 
-    function _profitStorage() private pure returns (ProfitData storage s) {
+    function _profitStorage() private pure returns (ProfitData storage p) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
         bytes32 slot = PROFIT_LOCKING_STORAGE;
         assembly {
-            s.slot := slot
+            p.slot := slot
         }
+    }
+
+    function _accessStorage() private pure returns (AccessData storage c) {
+        // Since STORAGE_SLOT is a constant, we have to put a variable
+        // on the stack to access it from an inline assembly block.
+        bytes32 slot = ACCESS_CONTROL_STORAGE;
+        assembly {
+            c.slot := slot
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                INITILIZATION OF DEFAULT STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    function init(ERC20 _asset, address _management) external {
+        // cache storage pointer
+        ERC20Data storage e = _erc20Storage();
+
+        // make sure we aren't initiliazed
+        require(address(e.asset) == address(0), "!init");
+        // set the strategys underlying asset
+        e.asset = _asset;
+
+        // set the default management address
+        _accessStorage().management = _management;
+
+        // cache profit data pointer
+        ProfitData storage p = _profitStorage();
+        // default to a 10 day profit unlock period
+        p.profitMaxUnlockTime = 10 days;
+        // default to a 10% performance fee
+        p.performanceFee = 1_000;
+        // set last report to this block
+        p.lastReport = block.timestamp;
     }
 
     /*//////////////////////////////////////////////////////////////
                         ERC4626 FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
-    function deposit(ERC20 asset, uint256 assets, address receiver)
+    function deposit(uint256 assets, address receiver)
         public
-        returns (uint256 shares)
-    {
+        returns (uint256 shares) {
+        // check lower than max
+        require(
+            assets <= IBaseStrategy(address(this)).maxDeposit(receiver),
+            "ERC4626: deposit more than max"
+        );
+
         // Check for rounding error since we round down in previewDeposit.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
         // Need to transfer before minting or ERC777s could reenter.
-        asset.safeTransferFrom(msg.sender, address(this), assets);
+        _erc20Storage().asset.safeTransferFrom(msg.sender, address(this), assets);
 
-        // mint
+        // mint shares
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
+
+        // let strategy invest the funds if applicable
+        _depositFunds(assets);
     }
 
-    function mint(ERC20 asset, uint256 shares, address receiver)
+    function mint(uint256 shares, address receiver)
         public
         returns (uint256 assets)
-    {
+    {   
+        require(shares <= IBaseStrategy(address(this)).maxMint(receiver), "ERC4626: mint more than max");
+
         assets = previewMint(shares); // No need to check for rounding error, previewMint rounds up.
 
         // Need to transfer before minting or ERC777s could reenter.
-        asset.safeTransferFrom(msg.sender, address(this), assets);
+        _erc20Storage().asset.safeTransferFrom(msg.sender, address(this), assets);
 
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
+
+        // let strategy invest the funds if applicable
+        _depositFunds(assets);
     }
 
-    // pre withdraw hook
-    function beforeWithdraw(
+    function withdraw(
         uint256 assets,
+        address receiver,
         address owner
     ) public returns (uint256 shares) {
+        require(
+            assets <= IBaseStrategy(address(this)).maxWithdraw(owner),
+            "ERC4626: withdraw more than max"
+        );
+
         shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
 
         if (msg.sender != owner) {
             _spendAllowance(owner, msg.sender, shares);
         }
+
+        _freeFunds(assets);
+
+        _burn(owner, shares);
+
+        _erc20Storage().asset.safeTransfer(receiver, assets);
+
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
-    // pre redeem hook
-    function beforeRedeem(
+    function redeem(
         uint256 shares,
+        address receiver,
         address owner
     ) public returns (uint256 assets) {
+        require(shares <= IBaseStrategy(address(this)).maxRedeem(owner), "ERC4626: redeem more than max");
+
         if (msg.sender != owner) {
             _spendAllowance(owner, msg.sender, shares);
         }
 
         // Check for rounding error since we round down in previewRedeem.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
-    }
 
-    function afterWithdraw(
-        ERC20 asset, 
-        uint256 assets,
-        uint256 shares,
-        address receiver,
-        address owner
-    ) public {
+        // withdraw if we dont have enough idle
+        _freeFunds(assets);
+
         _burn(owner, shares);
 
-        asset.safeTransfer(receiver, assets);
+        _erc20Storage().asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    // post deposit/report hook to deposit any loose funds
+    function _depositFunds(uint256 _newAmount) internal {
+        AssetsData storage a = _assetsStorage();
+
+        // invest if applicable
+        uint256 toInvest = a.totalIdle + _newAmount;
+        uint256 invested = IBaseStrategy(address(this)).invest(toInvest);
+
+        // adjust total Assets
+        a.totalDebt += invested;
+        // check if we invested all the loose asset
+        a.totalIdle = invested >= toInvest ? 0 : toInvest - invested;
+    }
+
+    function _freeFunds(uint256 _amount) internal {
+        AssetsData storage a = _assetsStorage();
+
+        // withdraw if we dont have enough idle
+        uint256 idle = a.totalIdle;
+        uint256 withdrawn = idle >= _amount ? IBaseStrategy(address(this)).freeFunds(_amount) : 0;
+
+        // adjust state variables
+        a.totalIdle -= idle > _amount ? _amount : idle;
+        a.totalDebt -= withdrawn;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -249,6 +348,8 @@ library BaseLibrary {
             // mint the rest of profit to self for locking
             _mint(address(this), sharesToLock);
         }
+
+        // TODO: Should this account for losses like vault does
 
         // lock (profit - fees) of shares issued
         uint256 remainingTime;
@@ -396,6 +497,8 @@ library BaseLibrary {
     /*//////////////////////////////////////////////////////////////
                         ERC20 FUNCIONS
     //////////////////////////////////////////////////////////////*/
+
+    // TODO: ADD permit functions
 
     function balanceOf(address account)
         public

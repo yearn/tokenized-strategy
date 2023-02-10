@@ -10,7 +10,7 @@ contract MockStrategy is BaseStrategy {
         return _amount;
     }
 
-    function _withdraw(uint256 _amount) internal override returns (uint256) {
+    function _freeFunds(uint256 _amount) internal override returns (uint256) {
         return _amount;
     }
 

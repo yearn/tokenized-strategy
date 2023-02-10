@@ -78,6 +78,13 @@ make trace-test test=testStrategy
 
 See here for some tips on testing [`Testing Tips`](https://book.getfoundry.sh/forge/tests.html)
 
+## Storage Layout
+
+To print out the storage layout of any contract (e.g 'test/MockStrategy.sol')
+
+```sh
+make inspect contract=MockStrategy
+```
 
 # Resources
 
