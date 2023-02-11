@@ -17,7 +17,6 @@ interface IBaseFee {
 }
 
 abstract contract BaseStrategy is Diamond, IBaseStrategy {
-
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
@@ -34,29 +33,29 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
         ERC20 _asset,
         string memory name_,
         string memory symbol_
-    ) { 
+    ) {
         _initialize(_asset, name_, symbol_, msg.sender);
     }
 
     function initialize(
         ERC20 _asset,
         string memory name_,
-        string memory symbol_,  
+        string memory symbol_,
         address _management
     ) external {
-         _initialize(_asset, name_, symbol_, _management);
+        _initialize(_asset, name_, symbol_, _management);
     }
 
     function _initialize(
         ERC20 _asset,
         string memory name_,
-        string memory symbol_, 
+        string memory symbol_,
         address _management
     ) internal {
         // make sure we have not been initialized
         require(address(asset) == address(0), "!init");
         // set up the diamond
-        //_diamondSetup();
+        _diamondSetup();
 
         // set ERC20 variables
         asset = _asset;
@@ -72,7 +71,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
                    DEPOSIT WITHDRAW HOOKS
     //////////////////////////////////////////////////////////////*/
 
-    // These function are left external so they can be called by the lbrary after deposits and 
+    // These function are left external so they can be called by the lbrary after deposits and
     // during withdraws. If the library was delegateCalled from this address then msg.sender will be this address
 
     function invest(uint256 _assets) external returns (uint256) {
@@ -85,9 +84,23 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
         return _freeFunds(_amount);
     }
 
+    function totalInvested() external returns (uint256) {
+        require(msg.sender == address(this), "!Auth");
+        return _totalInvested();
+    }
+
     /*//////////////////////////////////////////////////////////////
                     NEEDED TO OVERRIDEN BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
+
+    // will invest up to the amount of 'assets' and return the actual amount that was invested
+    // TODO: this should be able to invest asset.balnceOf(address(this)) since its always post report/deposit
+    //      depositing donated want wont reflect in pps until the next report cycle.
+    // Should do any needed param checks, 0 will get passed in as 'assets'
+    function _invest(uint256 assets)
+        internal
+        virtual
+        returns (uint256 invested);
 
     // Will attempt to free the 'amount' of assets and return the acutal amount
     function _freeFunds(uint256 amount)
@@ -95,22 +108,15 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
         virtual
         returns (uint256 withdrawnAmount);
 
-    // will invest up to the amount of 'assets' and return the actual amount that was invested
-    // TODO: this should be able to invest asset.balnceOf(address(this)) since its always post report/deposit
-    //      depositing donated want wont reflect in pps until the next report cycle.    
-    function _invest(uint256 assets)
-        internal
-        virtual
-        returns (uint256 invested);
-
     // internal non-view function to return the accurate amount of funds currently invested
     // should do any needed accrual etc. before returning the the amount invested
+    // This can leave all assets uninvested if desired as there will always be a _invest() call at the end of the report
     function _totalInvested() internal virtual returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
-    
+
     function _reportTrigger() internal view virtual returns (bool) {
         return false;
         // TODO: should this default to a library reportTrigger ?
@@ -152,14 +158,10 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
         return _reportTrigger();
     }
 
-    // NOTE: these functions are kept in the Base due to the simple nature and to give strategist 
+    // NOTE: these functions are kept in the Base due to the simple nature and to give strategist
     //      the ability to override the internal version for illiquid strategies
 
-    function maxDeposit(address _owner)
-        external
-        view
-        returns (uint256)
-    {
+    function maxDeposit(address _owner) external view returns (uint256) {
         return _maxDeposit(_owner);
     }
 
@@ -167,11 +169,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
         return _maxMint(_owner);
     }
 
-    function maxWithdraw(address _owner)
-        external
-        view
-        returns (uint256)
-    {
+    function maxWithdraw(address _owner) external view returns (uint256) {
         return _maxWithdraw(_owner);
     }
 
@@ -193,7 +191,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
                         ERC20 FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    // NOTE: We keep these simple read only function in the Base since they are immutable 
+    // NOTE: We keep these simple read only function in the Base since they are immutable
 
     /**
      * @dev Returns the name of the token.
@@ -218,5 +216,4 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     function decimals() public view returns (uint8) {
         return _decimals;
     }
-
 }

@@ -13,10 +13,9 @@ import {SelectorHelper} from "../../SelectorHelper.sol";
 import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 
 contract Setup is ExtendedTest {
-
     MockErc20 public token;
     Generic4626 public strategy;
-    
+
     SelectorHelper public selectorHelper;
 
     address public user = address(10);
@@ -25,28 +24,64 @@ contract Setup is ExtendedTest {
     uint256 public maxFuzzAmount = 1e50;
 
     function setUp() public virtual {
+        // deploy the selector helper first to get a deterministic location
+        bytes4[] memory selectors = getSelectors();
+        selectorHelper = new SelectorHelper(address(BaseLibrary), selectors);
 
+        // create token we will be using as the underlying asset
         token = new MockErc20("Test Token", "tTKN");
         // we save the mock base strategy as a Generic4626 to give it the needed interface
         strategy = Generic4626(address(new MockStrategy(token)));
 
-        // deploy the selector helper
-        bytes4[] memory selectors = new bytes4[](1);
-        selectorHelper = new SelectorHelper(selectors);
-
-        // set the slots for the baseLibrary and the selector helper to the correct addresses
+        // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0
-        vm.store(address(strategy), bytes32(0), bytes32(uint256(uint160(address(BaseLibrary)))));
-        // store the helper at slot 1
-        vm.store(address(strategy), bytes32(uint256(1)), bytes32(uint256(uint160(address(selectorHelper)))));
+        vm.store(
+            address(strategy),
+            bytes32(0),
+            bytes32(uint256(uint160(address(BaseLibrary))))
+        );
+
         // make sure our storage is set correctly
-        assertEq(MockStrategy(payable(address(strategy))).baseLibrary(), address(BaseLibrary), "lib slot");
-        assertEq(MockStrategy(payable(address(strategy))).selectorHelper(), address(selectorHelper), "helper slot");
+        assertEq(
+            MockStrategy(payable(address(strategy))).baseLibrary(),
+            address(BaseLibrary),
+            "lib slot"
+        );
 
         // label all the used addresses for traces
         vm.label(address(token), "token");
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");
         vm.label(address(selectorHelper), "selector heleper");
+    }
+
+    function getSelectors() public pure returns (bytes4[] memory selectors) {
+        string[21] memory _selectors = [
+            "dd62ed3e",
+            "095ea7b3",
+            "70a08231",
+            "07a2d13a",
+            "c6e6f592",
+            "a457c2d7",
+            "6e553f65",
+            "39509351",
+            "534021b0",
+            "94bf804d",
+            "ef8b30f7",
+            "b3d7f6b9",
+            "4cdad506",
+            "0a28a477",
+            "ba087652",
+            "969b1cdb",
+            "01e1d114",
+            "18160ddd",
+            "a9059cbb",
+            "23b872dd",
+            "b460af94"
+        ];
+        selectors = new bytes4[](_selectors.length);
+        for (uint256 i; i < _selectors.length; ++i) {
+            selectors[i] = bytes4(bytes(_selectors[i]));
+        }
     }
 }

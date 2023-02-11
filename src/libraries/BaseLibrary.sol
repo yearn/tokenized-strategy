@@ -49,16 +49,11 @@ library BaseLibrary {
         uint256 shares
     );
 
-    event Reported(
-        uint256 profit,
-        uint256 loss,
-        uint256 fees
-    );
+    event Reported(uint256 profit, uint256 loss, uint256 fees);
 
     /*//////////////////////////////////////////////////////////////
                         STORAGE STRUCTS
     //////////////////////////////////////////////////////////////*/
-
 
     struct ERC20Data {
         ERC20 asset;
@@ -88,9 +83,31 @@ library BaseLibrary {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               CONSTANT
+                            MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
+    modifier onlyManagement() {
+        _onlyManagement();
+        _;
+    }
+
+    modifier onlyKeepers() {
+        _onlyKeepers();
+        _;
+    }
+
+    function _onlyManagement() internal {
+        require(msg.sender == _accessStorage().management, "!auth");
+    }
+
+    function _onlyKeepers() internal {
+        AccessData storage c = _accessStorage();
+        require(msg.sender == c.management || msg.sender == c.keeper, "!auth");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANT
+    //////////////////////////////////////////////////////////////*/
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
@@ -99,7 +116,7 @@ library BaseLibrary {
     bytes32 internal constant ERC20_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.erc20.strategy.storage")) - 1);
 
-    bytes32 internal constant ASSETS_STRATEGY_STORAGE = 
+    bytes32 internal constant ASSETS_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.assets.strategy.storage")) - 1);
 
     // storage slot to use for report/ profit locking variables
@@ -110,11 +127,9 @@ library BaseLibrary {
     bytes32 internal constant ACCESS_CONTROL_STORAGE =
         bytes32(uint256(keccak256("yearn.access.control.storage")) - 1);
 
-
     /*//////////////////////////////////////////////////////////////
                     STORAGE GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    
 
     function _erc20Storage() private pure returns (ERC20Data storage e) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
@@ -184,7 +199,8 @@ library BaseLibrary {
 
     function deposit(uint256 assets, address receiver)
         public
-        returns (uint256 shares) {
+        returns (uint256 shares)
+    {
         // check lower than max
         require(
             assets <= IBaseStrategy(address(this)).maxDeposit(receiver),
@@ -195,7 +211,11 @@ library BaseLibrary {
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
         // Need to transfer before minting or ERC777s could reenter.
-        _erc20Storage().asset.safeTransferFrom(msg.sender, address(this), assets);
+        _erc20Storage().asset.safeTransferFrom(
+            msg.sender,
+            address(this),
+            assets
+        );
 
         // mint shares
         _mint(receiver, shares);
@@ -209,13 +229,20 @@ library BaseLibrary {
     function mint(uint256 shares, address receiver)
         public
         returns (uint256 assets)
-    {   
-        require(shares <= IBaseStrategy(address(this)).maxMint(receiver), "ERC4626: mint more than max");
+    {
+        require(
+            shares <= IBaseStrategy(address(this)).maxMint(receiver),
+            "ERC4626: mint more than max"
+        );
 
         assets = previewMint(shares); // No need to check for rounding error, previewMint rounds up.
 
         // Need to transfer before minting or ERC777s could reenter.
-        _erc20Storage().asset.safeTransferFrom(msg.sender, address(this), assets);
+        _erc20Storage().asset.safeTransferFrom(
+            msg.sender,
+            address(this),
+            assets
+        );
 
         _mint(receiver, shares);
 
@@ -255,7 +282,10 @@ library BaseLibrary {
         address receiver,
         address owner
     ) public returns (uint256 assets) {
-        require(shares <= IBaseStrategy(address(this)).maxRedeem(owner), "ERC4626: redeem more than max");
+        require(
+            shares <= IBaseStrategy(address(this)).maxRedeem(owner),
+            "ERC4626: redeem more than max"
+        );
 
         if (msg.sender != owner) {
             _spendAllowance(owner, msg.sender, shares);
@@ -293,7 +323,9 @@ library BaseLibrary {
 
         // withdraw if we dont have enough idle
         uint256 idle = a.totalIdle;
-        uint256 withdrawn = idle >= _amount ? IBaseStrategy(address(this)).freeFunds(_amount) : 0;
+        uint256 withdrawn = idle >= _amount
+            ? IBaseStrategy(address(this)).freeFunds(_amount)
+            : 0;
 
         // adjust state variables
         a.totalIdle -= idle > _amount ? _amount : idle;
@@ -304,13 +336,16 @@ library BaseLibrary {
                         PROFIT LOCKING
     //////////////////////////////////////////////////////////////*/
 
-    // TODO: import V3 type logic for reporting profits
-    function report(uint256 _invested)
+    function report()
         public
+        onlyKeepers
         returns (uint256 profit, uint256 loss)
     {
         // burn unlocked shares
         _burnUnlockedShares();
+
+        // tell the strategy to report the real total assets it has
+        uint256 _invested = IBaseStrategy(address(this)).totalInvested();
 
         AssetsData storage a = _assetsStorage();
 
@@ -379,11 +414,15 @@ library BaseLibrary {
             p.profitUnlockingRate = 0;
         }
 
+        // update storage variables
+        a.totalDebt = debt;
         p.lastReport = block.timestamp;
 
         // emit event with info
         emit Reported(profit, loss, fees);
 
+        // invest any idle funds
+        _depositFunds(0);
     }
 
     function _burnUnlockedShares() internal {
@@ -392,35 +431,35 @@ library BaseLibrary {
             return;
         }
 
-        // TODO: this doesnt
         // update variables (done here to keep _unlcokdedShares() as a view function)
-        if (_profitStorage().fullProfitUnlockDate <= block.timestamp) {
-            _profitStorage().profitUnlockingRate = 0;
+        if (_profitStorage().fullProfitUnlockDate > block.timestamp) {
+            _profitStorage().lastReport = block.timestamp;
         }
 
         _burn(address(this), unlcokdedShares);
     }
-
 
     /*//////////////////////////////////////////////////////////////
                             ACCOUNTING LOGIC
     //////////////////////////////////////////////////////////////*/
 
     function totalAssets() public view returns (uint256) {
-        return _assetsStorage().totalIdle + _assetsStorage().totalDebt;
+        AssetsData storage a = _assetsStorage();
+        return a.totalIdle + a.totalDebt;
     }
 
-    // TODO: cant override totalSupply() with a call to totalSupply() but cant access _totalSupply
     function totalSupply() public view returns (uint256) {
         return _erc20Storage().totalSupply - _unlockedShares();
     }
 
     function _unlockedShares() internal view returns (uint256) {
-        uint256 _fullProfitUnlockDate = _profitStorage().fullProfitUnlockDate;
+        // should save 2 extra calls for most of the time
+        ProfitData storage p = _profitStorage();
+        uint256 _fullProfitUnlockDate = p.fullProfitUnlockDate;
         uint256 unlockedShares = 0;
         if (_fullProfitUnlockDate > block.timestamp) {
             unlockedShares =
-                (_profitStorage().profitUnlockingRate * (block.timestamp - _profitStorage().lastReport)) /
+                (p.profitUnlockingRate * (block.timestamp - p.lastReport)) /
                 MAX_BPS_EXTENDED;
         } else if (_fullProfitUnlockDate != 0) {
             // All shares have been unlocked
@@ -430,11 +469,7 @@ library BaseLibrary {
         return unlockedShares;
     }
 
-    function convertToShares(uint256 assets)
-        public
-        view
-        returns (uint256)
-    {
+    function convertToShares(uint256 assets) public view returns (uint256) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
 
         return
@@ -443,11 +478,7 @@ library BaseLibrary {
                 : assets.mulDiv(supply, totalAssets(), Math.Rounding.Down);
     }
 
-    function convertToAssets(uint256 shares)
-        public
-        view
-        returns (uint256)
-    {
+    function convertToAssets(uint256 shares) public view returns (uint256) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
 
         return
@@ -456,11 +487,7 @@ library BaseLibrary {
                 : shares.mulDiv(totalAssets(), supply, Math.Rounding.Down);
     }
 
-    function previewDeposit(uint256 assets)
-        public
-        view
-        returns (uint256)
-    {
+    function previewDeposit(uint256 assets) public view returns (uint256) {
         return convertToShares(assets);
     }
 
@@ -473,11 +500,7 @@ library BaseLibrary {
                 : shares.mulDiv(totalAssets(), supply, Math.Rounding.Up);
     }
 
-    function previewWithdraw(uint256 assets)
-        public
-        view
-        returns (uint256)
-    {
+    function previewWithdraw(uint256 assets) public view returns (uint256) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
 
         return
@@ -486,13 +509,15 @@ library BaseLibrary {
                 : assets.mulDiv(supply, totalAssets(), Math.Rounding.Up);
     }
 
-    function previewRedeem(uint256 shares)
-        public
-        view
-        returns (uint256)
-    {
+    function previewRedeem(uint256 shares) public view returns (uint256) {
         return convertToAssets(shares);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                        SETTER FUNCIONS
+    //////////////////////////////////////////////////////////////*/
+
+    // TODO implement setter function for variables like performance fee unlock rate etc.
 
     /*//////////////////////////////////////////////////////////////
                         ERC20 FUNCIONS
@@ -500,11 +525,7 @@ library BaseLibrary {
 
     // TODO: ADD permit functions
 
-    function balanceOf(address account)
-        public
-        view
-        returns (uint256)
-    {
+    function balanceOf(address account) public view returns (uint256) {
         return _erc20Storage().balances[account];
     }
 
@@ -516,10 +537,7 @@ library BaseLibrary {
      * - `to` cannot be the zero address.
      * - the caller must have a balance of at least `amount`.
      */
-    function transfer(address to, uint256 amount)
-        public
-        returns (bool)
-    {
+    function transfer(address to, uint256 amount) public returns (bool) {
         address owner = msg.sender;
         _transfer(owner, to, amount);
         return true;
@@ -546,10 +564,7 @@ library BaseLibrary {
      *
      * - `spender` cannot be the zero address.
      */
-    function approve(address spender, uint256 amount)
-        public
-        returns (bool)
-    {
+    function approve(address spender, uint256 amount) public returns (bool) {
         address owner = msg.sender;
         _approve(owner, spender, amount);
         return true;
@@ -680,7 +695,6 @@ library BaseLibrary {
     function _burn(address account, uint256 amount) internal {
         require(account != address(0), "ERC20: burn from the zero address");
 
-
         uint256 accountBalance = _erc20Storage().balances[account];
         require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
         unchecked {
@@ -740,6 +754,4 @@ library BaseLibrary {
             }
         }
     }
-
-    
 }

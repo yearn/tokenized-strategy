@@ -4,18 +4,19 @@ pragma solidity 0.8.14;
 import {IDiamond} from "./interfaces/IDiamond.sol";
 
 contract SelectorHelper {
-
     bytes4[] private selectors;
     IDiamond.FacetCut[] private cuts;
 
-    constructor(bytes4[] memory _selectors) {
+    constructor(address _library, bytes4[] memory _selectors) {
         selectors = _selectors;
 
         //set up diamond cut struct
-
+        cuts.push(
+            IDiamond.FacetCut(_library, IDiamond.FacetCutAction.Add, _selectors)
+        );
     }
 
-    function diamondCut() external view returns(IDiamond.FacetCut[] memory) {
+    function diamondCut() external view returns (IDiamond.FacetCut[] memory) {
         return cuts;
     }
 

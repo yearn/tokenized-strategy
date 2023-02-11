@@ -5,17 +5,22 @@ import {SelectorHelper, IDiamond} from "./SelectorHelper.sol";
 import {IDiamondLoupe} from "./interfaces/IDiamondLoupe.sol";
 
 contract Diamond {
-
-    event DiamondCut(IDiamond.FacetCut[] _diamondCut, address _init, bytes _calldata);
+    event DiamondCut(
+        IDiamond.FacetCut[] _diamondCut,
+        address _init,
+        bytes _calldata
+    );
 
     struct Facet {
         address facetAddress;
         bytes4[] functionSelectors;
     }
-    
+
     // NOTE: These will be set to internal constants once the library has actually been deployed
     address public baseLibrary;
-    address public selectorHelper;
+    // NOTE: holder address based on expected location during tests
+    address public constant selectorHelper =
+        0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
 
     bool initiliazed;
 
@@ -29,7 +34,7 @@ contract Diamond {
             // init address to call if applicable
             address(0),
             // call data to send the init address if applicable
-            new bytes(0)    
+            new bytes(0)
         );
 
         // make sure we can't initiliaze again
@@ -43,7 +48,11 @@ contract Diamond {
     // TODO: Implement the Diamon Loupe function using the selector helper
     /// @notice Gets all facet addresses and their four byte function selectors.
     /// @return facets_ Facet
-    function facets() external view returns (IDiamondLoupe.Facet[] memory facets_) {
+    function facets()
+        external
+        view
+        returns (IDiamondLoupe.Facet[] memory facets_)
+    {
         // we forward all calls to the base library
         facets_[0] = IDiamondLoupe.Facet(
             baseLibrary,
@@ -54,15 +63,24 @@ contract Diamond {
     /// @notice Gets all the function selectors supported by a specific facet.
     /// @param _facet The facet address.
     /// @return facetFunctionSelectors_
-    function facetFunctionSelectors(address _facet) external view returns (bytes4[] memory facetFunctionSelectors_) {
-        if(_facet == baseLibrary) {
-            facetFunctionSelectors_ = SelectorHelper(selectorHelper).functionSelectors();
+    function facetFunctionSelectors(address _facet)
+        external
+        view
+        returns (bytes4[] memory facetFunctionSelectors_)
+    {
+        if (_facet == baseLibrary) {
+            facetFunctionSelectors_ = SelectorHelper(selectorHelper)
+                .functionSelectors();
         }
     }
 
     /// @notice Get all the facet addresses used by a diamond.
     /// @return facetAddresses_
-    function facetAddresses() external view returns (address[] memory facetAddresses_) {
+    function facetAddresses()
+        external
+        view
+        returns (address[] memory facetAddresses_)
+    {
         // we only use one facet
         facetAddresses_[0] = baseLibrary;
     }
@@ -71,37 +89,50 @@ contract Diamond {
     /// @dev If facet is not found return address(0).
     /// @param _functionSelector The function selector.
     /// @return facetAddress_ The facet address.
-    function facetAddress(bytes4 _functionSelector) external view returns (address facetAddress_) {
-        bytes4[] memory facetFunctionSelectors_ = SelectorHelper(selectorHelper).functionSelectors();
+    function facetAddress(bytes4 _functionSelector)
+        external
+        view
+        returns (address facetAddress_)
+    {
+        bytes4[] memory facetFunctionSelectors_ = SelectorHelper(selectorHelper)
+            .functionSelectors();
 
-        for(uint256 i; i < facetFunctionSelectors_.length; ++i) {
-            if(facetFunctionSelectors_[i] == _functionSelector) return baseLibrary;
+        for (uint256 i; i < facetFunctionSelectors_.length; ++i) {
+            if (facetFunctionSelectors_[i] == _functionSelector)
+                return baseLibrary;
         }
     }
-
 
     // NOTE: Should we have a seperate management access library to control ownership?
 
     // exeute a function on the baseLibrary and return any value.
     fallback() external payable {
         // load our target address
+        // IF needed this could call the helper contract based on the sig to make external library functions unavailable
         address _baseLibrary = baseLibrary;
         // Execute external function from facet using delegatecall and return any value.
         assembly {
             // copy function selector and any arguments
             calldatacopy(0, 0, calldatasize())
-             // execute function call using the facet
-            let result := delegatecall(gas(), _baseLibrary, 0, calldatasize(), 0, 0)
+            // execute function call using the facet
+            let result := delegatecall(
+                gas(),
+                _baseLibrary,
+                0,
+                calldatasize(),
+                0,
+                0
+            )
             // get any return value
             returndatacopy(0, 0, returndatasize())
             // return any return value or error back to the caller
             switch result
-                case 0 {
-                    revert(0, returndatasize())
-                }
-                default {
-                    return(0, returndatasize())
-                }
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
         }
     }
 

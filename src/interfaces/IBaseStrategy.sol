@@ -2,7 +2,6 @@
 pragma solidity 0.8.14;
 
 interface IBaseStrategy {
-
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -50,8 +49,6 @@ interface IBaseStrategy {
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
-
-
     /*//////////////////////////////////////////////////////////////
                             IMMUTABLE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -67,4 +64,6 @@ interface IBaseStrategy {
     function invest(uint256 _assets) external returns (uint256);
 
     function freeFunds(uint256 _amount) external returns (uint256);
+
+    function totalInvested() external returns (uint256);
 }

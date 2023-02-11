@@ -55,7 +55,7 @@ contract StrategyTest is Setup {
         uint256 amountOut = strategy.deposit(_amount, user);
 
         assertEq(amountOut, _amount, "Amount out");
-        assertEq(amountOut, strategy.balanceOf(user), "bal"); 
+        assertEq(amountOut, strategy.balanceOf(user), "bal");
     }
 
     function testMint(uint256 _amount) public {
@@ -70,7 +70,7 @@ contract StrategyTest is Setup {
         uint256 amountOut = strategy.mint(_amount, user);
 
         assertEq(amountOut, _amount, "Amount out");
-        assertEq(amountOut, strategy.balanceOf(user), "bal"); 
+        assertEq(amountOut, strategy.balanceOf(user), "bal");
     }
 
     function testWithdraw(uint256 _amount) public {
@@ -85,7 +85,7 @@ contract StrategyTest is Setup {
         uint256 amountOut = strategy.deposit(_amount, user);
 
         assertEq(amountOut, _amount, "Amount out");
-        assertEq(amountOut, strategy.balanceOf(user), "bal"); 
+        assertEq(amountOut, strategy.balanceOf(user), "bal");
 
         skip(10);
 
@@ -93,7 +93,7 @@ contract StrategyTest is Setup {
         uint256 sharesOut = strategy.withdraw(_amount, user, user);
 
         assertEq(sharesOut, _amount, "assets out");
-        assertEq(0, strategy.balanceOf(user), "bal"); 
+        assertEq(0, strategy.balanceOf(user), "bal");
     }
 
     function testRedeem(uint256 _amount) public {
@@ -108,7 +108,7 @@ contract StrategyTest is Setup {
         uint256 amountOut = strategy.deposit(_amount, user);
 
         assertEq(amountOut, _amount, "Amount out");
-        assertEq(amountOut, strategy.balanceOf(user), "bal"); 
+        assertEq(amountOut, strategy.balanceOf(user), "bal");
 
         skip(10);
 
@@ -116,7 +116,6 @@ contract StrategyTest is Setup {
         uint256 assetsOut = strategy.redeem(_amount, user, user);
 
         assertEq(assetsOut, _amount, "assets out");
-        assertEq(0, strategy.balanceOf(user), "bal"); 
+        assertEq(0, strategy.balanceOf(user), "bal");
     }
-
 }
