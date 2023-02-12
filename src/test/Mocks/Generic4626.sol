@@ -11,4 +11,8 @@ contract Generic4626 is ERC4626 {
         ERC4626(IERC20Metadata(address(_asset)))
         ERC20("a", "a")
     {}
+
+    function setManagement(address) public {
+        return;
+    }
 }

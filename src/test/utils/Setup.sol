@@ -18,6 +18,7 @@ contract Setup is ExtendedTest {
 
     SelectorHelper public selectorHelper;
 
+    address public management = address(1);
     address public user = address(10);
 
     uint256 public minFuzzAmount = 1;
@@ -48,11 +49,15 @@ contract Setup is ExtendedTest {
             "lib slot"
         );
 
+        // set management of the strategy
+        strategy.setManagement(management);
+
         // label all the used addresses for traces
+        vm.label(management, "management");
         vm.label(address(token), "token");
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");
-        vm.label(address(selectorHelper), "selector heleper");
+        vm.label(address(selectorHelper), "selector heleper");   
     }
 
     function getSelectors() public pure returns (bytes4[] memory selectors) {

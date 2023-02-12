@@ -8,6 +8,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IBaseStrategy} from "../interfaces/IBaseStrategy.sol";
 
+import "forge-std/console.sol";
+
 library BaseLibrary {
     using SafeERC20 for ERC20;
     using Math for uint256;
@@ -96,11 +98,11 @@ library BaseLibrary {
         _;
     }
 
-    function _onlyManagement() internal {
+    function _onlyManagement() internal view {
         require(msg.sender == _accessStorage().management, "!auth");
     }
 
-    function _onlyKeepers() internal {
+    function _onlyKeepers() internal view {
         AccessData storage c = _accessStorage();
         require(msg.sender == c.management || msg.sender == c.keeper, "!auth");
     }
@@ -518,6 +520,28 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     // TODO implement setter function for variables like performance fee unlock rate etc.
+
+    // TODO: These should all emit events
+
+    function setManagement(address _management) external onlyManagement {
+        _accessStorage().management = _management;
+    }
+
+    function setKeeper(address _keeper) external onlyManagement {
+        _accessStorage().keeper = _keeper;
+    }
+
+    function setPerformanceFee(uint256 _performanceFee) external onlyManagement {
+        _profitStorage().performanceFee = _performanceFee;
+    }
+
+    function setTreasury(address _treasury) external onlyManagement {
+        _profitStorage().treasury = _treasury;
+    }
+
+    function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external onlyManagement {
+        _profitStorage().profitMaxUnlockTime = _profitMaxUnlockTime;
+    }
 
     /*//////////////////////////////////////////////////////////////
                         ERC20 FUNCIONS

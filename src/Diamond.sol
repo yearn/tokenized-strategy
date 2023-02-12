@@ -26,7 +26,7 @@ contract Diamond {
 
     function _diamondSetup() internal {
         require(!initiliazed, "!init");
-
+        
         // we can inititialize any default variables here if desired with a delegateCall and emit it in the event
         emit DiamondCut(
             // struct containing the address of the library, the add enum and array of all function selectors
@@ -36,6 +36,7 @@ contract Diamond {
             // call data to send the init address if applicable
             new bytes(0)
         );
+        
 
         // make sure we can't initiliaze again
         initiliazed = true;

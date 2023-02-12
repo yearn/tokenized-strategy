@@ -12,6 +12,7 @@ import {BaseLibrary} from "./libraries/BaseLibrary.sol";
 // The base contract to inherit from that provides the diamond functionality
 import {Diamond} from "./Diamond.sol";
 
+
 interface IBaseFee {
     function isCurrentBaseFeeAcceptable() external view returns (bool);
 }
