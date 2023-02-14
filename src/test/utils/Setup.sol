@@ -6,33 +6,34 @@ import {ExtendedTest} from "./ExtendedTest.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {MockErc20} from "../Mocks/MockErc20.sol";
-import {Generic4626} from "../Mocks/Generic4626.sol";
+import {IStrategy} from "../Mocks/IStrategy.sol";
 import {MockStrategy} from "../Mocks/MockStrategy.sol";
 
-import {SelectorHelper} from "../../SelectorHelper.sol";
+import {DiamondHelper} from "../../DiamondHelper.sol";
 import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 
 contract Setup is ExtendedTest {
     MockErc20 public token;
-    Generic4626 public strategy;
+    IStrategy public strategy;
 
-    SelectorHelper public selectorHelper;
+    DiamondHelper public diamondHelper;
 
     address public management = address(1);
+    address public keeper = address(2);
     address public user = address(10);
 
     uint256 public minFuzzAmount = 1;
-    uint256 public maxFuzzAmount = 1e50;
+    uint256 public maxFuzzAmount = 1e30;
 
     function setUp() public virtual {
         // deploy the selector helper first to get a deterministic location
         bytes4[] memory selectors = getSelectors();
-        selectorHelper = new SelectorHelper(address(BaseLibrary), selectors);
+        diamondHelper = new DiamondHelper(address(BaseLibrary), selectors);
 
         // create token we will be using as the underlying asset
         token = new MockErc20("Test Token", "tTKN");
-        // we save the mock base strategy as a Generic4626 to give it the needed interface
-        strategy = Generic4626(address(new MockStrategy(token)));
+        // we save the mock base strategy as a IStrategy to give it the needed interface
+        strategy = IStrategy(address(new MockStrategy(token)));
 
         // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0
@@ -49,6 +50,8 @@ contract Setup is ExtendedTest {
             "lib slot"
         );
 
+        // set keeper
+        strategy.setKeeper(keeper);
         // set management of the strategy
         strategy.setManagement(management);
 
@@ -57,7 +60,7 @@ contract Setup is ExtendedTest {
         vm.label(address(token), "token");
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");
-        vm.label(address(selectorHelper), "selector heleper");   
+        vm.label(address(diamondHelper), "selector heleper");   
     }
 
     function getSelectors() public pure returns (bytes4[] memory selectors) {

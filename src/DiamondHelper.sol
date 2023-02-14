@@ -3,7 +3,7 @@ pragma solidity 0.8.14;
 
 import {IDiamond} from "./interfaces/IDiamond.sol";
 
-contract SelectorHelper {
+contract DiamondHelper {
     bytes4[] private selectors;
     IDiamond.FacetCut[] private cuts;
 

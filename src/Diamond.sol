@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.14;
 
-import {SelectorHelper, IDiamond} from "./SelectorHelper.sol";
+import {DiamondHelper, IDiamond} from "./DiamondHelper.sol";
 import {IDiamondLoupe} from "./interfaces/IDiamondLoupe.sol";
 
 contract Diamond {
@@ -19,27 +19,21 @@ contract Diamond {
     // NOTE: These will be set to internal constants once the library has actually been deployed
     address public baseLibrary;
     // NOTE: holder address based on expected location during tests
-    address public constant selectorHelper =
+    address public constant diamondHelper =
         0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
 
-    bool initiliazed;
-
     function _diamondSetup() internal {
-        require(!initiliazed, "!init");
-        
-        // we can inititialize any default variables here if desired with a delegateCall and emit it in the event
+
+        // emit the standard DiamondCut event with the values from out helper contract
         emit DiamondCut(
             // struct containing the address of the library, the add enum and array of all function selectors
-            SelectorHelper(selectorHelper).diamondCut(),
+            DiamondHelper(diamondHelper).diamondCut(),
             // init address to call if applicable
             address(0),
             // call data to send the init address if applicable
             new bytes(0)
         );
-        
 
-        // make sure we can't initiliaze again
-        initiliazed = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -57,7 +51,7 @@ contract Diamond {
         // we forward all calls to the base library
         facets_[0] = IDiamondLoupe.Facet(
             baseLibrary,
-            SelectorHelper(selectorHelper).functionSelectors()
+            DiamondHelper(diamondHelper).functionSelectors()
         );
     }
 
@@ -70,7 +64,7 @@ contract Diamond {
         returns (bytes4[] memory facetFunctionSelectors_)
     {
         if (_facet == baseLibrary) {
-            facetFunctionSelectors_ = SelectorHelper(selectorHelper)
+            facetFunctionSelectors_ = DiamondHelper(diamondHelper)
                 .functionSelectors();
         }
     }
@@ -95,7 +89,7 @@ contract Diamond {
         view
         returns (address facetAddress_)
     {
-        bytes4[] memory facetFunctionSelectors_ = SelectorHelper(selectorHelper)
+        bytes4[] memory facetFunctionSelectors_ = DiamondHelper(diamondHelper)
             .functionSelectors();
 
         for (uint256 i; i < facetFunctionSelectors_.length; ++i) {

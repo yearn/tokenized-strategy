@@ -49,6 +49,8 @@ interface IBaseStrategy {
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
+    error Unauthorized();
+
     /*//////////////////////////////////////////////////////////////
                             IMMUTABLE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -66,4 +68,6 @@ interface IBaseStrategy {
     function freeFunds(uint256 _amount) external returns (uint256);
 
     function totalInvested() external returns (uint256);
+
+    function tend() external;
 }

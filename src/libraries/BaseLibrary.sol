@@ -8,7 +8,20 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IBaseStrategy} from "../interfaces/IBaseStrategy.sol";
 
+interface IBaseFee {
+    function isCurrentBaseFeeAcceptable() external view returns (bool);
+}
+
 import "forge-std/console.sol";
+
+/// TODO: 
+//      Add api version
+//      Add health check and setters
+//      add events
+//      add emergency exit? and emergency admin?
+//      forceReportTrigger?
+
+
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -98,11 +111,11 @@ library BaseLibrary {
         _;
     }
 
-    function _onlyManagement() internal view {
+    function _onlyManagement() public view {
         require(msg.sender == _accessStorage().management, "!auth");
     }
 
-    function _onlyKeepers() internal view {
+    function _onlyKeepers() public view {
         AccessData storage c = _accessStorage();
         require(msg.sender == c.management || msg.sender == c.keeper, "!auth");
     }
@@ -516,14 +529,40 @@ library BaseLibrary {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        SETTER FUNCIONS
+                        Getter FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
-    // TODO implement setter function for variables like performance fee unlock rate etc.
+    // External view function to pull public variables from storage
+
+    function management() external view returns (address) {
+        return _accessStorage().management;
+    }
+
+    function keeper() external view returns (address) {
+        return _accessStorage().keeper;
+    }
+
+    function performanceFee() external view returns (uint256) {
+        return _profitStorage().performanceFee;
+    }
+
+    function treasury() external view returns (address) {
+        return _profitStorage().treasury;
+    }
+
+    function profitMaxUnlockTime() external view returns (uint256) {
+        return _profitStorage().profitMaxUnlockTime;
+    }
+
+
+    /*//////////////////////////////////////////////////////////////
+                        SETTER FUNCIONS
+    //////////////////////////////////////////////////////////////*/
 
     // TODO: These should all emit events
 
     function setManagement(address _management) external onlyManagement {
+        require(_management != address(0), "ZERO ADDRESS");
         _accessStorage().management = _management;
     }
 
@@ -532,6 +571,7 @@ library BaseLibrary {
     }
 
     function setPerformanceFee(uint256 _performanceFee) external onlyManagement {
+        require(_performanceFee < MAX_BPS, "MAX BPS");
         _profitStorage().performanceFee = _performanceFee;
     }
 
@@ -541,6 +581,22 @@ library BaseLibrary {
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external onlyManagement {
         _profitStorage().profitMaxUnlockTime = _profitMaxUnlockTime;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    REPORT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function reportTrigger() external view returns (bool) {
+        if (isBaseFeeAcceptable()) {
+            return block.timestamp - _profitStorage().lastReport > _profitStorage().profitMaxUnlockTime;
+        }
+    }
+
+    function isBaseFeeAcceptable() public view returns (bool) {
+        return
+            IBaseFee(0xb5e1CAcB567d98faaDB60a1fD4820720141f064F)
+                .isCurrentBaseFeeAcceptable();
     }
 
     /*//////////////////////////////////////////////////////////////

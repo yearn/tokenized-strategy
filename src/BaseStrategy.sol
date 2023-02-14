@@ -12,17 +12,26 @@ import {BaseLibrary} from "./libraries/BaseLibrary.sol";
 // The base contract to inherit from that provides the diamond functionality
 import {Diamond} from "./Diamond.sol";
 
-
-interface IBaseFee {
-    function isCurrentBaseFeeAcceptable() external view returns (bool);
-}
-
 abstract contract BaseStrategy is Diamond, IBaseStrategy {
+
+    modifier onlySelf() {
+        _onlySelf();
+        _;
+    }
+
+    function _onlySelf() internal view {
+        if(msg.sender != address(this)) revert Unauthorized();
+    }
+
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
+
     // Underlying asset the Strategy is earning yield on
     ERC20 public asset;
+
+    // TODO: Should these all be moved to the library to save bytecode
+    
     // The decimals of the underlying asset we will use as well
     uint8 private _decimals;
     // The Name  of the strategy
@@ -47,6 +56,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
         _initialize(_asset, name_, symbol_, _management);
     }
 
+    // TODO: ADD additional variables for keeper performance fee etc?
     function _initialize(
         ERC20 _asset,
         string memory name_,
@@ -75,19 +85,25 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     // These function are left external so they can be called by the lbrary after deposits and
     // during withdraws. If the library was delegateCalled from this address then msg.sender will be this address
 
-    function invest(uint256 _assets) external returns (uint256) {
-        require(msg.sender == address(this), "!Auth");
+    function invest(uint256 _assets) external onlySelf returns (uint256) {
+        //if(msg.sender != address(this)) revert Unauthorized();
         return _invest(_assets);
     }
 
-    function freeFunds(uint256 _amount) external returns (uint256) {
-        require(msg.sender == address(this), "!Auth");
+    function freeFunds(uint256 _amount) external onlySelf returns (uint256) {
+        //if(msg.sender != address(this)) revert Unauthorized();
         return _freeFunds(_amount);
     }
 
-    function totalInvested() external returns (uint256) {
-        require(msg.sender == address(this), "!Auth");
+    function totalInvested() external onlySelf returns (uint256) {
+        //if(msg.sender != address(this)) revert Unauthorized();
         return _totalInvested();
+    }
+
+    function tend() external {
+        // call the library modifier?
+        BaseLibrary._onlyKeepers();
+        _tend();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -118,74 +134,37 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
 
-    function _reportTrigger() internal view virtual returns (bool) {
-        return false;
-        // TODO: should this default to a library reportTrigger ?
-        //if (!_isBaseFeeAcceptable()) {
-        //    return block.timestamp - _profitStorage().lastReport > _profitStorage().profitMaxUnlockTime;
-        //}
+    // The trigger used to determine when a keeper should have the strategy report profit
+    function reportTrigger() external view virtual returns (bool) {
+        return BaseLibrary.reportTrigger();
     }
 
+    // Optional trigger if tend() will be used to reinvest profit between reports
+    function tendTrigger() external view virtual returns (bool) {
+        return false;
+    }
+
+    // Optional function that should simply realize profits to compound between reports
+    // This will do no accounting and no effect any pps of the vault till report() is called
     function _tend() internal virtual {}
 
-    function _maxDeposit(address) internal view virtual returns (uint256) {
+    // NOTE: these functions are kept in the Base to give strategists
+    //      the ability to override them for illiquid strategies
+
+    function maxDeposit(address /*_owner*/) external virtual view returns (uint256) {
         return type(uint256).max;
     }
 
-    function _maxMint(address) internal view virtual returns (uint256) {
+    function maxMint(address /*_owner*/) external virtual view returns (uint256) {
         return type(uint256).max;
     }
 
-    function _maxWithdraw(address owner)
-        internal
-        view
-        virtual
-        returns (uint256)
-    {
-        return BaseLibrary.convertToAssets(BaseLibrary.balanceOf(owner));
+    function maxWithdraw(address _owner) external virtual view returns (uint256) {
+        return BaseLibrary.convertToAssets(BaseLibrary.balanceOf(_owner));
     }
 
-    function _maxRedeem(address owner) internal view virtual returns (uint256) {
-        return BaseLibrary.balanceOf(owner);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                   EXTERNAL VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    // TODO: Make non-reentrant for all 4 deposit/withdraw functions
-
-    function reportTrigger() external view returns (bool) {
-        return _reportTrigger();
-    }
-
-    // NOTE: these functions are kept in the Base due to the simple nature and to give strategist
-    //      the ability to override the internal version for illiquid strategies
-
-    function maxDeposit(address _owner) external view returns (uint256) {
-        return _maxDeposit(_owner);
-    }
-
-    function maxMint(address _owner) external view returns (uint256) {
-        return _maxMint(_owner);
-    }
-
-    function maxWithdraw(address _owner) external view returns (uint256) {
-        return _maxWithdraw(_owner);
-    }
-
-    function maxRedeem(address _owner) external view returns (uint256) {
-        return _maxRedeem(_owner);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        HELPER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    function _isBaseFeeAcceptable() internal view returns (bool) {
-        return
-            IBaseFee(0xb5e1CAcB567d98faaDB60a1fD4820720141f064F)
-                .isCurrentBaseFeeAcceptable();
+    function maxRedeem(address _owner) external virtual view returns (uint256) {
+        return BaseLibrary.balanceOf(_owner);
     }
 
     /*//////////////////////////////////////////////////////////////
