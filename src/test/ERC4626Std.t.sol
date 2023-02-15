@@ -3,10 +3,7 @@ pragma solidity ^0.8.0;
 
 import "erc4626-tests/ERC4626.test.sol";
 
-import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
-import {ERC4626Mock, IERC20Metadata} from "@openzeppelin/contracts/mocks/ERC4626Mock.sol";
-
-import {Setup, ERC20, MockStrategy} from "./utils/Setup.sol";
+import {Setup} from "./utils/Setup.sol";
 
 // SEE https://github.com/a16z/erc4626-tests
 contract ERC4626StdTest is ERC4626Test, Setup {
