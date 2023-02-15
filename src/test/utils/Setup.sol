@@ -5,7 +5,8 @@ import "forge-std/console.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import {MockErc20} from "../Mocks/MockErc20.sol";
+import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
+
 import {IStrategy} from "../Mocks/IStrategy.sol";
 import {MockStrategy} from "../Mocks/MockStrategy.sol";
 
@@ -13,7 +14,7 @@ import {DiamondHelper} from "../../DiamondHelper.sol";
 import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 
 contract Setup is ExtendedTest {
-    MockErc20 public token;
+    ERC20Mock public token;
     IStrategy public strategy;
 
     DiamondHelper public diamondHelper;
@@ -31,9 +32,9 @@ contract Setup is ExtendedTest {
         diamondHelper = new DiamondHelper(address(BaseLibrary), selectors);
 
         // create token we will be using as the underlying asset
-        token = new MockErc20("Test Token", "tTKN");
+        token = new ERC20Mock("Test Token", "tTKN", address(this), 0);
         // we save the mock base strategy as a IStrategy to give it the needed interface
-        strategy = IStrategy(address(new MockStrategy(token)));
+        strategy = IStrategy(address(new MockStrategy(address(token))));
 
         // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0

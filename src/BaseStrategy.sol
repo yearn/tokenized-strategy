@@ -2,7 +2,6 @@
 pragma solidity 0.8.14;
 
 // Generic OpenZeppelin Dependencies
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // Custom Base Strategy interfacies
@@ -28,7 +27,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     // Underlying asset the Strategy is earning yield on
-    ERC20 public asset;
+    address public asset;
 
     // TODO: Should these all be moved to the library to save bytecode
     
@@ -40,7 +39,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     string private _symbol;
 
     constructor(
-        ERC20 _asset,
+        address _asset,
         string memory name_,
         string memory symbol_
     ) {
@@ -48,7 +47,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     }
 
     function initialize(
-        ERC20 _asset,
+        address _asset,
         string memory name_,
         string memory symbol_,
         address _management
@@ -58,13 +57,13 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
 
     // TODO: ADD additional variables for keeper performance fee etc?
     function _initialize(
-        ERC20 _asset,
+        address _asset,
         string memory name_,
         string memory symbol_,
         address _management
     ) internal {
         // make sure we have not been initialized
-        require(address(asset) == address(0), "!init");
+        require(asset == address(0), "!init");
         // set up the diamond
         _diamondSetup();
 
@@ -72,7 +71,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
         asset = _asset;
         _name = name_;
         _symbol = symbol_;
-        _decimals = IERC20Metadata(address(_asset)).decimals();
+        _decimals = IERC20Metadata(_asset).decimals();
 
         // initilize the strategies storage variables
         BaseLibrary.init(_asset, _management);
