@@ -186,14 +186,14 @@ library BaseLibrary {
                 INITILIZATION OF DEFAULT STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    function init(ERC20 _asset, address _management) external {
+    function init(address _asset, address _management) external {
         // cache storage pointer
         ERC20Data storage e = _erc20Storage();
 
         // make sure we aren't initiliazed
         require(address(e.asset) == address(0), "!init");
         // set the strategys underlying asset
-        e.asset = _asset;
+        e.asset = ERC20(_asset);
 
         // set the default management address
         _accessStorage().management = _management;
@@ -534,6 +534,14 @@ library BaseLibrary {
 
     // External view function to pull public variables from storage
 
+    function totalIdle() external view returns (uint256) {
+        return _assetsStorage().totalIdle;
+    }
+
+    function totalDebt() external view returns (uint256) {
+        return _assetsStorage().totalDebt;
+    }
+
     function management() external view returns (address) {
         return _accessStorage().management;
     }
@@ -553,7 +561,6 @@ library BaseLibrary {
     function profitMaxUnlockTime() external view returns (uint256) {
         return _profitStorage().profitMaxUnlockTime;
     }
-
 
     /*//////////////////////////////////////////////////////////////
                         SETTER FUNCIONS

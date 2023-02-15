@@ -6,7 +6,7 @@ import {Setup} from "./utils/Setup.sol";
 
 import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 
-contract StrategyTest is Setup {
+contract AccesssControlTest is Setup {
     function setUp() public override {
         super.setUp();
     }
@@ -131,4 +131,6 @@ contract StrategyTest is Setup {
         assertEq(strategy.symbol(), _symbol);
         assertEq(strategy.management(), _management);
     }   
+
+    // TODO: add calls to invest, freeFunds totalInvested and tend
 }
