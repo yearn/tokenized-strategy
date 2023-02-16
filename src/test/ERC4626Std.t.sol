@@ -9,7 +9,7 @@ import {Setup} from "./utils/Setup.sol";
 contract ERC4626StdTest is ERC4626Test, Setup {
     function setUp() public override(ERC4626Test, Setup) {
         super.setUp();
-        _underlying_ = address(token);
+        _underlying_ = address(asset);
         _vault_ = address(strategy);
         _delta_ = 0;
         _vaultMayBeEmpty = true;

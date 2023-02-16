@@ -12,14 +12,13 @@ import {BaseLibrary} from "./libraries/BaseLibrary.sol";
 import {Diamond} from "./Diamond.sol";
 
 abstract contract BaseStrategy is Diamond, IBaseStrategy {
-
     modifier onlySelf() {
         _onlySelf();
         _;
     }
 
     function _onlySelf() internal view {
-        if(msg.sender != address(this)) revert Unauthorized();
+        if (msg.sender != address(this)) revert Unauthorized();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -30,7 +29,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     address public asset;
 
     // TODO: Should these all be moved to the library to save bytecode
-    
+
     // The decimals of the underlying asset we will use as well
     uint8 private _decimals;
     // The Name  of the strategy
@@ -85,17 +84,14 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     // during withdraws. If the library was delegateCalled from this address then msg.sender will be this address
 
     function invest(uint256 _assets) external onlySelf returns (uint256) {
-        //if(msg.sender != address(this)) revert Unauthorized();
         return _invest(_assets);
     }
 
     function freeFunds(uint256 _amount) external onlySelf returns (uint256) {
-        //if(msg.sender != address(this)) revert Unauthorized();
         return _freeFunds(_amount);
     }
 
     function totalInvested() external onlySelf returns (uint256) {
-        //if(msg.sender != address(this)) revert Unauthorized();
         return _totalInvested();
     }
 
@@ -133,6 +129,11 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
 
+    // TODO: Decide if we want to leave these commented out and default to library to save bytecod
+    //      Could then be implemented in the inherited version if desired
+    //      Saves ~ .22KB of size
+
+    /*
     // The trigger used to determine when a keeper should have the strategy report profit
     function reportTrigger() external view virtual returns (bool) {
         return BaseLibrary.reportTrigger();
@@ -142,6 +143,7 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     function tendTrigger() external view virtual returns (bool) {
         return false;
     }
+    **/
 
     // Optional function that should simply realize profits to compound between reports
     // This will do no accounting and no effect any pps of the vault till report() is called
@@ -150,19 +152,28 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     // NOTE: these functions are kept in the Base to give strategists
     //      the ability to override them for illiquid strategies
 
-    function maxDeposit(address /*_owner*/) external virtual view returns (uint256) {
+    function maxDeposit(
+        address /*_owner*/
+    ) external view virtual returns (uint256) {
         return type(uint256).max;
     }
 
-    function maxMint(address /*_owner*/) external virtual view returns (uint256) {
+    function maxMint(
+        address /*_owner*/
+    ) external view virtual returns (uint256) {
         return type(uint256).max;
     }
 
-    function maxWithdraw(address _owner) external virtual view returns (uint256) {
+    function maxWithdraw(address _owner)
+        external
+        view
+        virtual
+        returns (uint256)
+    {
         return BaseLibrary.convertToAssets(BaseLibrary.balanceOf(_owner));
     }
 
-    function maxRedeem(address _owner) external virtual view returns (uint256) {
+    function maxRedeem(address _owner) external view virtual returns (uint256) {
         return BaseLibrary.balanceOf(_owner);
     }
 

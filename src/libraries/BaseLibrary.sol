@@ -14,14 +14,12 @@ interface IBaseFee {
 
 import "forge-std/console.sol";
 
-/// TODO: 
+/// TODO:
 //      Add api version
-//      Add health check and setters
+//      Add health check
 //      add events
 //      add emergency exit? and emergency admin?
 //      forceReportTrigger?
-
-
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -65,6 +63,12 @@ library BaseLibrary {
     );
 
     event Reported(uint256 profit, uint256 loss, uint256 fees);
+
+    /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error Unauthorized();
 
     /*//////////////////////////////////////////////////////////////
                         STORAGE STRUCTS
@@ -112,12 +116,13 @@ library BaseLibrary {
     }
 
     function _onlyManagement() public view {
-        require(msg.sender == _accessStorage().management, "!auth");
+        if (msg.sender != _accessStorage().management) revert Unauthorized();
     }
 
     function _onlyKeepers() public view {
         AccessData storage c = _accessStorage();
-        require(msg.sender == c.management || msg.sender == c.keeper, "!auth");
+        if (msg.sender != c.management && msg.sender != c.keeper)
+            revert Unauthorized();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -158,7 +163,7 @@ library BaseLibrary {
     function _assetsStorage() private pure returns (AssetsData storage a) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
-        bytes32 slot = PROFIT_LOCKING_STORAGE;
+        bytes32 slot = ASSETS_STRATEGY_STORAGE;
         assembly {
             a.slot := slot
         }
@@ -202,6 +207,8 @@ library BaseLibrary {
         ProfitData storage p = _profitStorage();
         // default to a 10 day profit unlock period
         p.profitMaxUnlockTime = 10 days;
+        // default to mangement as the treasury TODO: allow this to be customized
+        p.treasury = _management;
         // default to a 10% performance fee
         p.performanceFee = 1_000;
         // set last report to this block
@@ -328,6 +335,7 @@ library BaseLibrary {
         uint256 invested = IBaseStrategy(address(this)).invest(toInvest);
 
         // adjust total Assets
+        // TODO: should there be a min check here in case donated asset was accounted for?
         a.totalDebt += invested;
         // check if we invested all the loose asset
         a.totalIdle = invested >= toInvest ? 0 : toInvest - invested;
@@ -338,13 +346,17 @@ library BaseLibrary {
 
         // withdraw if we dont have enough idle
         uint256 idle = a.totalIdle;
-        uint256 withdrawn = idle >= _amount
-            ? IBaseStrategy(address(this)).freeFunds(_amount)
-            : 0;
 
-        // adjust state variables
-        a.totalIdle -= idle > _amount ? _amount : idle;
-        a.totalDebt -= withdrawn;
+        if (idle >= _amount) {
+            a.totalIdle -= _amount;
+        } else {
+            // free what we need -  what we have
+            a.totalDebt -= IBaseStrategy(address(this)).freeFunds(
+                _amount - idle
+            );
+            // we are giving the full amount of our idle funds
+            a.totalIdle = 0;
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -384,9 +396,6 @@ library BaseLibrary {
         if (profit > 0) {
             // asses fees
             fees = (profit * p.performanceFee) / MAX_BPS;
-            // TODO: add a max percent to take?
-            // dont take more than the profit
-            if (fees > profit) fees = profit;
 
             // issue all new shares to self
             sharesToLock = convertToShares(profit - fees);
@@ -409,10 +418,11 @@ library BaseLibrary {
         }
 
         // Update unlocking rate and time to fully unlocked
-        uint256 previouslyLockedShares = balanceOf(address(this));
-        uint256 totalLockedShares = previouslyLockedShares + sharesToLock;
+        uint256 totalLockedShares = balanceOf(address(this));
         uint256 _profitMaxUnlockTime = p.profitMaxUnlockTime;
         if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
+            uint256 previouslyLockedShares = totalLockedShares - sharesToLock;
+
             // new_profit_locking_period is a weighted average between the remaining time of the previously locked shares and the PROFIT_MAX_UNLOCK_TIME
             uint256 newProfitLockingPeriod = (previouslyLockedShares *
                 remainingTime +
@@ -471,7 +481,7 @@ library BaseLibrary {
         // should save 2 extra calls for most of the time
         ProfitData storage p = _profitStorage();
         uint256 _fullProfitUnlockDate = p.fullProfitUnlockDate;
-        uint256 unlockedShares = 0;
+        uint256 unlockedShares;
         if (_fullProfitUnlockDate > block.timestamp) {
             unlockedShares =
                 (p.profitUnlockingRate * (block.timestamp - p.lastReport)) /
@@ -534,6 +544,10 @@ library BaseLibrary {
 
     // External view function to pull public variables from storage
 
+    function pricePerShare() external view returns (uint256) {
+        return convertToAssets(10**IBaseStrategy(address(this)).decimals());
+    }
+
     function totalIdle() external view returns (uint256) {
         return _assetsStorage().totalIdle;
     }
@@ -577,16 +591,23 @@ library BaseLibrary {
         _accessStorage().keeper = _keeper;
     }
 
-    function setPerformanceFee(uint256 _performanceFee) external onlyManagement {
+    function setPerformanceFee(uint256 _performanceFee)
+        external
+        onlyManagement
+    {
         require(_performanceFee < MAX_BPS, "MAX BPS");
         _profitStorage().performanceFee = _performanceFee;
     }
 
     function setTreasury(address _treasury) external onlyManagement {
+        require(_treasury != address(0), "ZERO ADDRESS");
         _profitStorage().treasury = _treasury;
     }
 
-    function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external onlyManagement {
+    function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime)
+        external
+        onlyManagement
+    {
         _profitStorage().profitMaxUnlockTime = _profitMaxUnlockTime;
     }
 
@@ -595,9 +616,19 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     function reportTrigger() external view returns (bool) {
-        if (isBaseFeeAcceptable()) {
-            return block.timestamp - _profitStorage().lastReport > _profitStorage().profitMaxUnlockTime;
-        }
+        // nothing to report
+        if (_assetsStorage().totalDebt == 0) return false;
+
+        // to costly
+        if (!isBaseFeeAcceptable()) return false;
+
+        return
+            block.timestamp - _profitStorage().lastReport >
+            _profitStorage().profitMaxUnlockTime;
+    }
+
+    function tendTrigger() external pure returns (bool) {
+        return false;
     }
 
     function isBaseFeeAcceptable() public view returns (bool) {

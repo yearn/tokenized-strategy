@@ -6,7 +6,9 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {BaseStrategy, BaseLibrary} from "../../BaseStrategy.sol";
 
 contract MockStrategy is BaseStrategy {
-    constructor(address _asset) BaseStrategy(_asset, "Test Strategy", "tsSTGY") {}
+    constructor(address _asset)
+        BaseStrategy(_asset, "Test Strategy", "tsSTGY")
+    {}
 
     function _invest(uint256 _amount) internal override returns (uint256) {
         return _amount;

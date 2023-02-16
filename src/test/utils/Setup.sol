@@ -12,27 +12,34 @@ import {DiamondHelper} from "../../DiamondHelper.sol";
 import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 
 contract Setup is ExtendedTest {
-    ERC20Mock public token;
+    ERC20Mock public asset;
     IStrategy public strategy;
 
     DiamondHelper public diamondHelper;
 
     address public management = address(1);
-    address public keeper = address(2);
+    address public treasury = address(2);
+    address public keeper = address(3);
     address public user = address(10);
 
-    uint256 public minFuzzAmount = 1;
+    // we need to be able to divide by 10 twice and get non 0 number
+    uint256 public minFuzzAmount = 100;
     uint256 public maxFuzzAmount = 1e30;
+    // TODO: make these adjustable
+    uint256 public decimals = 18;
+    uint256 public wad = 1e18;
+    uint256 public profitMaxUnlockTime = 10 days;
+    uint256 public maxPPSPercentDelta = 100;
 
     function setUp() public virtual {
         // deploy the selector helper first to get a deterministic location
         bytes4[] memory selectors = getSelectors();
         diamondHelper = new DiamondHelper(address(BaseLibrary), selectors);
 
-        // create token we will be using as the underlying asset
-        token = new ERC20Mock("Test Token", "tTKN", address(this), 0);
+        // create asset we will be using as the underlying asset
+        asset = new ERC20Mock("Test asset", "tTKN", address(this), 0);
         // we save the mock base strategy as a IStrategy to give it the needed interface
-        strategy = IStrategy(address(new MockStrategy(address(token))));
+        strategy = IStrategy(address(new MockStrategy(address(asset))));
 
         // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0
@@ -51,15 +58,33 @@ contract Setup is ExtendedTest {
 
         // set keeper
         strategy.setKeeper(keeper);
+        // set treasury
+        strategy.setTreasury(treasury);
         // set management of the strategy
         strategy.setManagement(management);
 
         // label all the used addresses for traces
         vm.label(management, "management");
-        vm.label(address(token), "token");
+        vm.label(keeper, "keeper");
+        vm.label(treasury, "treasury");
+        vm.label(address(asset), "asset");
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");
-        vm.label(address(diamondHelper), "selector heleper");   
+        vm.label(address(diamondHelper), "selector heleper");
+    }
+
+    function mintAndDepositIntoStrategy(address _user, uint256 _amount) public {
+        asset.mint(_user, _amount);
+
+        vm.prank(_user);
+        asset.approve(address(strategy), _amount);
+
+        uint256 beforeBalance = asset.balanceOf(address(strategy));
+
+        vm.prank(_user);
+        strategy.deposit(_amount, _user);
+
+        assertEq(asset.balanceOf(address(strategy)), beforeBalance + _amount);
     }
 
     function getSelectors() public pure returns (bytes4[] memory selectors) {

@@ -23,7 +23,6 @@ contract Diamond {
         0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
 
     function _diamondSetup() internal {
-
         // emit the standard DiamondCut event with the values from out helper contract
         emit DiamondCut(
             // struct containing the address of the library, the add enum and array of all function selectors
@@ -33,7 +32,6 @@ contract Diamond {
             // call data to send the init address if applicable
             new bytes(0)
         );
-
     }
 
     /*//////////////////////////////////////////////////////////////

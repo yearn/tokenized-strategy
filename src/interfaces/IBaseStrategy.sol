@@ -55,6 +55,13 @@ interface IBaseStrategy {
                             IMMUTABLE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function initialize(
+        address _asset,
+        string memory name_,
+        string memory symbol_,
+        address _management
+    ) external;
+
     function maxDeposit(address _owner) external view returns (uint256);
 
     function maxMint(address _owner) external view returns (uint256);
@@ -70,4 +77,23 @@ interface IBaseStrategy {
     function totalInvested() external returns (uint256);
 
     function tend() external;
+
+    /**
+     * @dev Returns the name of the Vault.
+     */
+    function name() external view returns (string memory);
+
+    /**
+     * @dev Returns the symbol of the vault, usually a shorter version of the
+     * name.
+     */
+    function symbol() external view returns (string memory);
+
+    /**
+     * @dev Returns the number of decimals used to get its user representation.
+     * For example, if `decimals` equals `2`, a balance of `505` tokens should
+     * be displayed to a user as `5.05` (`505 / 10 ** 2`).
+     * This is based off of the decimals of the underlying asset
+     */
+    function decimals() external view returns (uint8);
 }
