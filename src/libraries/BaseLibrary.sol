@@ -6,6 +6,8 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import {DiamondHelper, IDiamond, IDiamondLoupe} from "../DiamondHelper.sol";
+
 import {IBaseStrategy} from "../interfaces/IBaseStrategy.sol";
 
 interface IBaseFee {
@@ -63,6 +65,12 @@ library BaseLibrary {
     );
 
     event Reported(uint256 profit, uint256 loss, uint256 fees);
+
+    event DiamondCut(
+        IDiamond.FacetCut[] _diamondCut,
+        address _init,
+        bytes _calldata
+    );
 
     /*//////////////////////////////////////////////////////////////
                                 Errors
@@ -128,6 +136,10 @@ library BaseLibrary {
     /*//////////////////////////////////////////////////////////////
                                CONSTANT
     //////////////////////////////////////////////////////////////*/
+
+    // NOTE: holder address based on expected location during tests
+    address public constant diamondHelper =
+        0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
@@ -213,6 +225,16 @@ library BaseLibrary {
         p.performanceFee = 1_000;
         // set last report to this block
         p.lastReport = block.timestamp;
+
+        // emit the standard DiamondCut event with the values from out helper contract
+        emit DiamondCut(
+            // struct containing the address of the library, the add enum and array of all function selectors
+            DiamondHelper(diamondHelper).diamondCut(),
+            // init address to call if applicable
+            address(0),
+            // call data to send the init address if applicable
+            new bytes(0)
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -351,6 +373,7 @@ library BaseLibrary {
             a.totalIdle -= _amount;
         } else {
             // free what we need -  what we have
+            // TODO: should account for errors here and not overflow
             a.totalDebt -= IBaseStrategy(address(this)).freeFunds(
                 _amount - idle
             );
@@ -635,6 +658,46 @@ library BaseLibrary {
         return
             IBaseFee(0xb5e1CAcB567d98faaDB60a1fD4820720141f064F)
                 .isCurrentBaseFeeAcceptable();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    EXTERNAL EIP-2535 VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    // TODO: Implement the Diamon Loupe function using the selector helper
+    /// @notice Gets all facet addresses and their four byte function selectors.
+    /// @return facets_ Facet
+    function facets() external view returns (IDiamondLoupe.Facet[] memory) {
+        return DiamondHelper(diamondHelper).facets();
+    }
+
+    /// @notice Gets all the function selectors supported by a specific facet.
+    /// @param _facet The facet address.
+    /// @return facetFunctionSelectors_
+    function facetFunctionSelectors(address _facet)
+        external
+        view
+        returns (bytes4[] memory)
+    {
+        return DiamondHelper(diamondHelper).facetFunctionSelectors(_facet);
+    }
+
+    /// @notice Get all the facet addresses used by a diamond.
+    /// @return facetAddresses_
+    function facetAddresses() external view returns (address[] memory) {
+        return DiamondHelper(diamondHelper).facetAddresses();
+    }
+
+    /// @notice Gets the facet that supports the given selector.
+    /// @dev If facet is not found return address(0).
+    /// @param _functionSelector The function selector.
+    /// @return facetAddress_ The facet address.
+    function facetAddress(bytes4 _functionSelector)
+        external
+        view
+        returns (address)
+    {
+        return DiamondHelper(diamondHelper).facetAddress(_functionSelector);
     }
 
     /*//////////////////////////////////////////////////////////////

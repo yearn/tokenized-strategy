@@ -93,6 +93,8 @@ contract AccesssControlTest is Setup {
         strategy.setPerformanceFee(_amount);
 
         assertEq(strategy.performanceFee(), _performanceFee);
+
+        // TODO: add a test with > MAX_BPS
     }
 
     function test_settingTreasury_reverts(address _address) public {

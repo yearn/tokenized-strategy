@@ -8,10 +8,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 import {BaseLibrary} from "./libraries/BaseLibrary.sol";
 
-// The base contract to inherit from that provides the diamond functionality
-import {Diamond} from "./Diamond.sol";
-
-abstract contract BaseStrategy is Diamond, IBaseStrategy {
+abstract contract BaseStrategy is IBaseStrategy {
     modifier onlySelf() {
         _onlySelf();
         _;
@@ -20,6 +17,9 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     function _onlySelf() internal view {
         if (msg.sender != address(this)) revert Unauthorized();
     }
+
+    // NOTE: This will be set to internal constants once the library has actually been deployed
+    address public baseLibrary;
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
@@ -63,8 +63,6 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     ) internal {
         // make sure we have not been initialized
         require(asset == address(0), "!init");
-        // set up the diamond
-        _diamondSetup();
 
         // set ERC20 variables
         asset = _asset;
@@ -133,17 +131,10 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     //      Could then be implemented in the inherited version if desired
     //      Saves ~ .22KB of size
 
-    /*
-    // The trigger used to determine when a keeper should have the strategy report profit
-    function reportTrigger() external view virtual returns (bool) {
-        return BaseLibrary.reportTrigger();
-    }
-
     // Optional trigger if tend() will be used to reinvest profit between reports
     function tendTrigger() external view virtual returns (bool) {
         return false;
     }
-    **/
 
     // Optional function that should simply realize profits to compound between reports
     // This will do no accounting and no effect any pps of the vault till report() is called
@@ -206,4 +197,37 @@ abstract contract BaseStrategy is Diamond, IBaseStrategy {
     function decimals() public view returns (uint8) {
         return _decimals;
     }
+
+    // exeute a function on the baseLibrary and return any value.
+    fallback() external payable {
+        // load our target address
+        // IF needed this could call the helper contract based on the sig to make external library functions unavailable
+        address _baseLibrary = baseLibrary;
+        // Execute external function from facet using delegatecall and return any value.
+        assembly {
+            // copy function selector and any arguments
+            calldatacopy(0, 0, calldatasize())
+            // execute function call using the facet
+            let result := delegatecall(
+                gas(),
+                _baseLibrary,
+                0,
+                calldatasize(),
+                0,
+                0
+            )
+            // get any return value
+            returndatacopy(0, 0, returndatasize())
+            // return any return value or error back to the caller
+            switch result
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
+        }
+    }
+
+    receive() external payable {}
 }
