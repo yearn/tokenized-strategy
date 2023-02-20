@@ -85,6 +85,7 @@ contract AccesssControlTest is Setup {
         uint256 _amount
     ) public {
         vm.assume(_amount >= 0 && _amount < 10_000);
+        vm.assume(_address != management);
 
         uint256 _performanceFee = strategy.performanceFee();
 
@@ -93,6 +94,8 @@ contract AccesssControlTest is Setup {
         strategy.setPerformanceFee(_amount);
 
         assertEq(strategy.performanceFee(), _performanceFee);
+
+        // TODO: add a test with > MAX_BPS
     }
 
     function test_settingTreasury_reverts(address _address) public {

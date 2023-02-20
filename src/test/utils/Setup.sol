@@ -34,7 +34,9 @@ contract Setup is ExtendedTest {
     function setUp() public virtual {
         // deploy the selector helper first to get a deterministic location
         bytes4[] memory selectors = getSelectors();
-        diamondHelper = new DiamondHelper(address(BaseLibrary), selectors);
+        diamondHelper = new DiamondHelper(selectors);
+
+        diamondHelper.setLibrary(address(BaseLibrary));
 
         // create asset we will be using as the underlying asset
         asset = new ERC20Mock("Test asset", "tTKN", address(this), 0);
