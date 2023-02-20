@@ -14,6 +14,16 @@ abstract contract BaseStrategy is IBaseStrategy {
         _;
     }
 
+    modifier onlyManagement() {
+        BaseLibrary.isManagement();
+        _;
+    }
+
+    modifier onlyKeepers() {
+        BaseLibrary.isKeeper();
+        _;
+    }
+
     function _onlySelf() internal view {
         if (msg.sender != address(this)) revert Unauthorized();
     }
@@ -81,21 +91,19 @@ abstract contract BaseStrategy is IBaseStrategy {
     // These function are left external so they can be called by the lbrary after deposits and
     // during withdraws. If the library was delegateCalled from this address then msg.sender will be this address
 
-    function invest(uint256 _assets) external onlySelf returns (uint256) {
-        return _invest(_assets);
+    function invest(uint256 _assets, bool _reported) external onlySelf {
+        _invest(_assets, _reported);
     }
 
-    function freeFunds(uint256 _amount) external onlySelf returns (uint256) {
-        return _freeFunds(_amount);
+    function freeFunds(uint256 _amount) external onlySelf{
+        _freeFunds(_amount);
     }
 
     function totalInvested() external onlySelf returns (uint256) {
         return _totalInvested();
     }
 
-    function tend() external {
-        // call the library modifier?
-        BaseLibrary._onlyKeepers();
+    function tend() external onlyKeepers {
         _tend();
     }
 
@@ -107,16 +115,14 @@ abstract contract BaseStrategy is IBaseStrategy {
     // TODO: this should be able to invest asset.balnceOf(address(this)) since its always post report/deposit
     //      depositing donated want wont reflect in pps until the next report cycle.
     // Should do any needed param checks, 0 will get passed in as 'assets'
-    function _invest(uint256 assets)
+    function _invest(uint256 assets, bool _reported)
         internal
-        virtual
-        returns (uint256 invested);
+        virtual;
 
     // Will attempt to free the 'amount' of assets and return the acutal amount
     function _freeFunds(uint256 amount)
         internal
-        virtual
-        returns (uint256 withdrawnAmount);
+        virtual;
 
     // internal non-view function to return the accurate amount of funds currently invested
     // should do any needed accrual etc. before returning the the amount invested
@@ -126,10 +132,6 @@ abstract contract BaseStrategy is IBaseStrategy {
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
-
-    // TODO: Decide if we want to leave these commented out and default to library to save bytecod
-    //      Could then be implemented in the inherited version if desired
-    //      Saves ~ .22KB of size
 
     // Optional trigger if tend() will be used to reinvest profit between reports
     function tendTrigger() external view virtual returns (bool) {

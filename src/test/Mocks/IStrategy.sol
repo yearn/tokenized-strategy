@@ -16,9 +16,9 @@ interface IStrategy is IERC4626 {
         address _management
     ) external;
 
-    function invest(uint256 _assets) external returns (uint256);
+    function invest(uint256 _assets, bool _reported) external;
 
-    function freeFunds(uint256 _amount) external returns (uint256);
+    function freeFunds(uint256 _amount) external;
 
     function totalInvested() external returns (uint256);
 

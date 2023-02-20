@@ -20,8 +20,8 @@ import "forge-std/console.sol";
 //      Add api version
 //      Add health check
 //      add events
-//      add emergency exit? and emergency admin?
-//      forceReportTrigger?
+//      add emergency exit and emergency admin?
+//      Trade factory implementation?
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -114,20 +114,20 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyManagement() {
-        _onlyManagement();
+        isManagement();
         _;
     }
 
     modifier onlyKeepers() {
-        _onlyKeepers();
+        isKeeper();
         _;
     }
 
-    function _onlyManagement() public view {
+    function isManagement() public view {
         if (msg.sender != _accessStorage().management) revert Unauthorized();
     }
 
-    function _onlyKeepers() public view {
+    function isKeeper() public view {
         AccessData storage c = _accessStorage();
         if (msg.sender != c.management && msg.sender != c.keeper)
             revert Unauthorized();
@@ -267,7 +267,7 @@ library BaseLibrary {
         emit Deposit(msg.sender, receiver, assets, shares);
 
         // let strategy invest the funds if applicable
-        _depositFunds(assets);
+        _depositFunds(assets, false);
     }
 
     function mint(uint256 shares, address receiver)
@@ -293,7 +293,7 @@ library BaseLibrary {
         emit Deposit(msg.sender, receiver, assets, shares);
 
         // let strategy invest the funds if applicable
-        _depositFunds(assets);
+        _depositFunds(assets, false);
     }
 
     function withdraw(
@@ -312,7 +312,7 @@ library BaseLibrary {
             _spendAllowance(owner, msg.sender, shares);
         }
 
-        _freeFunds(assets);
+        _withdrawFunds(assets);
 
         _burn(owner, shares);
 
@@ -339,7 +339,7 @@ library BaseLibrary {
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
         // withdraw if we dont have enough idle
-        _freeFunds(assets);
+        _withdrawFunds(assets);
 
         _burn(owner, shares);
 
@@ -349,34 +349,46 @@ library BaseLibrary {
     }
 
     // post deposit/report hook to deposit any loose funds
-    function _depositFunds(uint256 _newAmount) internal {
+    function _depositFunds(uint256 _newAmount, bool _reported) internal {
         AssetsData storage a = _assetsStorage();
+        ERC20 _asset = _erc20Storage().asset;
 
+        uint256 before = _asset.balanceOf(address(this));
         // invest if applicable
         uint256 toInvest = a.totalIdle + _newAmount;
-        uint256 invested = IBaseStrategy(address(this)).invest(toInvest);
+        IBaseStrategy(address(this)).invest(toInvest, _reported);
+
+        // get the actual amount invested for higher accuracy
+        // TODO: there should be a min check here in case donated asset was accounted for?
+        uint256 invested = before - _asset.balanceOf(address(this));
 
         // adjust total Assets
-        // TODO: should there be a min check here in case donated asset was accounted for?
         a.totalDebt += invested;
         // check if we invested all the loose asset
-        a.totalIdle = invested >= toInvest ? 0 : toInvest - invested;
+        a.totalIdle = toInvest - invested;
     }
 
-    function _freeFunds(uint256 _amount) internal {
+    // TODO: Make this better
+    //      This should return the actual amount freed so it can accept losses
+    function _withdrawFunds(uint256 _amount) internal {
         AssetsData storage a = _assetsStorage();
+        ERC20 _asset = _erc20Storage().asset;
 
-        // withdraw if we dont have enough idle
         uint256 idle = a.totalIdle;
 
         if (idle >= _amount) {
+            // we dont need to withdraw anything
             a.totalIdle -= _amount;
         } else {
-            // free what we need -  what we have
-            // TODO: should account for errors here and not overflow
-            a.totalDebt -= IBaseStrategy(address(this)).freeFunds(
-                _amount - idle
-            );
+            // withdraw if we dont have enough idle
+            uint256 before = _asset.balanceOf(address(this));
+            // free what we need - what we have
+            IBaseStrategy(address(this)).freeFunds(_amount - idle);
+
+            // get the exact amount to account for loss or errors
+            uint256 withdrawn = _asset.balanceOf(address(this)) - before;
+            // TODO: should account for errors here to not overflow or over withdraw
+            a.totalDebt -= withdrawn;
             // we are giving the full amount of our idle funds
             a.totalIdle = 0;
         }
@@ -386,6 +398,7 @@ library BaseLibrary {
                         PROFIT LOCKING
     //////////////////////////////////////////////////////////////*/
 
+    // This should only ever be called through protected relays as swaps will likely occur
     function report()
         public
         onlyKeepers
@@ -431,7 +444,7 @@ library BaseLibrary {
             _mint(address(this), sharesToLock);
         }
 
-        // TODO: Should this account for losses like vault does
+        // TODO: this should account for losses like vault does
 
         // lock (profit - fees) of shares issued
         uint256 remainingTime;
@@ -469,8 +482,8 @@ library BaseLibrary {
         // emit event with info
         emit Reported(profit, loss, fees);
 
-        // invest any idle funds
-        _depositFunds(0);
+        // invest any idle funds, tell strategy it is during a report call
+        _depositFunds(0, true);
     }
 
     function _burnUnlockedShares() internal {
@@ -638,6 +651,7 @@ library BaseLibrary {
                     REPORT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    // NOTE: Should this be moved to general helper contract or keep it her to allow it to be overridden
     function reportTrigger() external view returns (bool) {
         // nothing to report
         if (_assetsStorage().totalDebt == 0) return false;
@@ -648,10 +662,6 @@ library BaseLibrary {
         return
             block.timestamp - _profitStorage().lastReport >
             _profitStorage().profitMaxUnlockTime;
-    }
-
-    function tendTrigger() external pure returns (bool) {
-        return false;
     }
 
     function isBaseFeeAcceptable() public view returns (bool) {
