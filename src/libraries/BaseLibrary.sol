@@ -145,9 +145,11 @@ library BaseLibrary {
     uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
     // storage slot to use for ERC20 variables
+    // TODO: make this one longer than the rest to assure no collisions
     bytes32 internal constant ERC20_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.erc20.strategy.storage")) - 1);
 
+    // storage slot for debt and idle
     bytes32 internal constant ASSETS_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.assets.strategy.storage")) - 1);
 
@@ -407,7 +409,12 @@ library BaseLibrary {
         // burn unlocked shares
         _burnUnlockedShares();
 
+        // can we account for loose want instead of totalIdle so trade factories can airdrop profits safely
+        // TODO: is this a bad idea?
+        //uint256 idle = _erc20Storage().asset.balanceOf(address(this));
+
         // tell the strategy to report the real total assets it has
+        // TODO: account for loose want classified as debt
         uint256 _invested = IBaseStrategy(address(this)).totalInvested();
 
         AssetsData storage a = _assetsStorage();
@@ -715,7 +722,9 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     // TODO: ADD permit functions
-
+    // TODO: dont allow transfers to self?
+    
+    // TODO: account for unlocked shares for address(this)
     function balanceOf(address account) public view returns (uint256) {
         return _erc20Storage().balances[account];
     }

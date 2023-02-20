@@ -174,7 +174,7 @@ abstract contract BaseStrategy is IBaseStrategy {
                         ERC20 FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    // NOTE: We keep these simple read only function in the Base since they are immutable
+    // NOTE: Do We keep these simple read only function in the Base since they are immutable or move them to the library
 
     /**
      * @dev Returns the name of the token.
