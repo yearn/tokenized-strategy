@@ -382,6 +382,7 @@ library BaseLibrary {
             // we dont need to withdraw anything
             a.totalIdle -= _amount;
         } else {
+
             // withdraw if we dont have enough idle
             uint256 before = _asset.balanceOf(address(this));
             // free what we need - what we have
@@ -391,6 +392,7 @@ library BaseLibrary {
             uint256 withdrawn = _asset.balanceOf(address(this)) - before;
             // TODO: should account for errors here to not overflow or over withdraw
             a.totalDebt -= withdrawn;
+
             // we are giving the full amount of our idle funds
             a.totalIdle = 0;
         }
