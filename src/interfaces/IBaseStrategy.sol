@@ -70,9 +70,9 @@ interface IBaseStrategy {
 
     function maxRedeem(address _owner) external view returns (uint256);
 
-    function invest(uint256 _assets) external returns (uint256);
+    function invest(uint256 _assets, bool _reported) external;
 
-    function freeFunds(uint256 _amount) external returns (uint256);
+    function freeFunds(uint256 _amount) external;
 
     function totalInvested() external returns (uint256);
 

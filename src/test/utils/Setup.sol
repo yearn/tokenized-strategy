@@ -6,7 +6,7 @@ import {ExtendedTest} from "./ExtendedTest.sol";
 
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {IStrategy} from "../Mocks/IStrategy.sol";
-import {MockStrategy} from "../Mocks/MockStrategy.sol";
+import {MockStrategy, MockYieldSource} from "../Mocks/MockStrategy.sol";
 
 import {DiamondHelper} from "../../DiamondHelper.sol";
 import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
@@ -14,6 +14,7 @@ import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 contract Setup is ExtendedTest {
     ERC20Mock public asset;
     IStrategy public strategy;
+    MockYieldSource public yieldSource;
 
     DiamondHelper public diamondHelper;
 
@@ -40,8 +41,10 @@ contract Setup is ExtendedTest {
 
         // create asset we will be using as the underlying asset
         asset = new ERC20Mock("Test asset", "tTKN", address(this), 0);
+        // create a mock yield source to deposit into
+        yieldSource = new MockYieldSource(address(asset));
         // we save the mock base strategy as a IStrategy to give it the needed interface
-        strategy = IStrategy(address(new MockStrategy(address(asset))));
+        strategy = IStrategy(address(new MockStrategy(address(asset), address(yieldSource))));
 
         // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0
@@ -81,12 +84,12 @@ contract Setup is ExtendedTest {
         vm.prank(_user);
         asset.approve(address(strategy), _amount);
 
-        uint256 beforeBalance = asset.balanceOf(address(strategy));
+        uint256 beforeBalance = asset.balanceOf(address(yieldSource));
 
         vm.prank(_user);
         strategy.deposit(_amount, _user);
 
-        assertEq(asset.balanceOf(address(strategy)), beforeBalance + _amount);
+        assertEq(asset.balanceOf(address(yieldSource)), beforeBalance + _amount);
     }
 
     function getSelectors() public pure returns (bytes4[] memory selectors) {

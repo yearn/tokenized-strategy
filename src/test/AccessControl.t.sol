@@ -57,7 +57,7 @@ contract AccesssControlTest is Setup {
     }
 
     function test_setManagement_reverts(address _address) public {
-        vm.assume(_address != management);
+        vm.assume(_address != management && _address != address(0));
 
         address _management = strategy.management();
 
@@ -115,6 +115,7 @@ contract AccesssControlTest is Setup {
         uint256 _amount
     ) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        vm.assume(_address != management);
 
         uint256 profitMaxUnlockTime = strategy.profitMaxUnlockTime();
 
@@ -155,7 +156,7 @@ contract AccesssControlTest is Setup {
 
     // TODO: add test to re init on the library
 
-    function test_accessControl_invest(address _address, uint256 _amount)
+    function test_accessControl_invest(address _address, uint256 _amount, bool _reported)
         public
     {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
@@ -166,16 +167,19 @@ contract AccesssControlTest is Setup {
         // doesnt work from random address
         vm.prank(_address);
         vm.expectRevert(IStrategy.Unauthorized.selector);
-        strategy.invest(_amount);
+        strategy.invest(_amount, _reported);
 
         vm.prank(management);
         vm.expectRevert(IStrategy.Unauthorized.selector);
-        strategy.invest(_amount);
+        strategy.invest(_amount, _reported);
+
+        assertEq(asset.balanceOf(address(yieldSource)), 0);
 
         vm.prank(address(strategy));
-        uint256 amountOut = strategy.invest(_amount);
+        strategy.invest(_amount, _reported);
 
-        assertEq(amountOut, _amount, "!out");
+        // make sure we deposited into the funds
+        assertEq(asset.balanceOf(address(yieldSource)), _amount, "!out");
     }
 
     function test_accessControl_freeFunds(address _address, uint256 _amount)
@@ -184,7 +188,12 @@ contract AccesssControlTest is Setup {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
-        asset.mint(address(strategy), _amount);
+        // deposit into the vault and should invest funds
+        mintAndDepositIntoStrategy(user, _amount);
+
+        // assure the deposit worked correctly
+        assertEq(asset.balanceOf(address(yieldSource)), _amount);
+        assertEq(asset.balanceOf(address(strategy)), 0);
 
         // doesnt work from random address
         vm.prank(_address);
@@ -197,10 +206,13 @@ contract AccesssControlTest is Setup {
         vm.expectRevert(IStrategy.Unauthorized.selector);
         strategy.freeFunds(_amount);
 
-        vm.prank(address(strategy));
-        uint256 amountOut = strategy.freeFunds(_amount);
+        assertEq(asset.balanceOf(address(strategy)), 0);
 
-        assertEq(amountOut, _amount, "!out");
+        vm.prank(address(strategy));
+        strategy.freeFunds(_amount);
+
+        assertEq(asset.balanceOf(address(yieldSource)), 0);
+        assertEq(asset.balanceOf(address(strategy)), _amount, "!out");
     }
 
     function test_accessControl_totalInvested(address _address, uint256 _amount)
@@ -209,7 +221,12 @@ contract AccesssControlTest is Setup {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
-        asset.mint(address(strategy), _amount);
+        // deposit into the vault and should invest funds
+        mintAndDepositIntoStrategy(user, _amount);
+
+        // assure the deposit worked correctly
+        assertEq(asset.balanceOf(address(yieldSource)), _amount);
+        assertEq(asset.balanceOf(address(strategy)), 0);
 
         // doesnt work from random address
         vm.prank(_address);
