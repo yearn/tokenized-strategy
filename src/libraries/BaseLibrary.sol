@@ -18,10 +18,8 @@ import "forge-std/console.sol";
 
 /// TODO:
 //      Add api version
-//      Add health check
 //      add events
-//      add emergency exit and emergency admin?
-//      Trade factory implementation?
+//      remove trigger
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -354,15 +352,16 @@ library BaseLibrary {
     function _depositFunds(uint256 _newAmount, bool _reported) internal {
         AssetsData storage a = _assetsStorage();
         ERC20 _asset = _erc20Storage().asset;
+        // We will deposit up to current idle plus the new amount added
+        uint256 toInvest = a.totalIdle + _newAmount;
 
         uint256 before = _asset.balanceOf(address(this));
         // invest if applicable
-        uint256 toInvest = a.totalIdle + _newAmount;
         IBaseStrategy(address(this)).invest(toInvest, _reported);
 
-        // get the actual amount invested for higher accuracy
-        // TODO: there should be a min check here in case donated asset was accounted for?
-        uint256 invested = before - _asset.balanceOf(address(this));
+        // Always get the actual amount invested for higher accuracy
+        // We double check the amount to assure for complete accuracy no matteer what
+        uint256 invested = Math.min(before - _asset.balanceOf(address(this)), toInvest);
 
         // adjust total Assets
         a.totalDebt += invested;
@@ -382,7 +381,6 @@ library BaseLibrary {
             // we dont need to withdraw anything
             a.totalIdle -= _amount;
         } else {
-
             // withdraw if we dont have enough idle
             uint256 before = _asset.balanceOf(address(this));
             // free what we need - what we have
@@ -411,38 +409,32 @@ library BaseLibrary {
         // burn unlocked shares
         _burnUnlockedShares();
 
-        // can we account for loose want instead of totalIdle so trade factories can airdrop profits safely
-        // TODO: is this a bad idea?
-        //uint256 idle = _erc20Storage().asset.balanceOf(address(this));
-
-        // tell the strategy to report the real total assets it has
-        // TODO: account for loose want classified as debt
+        // Tell the strategy to report the real total assets it has.
+        // It should account for invested and loose 'asset' so we cann accuratly update the totalIdle to account
+        // for sold but non-reinvested funds during reward harvesting.
         uint256 _invested = IBaseStrategy(address(this)).totalInvested();
 
         AssetsData storage a = _assetsStorage();
+        uint256 oldTotalAssets = a.totalDebt + a.totalIdle;    
 
-        // calculate profit
-        uint256 debt = a.totalDebt;
-
-        if (_invested >= debt) {
-            profit = _invested - debt;
-            debt += profit;
-        } else {
-            loss = debt - _invested;
-            debt -= loss;
-        }
-
-        // TODO: healthcheck ?
-
+        // Cache storage pointer
         ProfitData storage p = _profitStorage();
         uint256 fees;
         uint256 sharesToLock;
-        // only assess fees and lock shares if we have a profit
-        if (profit > 0) {
-            // asses fees
+
+        // Calculate profit/loss
+        if (_invested > oldTotalAssets) {
+            // We have a profit
+            profit = _invested - oldTotalAssets;
+
+            // Asses fees
             fees = (profit * p.performanceFee) / MAX_BPS;
 
-            // issue all new shares to self
+            // TODO: add protocol fee
+
+            // TODO: dont take more than profit
+
+            // calculate how many shares to issue
             sharesToLock = convertToShares(profit - fees);
             uint256 feeShares = convertToShares(fees);
 
@@ -451,9 +443,13 @@ library BaseLibrary {
 
             // mint the rest of profit to self for locking
             _mint(address(this), sharesToLock);
+        } else {
+            // We have a loss
+            loss = oldTotalAssets - _invested;
+
+            // TODO: Try and burn shares to cover loss
         }
 
-        // TODO: this should account for losses like vault does
 
         // lock (profit - fees) of shares issued
         uint256 remainingTime;
@@ -480,12 +476,15 @@ library BaseLibrary {
 
             p.fullProfitUnlockDate = block.timestamp + newProfitLockingPeriod;
         } else {
-            // NOTE: only setting this to 0 will turn in the desired effect, no need to update last_profit_update or fullProfitUnlockDate
+            // NOTE: only setting this to 0 will turn in the desired effect, no need to update fullProfitUnlockDate
             p.profitUnlockingRate = 0;
         }
 
         // update storage variables
-        a.totalDebt = debt;
+        uint256 new_idle = _erc20Storage().asset.balanceOf(address(this));
+        a.totalIdle = new_idle;
+        // the new debt should only be what is not loose
+        a.totalDebt = _invested - new_idle;
         p.lastReport = block.timestamp;
 
         // emit event with info
@@ -872,6 +871,7 @@ library BaseLibrary {
     ) internal {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
+        require(to !=  address(this), "ERC20 transfer to strategy");
 
         uint256 fromBalance = _erc20Storage().balances[from];
         require(

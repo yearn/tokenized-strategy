@@ -54,9 +54,8 @@ contract AccountingTest is Setup {
         assertEq(asset.balanceOf(address(strategy)), toAirdrop);
     }
 
-    /*
-    This should pass for trade factory airdrops to work
-    function test_airdropDoesNotIncreasePPS_reportRecodsIt(address _address, uint256 _amount)
+
+    function test_airdropDoesNotIncreasePPS_reportRecordsIt(address _address, uint256 _amount)
         public
     {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
@@ -130,7 +129,6 @@ contract AccountingTest is Setup {
         assertEq(strategy.totalIdle(), 0);
         assertEq(asset.balanceOf(address(strategy)), toAirdrop);
     }
-    */
 
     function test_earningYieldDoesNotIncreasePPS(address _address, uint256 _amount)
         public

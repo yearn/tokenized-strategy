@@ -26,6 +26,6 @@ contract MockStrategy is BaseStrategy {
     }
 
     function _totalInvested() internal override returns (uint256) {
-        return MockYieldSource(yieldSource).balance();
+        return MockYieldSource(yieldSource).balance() + ERC20(asset).balanceOf(address(this));
     }
 }
