@@ -19,7 +19,7 @@ contract Setup is ExtendedTest {
     DiamondHelper public diamondHelper;
 
     address public management = address(1);
-    address public treasury = address(2);
+    address public performanceFeeRecipient = address(2);
     address public keeper = address(3);
     address public user = address(10);
 
@@ -64,14 +64,14 @@ contract Setup is ExtendedTest {
         // set keeper
         strategy.setKeeper(keeper);
         // set treasury
-        strategy.setTreasury(treasury);
+        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
         // set management of the strategy
         strategy.setManagement(management);
 
         // label all the used addresses for traces
         vm.label(management, "management");
         vm.label(keeper, "keeper");
-        vm.label(treasury, "treasury");
+        vm.label(performanceFeeRecipient, "performanceFeeRecipient");
         vm.label(address(asset), "asset");
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");

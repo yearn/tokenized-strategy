@@ -38,13 +38,13 @@ contract AccesssControlTest is Setup {
         assertEq(strategy.performanceFee(), _amount);
     }
 
-    function test_setTreasury(address _address) public {
-        vm.assume(_address != treasury);
+    function test_setPerformanceFeeRecipient(address _address) public {
+        vm.assume(_address != performanceFeeRecipient);
 
         vm.prank(management);
-        strategy.setTreasury(_address);
+        strategy.setPerformanceFeeRecipient(_address);
 
-        assertEq(strategy.treasury(), _address);
+        assertEq(strategy.performanceFeeRecipient(), _address);
     }
 
     function test_setProfitMaxUnlockTime(uint256 _amount) public {
@@ -98,16 +98,16 @@ contract AccesssControlTest is Setup {
         // TODO: add a test with > MAX_BPS
     }
 
-    function test_settingTreasury_reverts(address _address) public {
+    function test_settingPerformanceFeeRecipient_reverts(address _address) public {
         vm.assume(_address != management);
 
-        address _treasury = strategy.treasury();
+        address _performanceFeeRecipient = strategy.performanceFeeRecipient();
 
         vm.prank(_address);
         vm.expectRevert(IStrategy.Unauthorized.selector);
-        strategy.setTreasury(address(69));
+        strategy.setPerformanceFeeRecipient(address(69));
 
-        assertEq(strategy.treasury(), _treasury);
+        assertEq(strategy.performanceFeeRecipient(), _performanceFeeRecipient);
     }
 
     function test_settingProfitMaxUnlockTime_reverts(

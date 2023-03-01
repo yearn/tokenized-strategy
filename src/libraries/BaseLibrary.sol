@@ -62,7 +62,7 @@ library BaseLibrary {
         uint256 shares
     );
 
-    event Reported(uint256 profit, uint256 loss, uint256 fees);
+    event Reported(uint256 profit, uint256 loss, uint256 performanceFees, uint256 protocolFees);
 
     event DiamondCut(
         IDiamond.FacetCut[] _diamondCut,
@@ -93,13 +93,14 @@ library BaseLibrary {
         uint256 totalDebt;
     }
 
+    // TODO: this should be able to be packed better
     struct ProfitData {
         uint256 fullProfitUnlockDate;
         uint256 profitUnlockingRate;
         uint256 profitMaxUnlockTime;
         uint256 lastReport;
         uint256 performanceFee;
-        address treasury;
+        address performanceFeeRecipient;
     }
 
     struct AccessData {
@@ -141,6 +142,14 @@ library BaseLibrary {
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
+
+    // Max of 25 BPS protocol fee
+    // TODO: should this be lower than vaults or call the factory?
+    uint32 internal constant protocolFeeBps =  25;
+    // Yearn Treasury
+    address internal constant protocolFeesRecipient = 0x93A62dA5a14C80f265DAbC077fCEE437B1a0Efde;
+    // Seconds in a year for protocol fees
+    uint256 internal constant secondsPerYear = 31536000;
 
     // storage slot to use for ERC20 variables
     // TODO: make this one longer than the rest to assure no collisions
@@ -220,7 +229,7 @@ library BaseLibrary {
         // default to a 10 day profit unlock period
         p.profitMaxUnlockTime = 10 days;
         // default to mangement as the treasury TODO: allow this to be customized
-        p.treasury = _management;
+        p.performanceFeeRecipient = _management;
         // default to a 10% performance fee
         p.performanceFee = 1_000;
         // set last report to this block
@@ -414,12 +423,14 @@ library BaseLibrary {
         // for sold but non-reinvested funds during reward harvesting.
         uint256 _invested = IBaseStrategy(address(this)).totalInvested();
 
-        AssetsData storage a = _assetsStorage();
-        uint256 oldTotalAssets = a.totalDebt + a.totalIdle;    
+        uint256 oldTotalAssets = totalAssets();    
+
+        // Calculate protocol fees
+        uint256 totalFees = _assessProtocolFees(oldTotalAssets);
 
         // Cache storage pointer
         ProfitData storage p = _profitStorage();
-        uint256 fees;
+        uint256 performanceFees;
         uint256 sharesToLock;
 
         // Calculate profit/loss
@@ -428,29 +439,40 @@ library BaseLibrary {
             profit = _invested - oldTotalAssets;
 
             // Asses fees
-            fees = (profit * p.performanceFee) / MAX_BPS;
-
-            // TODO: add protocol fee
-
-            // TODO: dont take more than profit
-
-            // calculate how many shares to issue
-            sharesToLock = convertToShares(profit - fees);
-            uint256 feeShares = convertToShares(fees);
-
-            // send shares to treasury
-            _mint(p.treasury, feeShares);
-
-            // mint the rest of profit to self for locking
-            _mint(address(this), sharesToLock);
+            performanceFees = (profit * p.performanceFee) / MAX_BPS;
+            totalFees += performanceFees;
         } else {
             // We have a loss
             loss = oldTotalAssets - _invested;
-
-            // TODO: Try and burn shares to cover loss
+        }
+        
+        uint256 sharesForFees = convertToShares(totalFees);
+        
+        if (loss + totalFees >= profit) {
+            // We have a net loss
+            // Will try and unlock the difference between between the gain and the loss
+            uint256 sharesToBurn = Math.min(convertToShares((loss + totalFees) - profit), balanceOf(address(this)));
+            if (sharesToBurn > 0) {
+                _burn(address(this), sharesToBurn);
+            }
+        } else {
+            // we have a net profit
+            sharesToLock = convertToShares(profit - totalFees);
+            _mint(address(this), sharesToLock);
         }
 
+        // Mint fees shares.
+        if(totalFees > 0) {
+            uint256 performanceShares = sharesForFees * performanceFees / totalFees;
+            if (performanceShares > 0) {
+                _mint(p.performanceFeeRecipient, performanceShares);
+            }
 
+            _mint(protocolFeesRecipient, sharesForFees - performanceShares);
+        }
+
+        { // Scoped to avoid stack to deep errors
+        uint256 totalLockedShares = balanceOf(address(this));
         // lock (profit - fees) of shares issued
         uint256 remainingTime;
         uint256 _fullProfitUnlockDate = p.fullProfitUnlockDate;
@@ -459,7 +481,6 @@ library BaseLibrary {
         }
 
         // Update unlocking rate and time to fully unlocked
-        uint256 totalLockedShares = balanceOf(address(this));
         uint256 _profitMaxUnlockTime = p.profitMaxUnlockTime;
         if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
             uint256 previouslyLockedShares = totalLockedShares - sharesToLock;
@@ -479,19 +500,27 @@ library BaseLibrary {
             // NOTE: only setting this to 0 will turn in the desired effect, no need to update fullProfitUnlockDate
             p.profitUnlockingRate = 0;
         }
+        }
 
         // update storage variables
         uint256 new_idle = _erc20Storage().asset.balanceOf(address(this));
+        AssetsData storage a = _assetsStorage();
         a.totalIdle = new_idle;
         // the new debt should only be what is not loose
         a.totalDebt = _invested - new_idle;
         p.lastReport = block.timestamp;
 
         // emit event with info
-        emit Reported(profit, loss, fees);
+        // TODO: Convert back from shares for cases of total Loss
+        emit Reported(profit, loss, performanceFees, totalFees - performanceFees);
 
         // invest any idle funds, tell strategy it is during a report call
         _depositFunds(0, true);
+    }
+
+    function _assessProtocolFees(uint256 _oldTotalAssets) internal view returns (uint256) {
+        uint256 sinceLastReport = block.timestamp - _profitStorage().lastReport;
+        return _oldTotalAssets * protocolFeeBps * sinceLastReport / secondsPerYear / MAX_BPS;
     }
 
     function _burnUnlockedShares() internal {
@@ -612,8 +641,8 @@ library BaseLibrary {
         return _profitStorage().performanceFee;
     }
 
-    function treasury() external view returns (address) {
-        return _profitStorage().treasury;
+    function performanceFeeRecipient() external view returns (address) {
+        return _profitStorage().performanceFeeRecipient;
     }
 
     function profitMaxUnlockTime() external view returns (uint256) {
@@ -643,9 +672,9 @@ library BaseLibrary {
         _profitStorage().performanceFee = _performanceFee;
     }
 
-    function setTreasury(address _treasury) external onlyManagement {
-        require(_treasury != address(0), "ZERO ADDRESS");
-        _profitStorage().treasury = _treasury;
+    function setPerformanceFeeRecipient(address _performanceFeeRecipient) external onlyManagement {
+        require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
+        _profitStorage().performanceFeeRecipient = _performanceFeeRecipient;
     }
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime)
