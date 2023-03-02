@@ -26,7 +26,7 @@ contract Setup is ExtendedTest {
     address public keeper = address(4);
     address public user = address(10);
 
-    // Fuzz from $0.1 of 1e6 stable coin up to 1 trillion of a 1e18 coin
+    // Fuzz from $0.01 of 1e6 stable coin up to 1 trillion of a 1e18 coin
     uint256 public minFuzzAmount = 10_000;
     uint256 public maxFuzzAmount = 1e30;
     uint256 public MAX_BPS = 10_000;
@@ -108,7 +108,28 @@ contract Setup is ExtendedTest {
     }
 
     function getSelectors() public pure returns (bytes4[] memory selectors) {
-        string[21] memory _selectors = [
+        string[42] memory _selectors = [
+            "dd62ed3e",
+            "095ea7b3",
+            "70a08231",
+            "07a2d13a",
+            "c6e6f592",
+            "a457c2d7",
+            "6e553f65",
+            "39509351",
+            "534021b0",
+            "94bf804d",
+            "ef8b30f7",
+            "b3d7f6b9",
+            "4cdad506",
+            "0a28a477",
+            "ba087652",
+            "969b1cdb",
+            "01e1d114",
+            "18160ddd",
+            "a9059cbb",
+            "23b872dd",
+            "b460af94",
             "dd62ed3e",
             "095ea7b3",
             "70a08231",

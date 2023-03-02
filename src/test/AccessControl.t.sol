@@ -12,7 +12,7 @@ contract AccesssControlTest is Setup {
     }
 
     function test_setManagement(address _address) public {
-        vm.assume(_address != management);
+        vm.assume(_address != management && _address != address(0));
 
         vm.prank(management);
         strategy.setManagement(_address);
@@ -30,7 +30,7 @@ contract AccesssControlTest is Setup {
     }
 
     function test_setPerformanceFee(uint256 _amount) public {
-        vm.assume(_amount >= 0 && _amount < 10_000);
+        _amount = bound(_amount, 0, 9_999);
 
         vm.prank(management);
         strategy.setPerformanceFee(_amount);
@@ -39,7 +39,9 @@ contract AccesssControlTest is Setup {
     }
 
     function test_setPerformanceFeeRecipient(address _address) public {
-        vm.assume(_address != performanceFeeRecipient);
+        vm.assume(
+            _address != performanceFeeRecipient && _address != address(0)
+        );
 
         vm.prank(management);
         strategy.setPerformanceFeeRecipient(_address);
@@ -48,7 +50,7 @@ contract AccesssControlTest is Setup {
     }
 
     function test_setProfitMaxUnlockTime(uint256 _amount) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
 
         vm.prank(management);
         strategy.setProfitMaxUnlockTime(_amount);
@@ -84,7 +86,7 @@ contract AccesssControlTest is Setup {
         address _address,
         uint256 _amount
     ) public {
-        vm.assume(_amount >= 0 && _amount < 10_000);
+        _amount = bound(_amount, 0, 9_999);
         vm.assume(_address != management);
 
         uint256 _performanceFee = strategy.performanceFee();
@@ -116,7 +118,7 @@ contract AccesssControlTest is Setup {
         address _address,
         uint256 _amount
     ) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != management);
 
         uint256 profitMaxUnlockTime = strategy.profitMaxUnlockTime();
@@ -163,7 +165,7 @@ contract AccesssControlTest is Setup {
         uint256 _amount,
         bool _reported
     ) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
         asset.mint(address(strategy), _amount);
@@ -189,7 +191,7 @@ contract AccesssControlTest is Setup {
     function test_accessControl_freeFunds(address _address, uint256 _amount)
         public
     {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
         // deposit into the vault and should invest funds
@@ -222,7 +224,7 @@ contract AccesssControlTest is Setup {
     function test_accessControl_totalInvested(address _address, uint256 _amount)
         public
     {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
         // deposit into the vault and should invest funds
@@ -249,7 +251,7 @@ contract AccesssControlTest is Setup {
     }
 
     function test_accessControl_tend(address _address, uint256 _amount) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != keeper && _address != management);
 
         asset.mint(address(strategy), _amount);

@@ -14,7 +14,7 @@ contract AccountingTest is Setup {
     function test_airdropDoesNotIncreasePPS(address _address, uint256 _amount)
         public
     {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 
         // set fees to 0 for calculations simplicity
@@ -55,7 +55,7 @@ contract AccountingTest is Setup {
         address _address,
         uint256 _amount
     ) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
         console.log("Mock factory at", address(mockFactory));
         // set fees to 0 for calculations simplicity
@@ -131,7 +131,7 @@ contract AccountingTest is Setup {
         address _address,
         uint256 _amount
     ) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 
         // set fees to 0 for calculations simplicity
@@ -172,7 +172,7 @@ contract AccountingTest is Setup {
         address _address,
         uint256 _amount
     ) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 
         // set fees to 0 for calculations simplicity

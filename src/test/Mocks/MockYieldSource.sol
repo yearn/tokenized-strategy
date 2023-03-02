@@ -21,4 +21,8 @@ contract MockYieldSource {
     function balance() public returns (uint256) {
         return ERC20(asset).balanceOf(address(this));
     }
+
+    function simulateLoss(uint256 _amount) public {
+        ERC20(asset).transfer(msg.sender, _amount);
+    }
 }

@@ -476,12 +476,14 @@ library BaseLibrary {
         uint256 sharesForFees = convertToShares(totalFees);
 
         if (loss + totalFees >= profit) {
+            console.log("We have a net loss");
             // We have a net loss
             // Will try and unlock the difference between between the gain and the loss
             uint256 sharesToBurn = Math.min(
                 convertToShares((loss + totalFees) - profit),
                 balanceOf(address(this))
             );
+
             if (sharesToBurn > 0) {
                 _burn(address(this), sharesToBurn);
             }
@@ -565,9 +567,7 @@ library BaseLibrary {
     {
         uint256 secondsSinceLastReport = block.timestamp -
             _profitStorage().lastReport;
-        console.log("Time stamp ", block.timestamp);
-        console.log("Last report ", _profitStorage().lastReport);
-        console.log("Seconds since last 1", secondsSinceLastReport);
+
         (
             uint16 protocolFeeBps,
             uint32 protocolFeeLastChange,
@@ -582,7 +582,7 @@ library BaseLibrary {
                 secondsSinceLastReport,
                 block.timestamp - uint256(protocolFeeLastChange)
             );
-            console.log("Seconds since last ", secondsSinceLastReport);
+
             protocolFees =
                 (uint256(protocolFeeBps) *
                     _oldTotalAssets *
@@ -592,7 +592,6 @@ library BaseLibrary {
                 3600 /
                 MAX_BPS;
         }
-        console.log("Total prtocol Fees ", protocolFees, "BPS", protocolFeeBps);
     }
 
     function _burnUnlockedShares() internal {
