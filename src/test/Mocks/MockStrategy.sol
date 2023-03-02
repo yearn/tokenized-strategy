@@ -7,7 +7,6 @@ import {MockYieldSource} from "./MockYieldSource.sol";
 import {BaseStrategy} from "../../BaseStrategy.sol";
 
 contract MockStrategy is BaseStrategy {
-    
     address public yieldSource;
 
     constructor(address _asset, address _yieldSource)
@@ -15,7 +14,7 @@ contract MockStrategy is BaseStrategy {
     {
         yieldSource = _yieldSource;
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
-    }   
+    }
 
     function _invest(uint256 _amount, bool _reported) internal override {
         MockYieldSource(yieldSource).deposit(_amount);
@@ -26,6 +25,8 @@ contract MockStrategy is BaseStrategy {
     }
 
     function _totalInvested() internal override returns (uint256) {
-        return MockYieldSource(yieldSource).balance();
+        return
+            MockYieldSource(yieldSource).balance() +
+            ERC20(asset).balanceOf(address(this));
     }
 }

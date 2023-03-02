@@ -7,6 +7,7 @@ import {ExtendedTest} from "./ExtendedTest.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {IStrategy} from "../Mocks/IStrategy.sol";
 import {MockStrategy, MockYieldSource} from "../Mocks/MockStrategy.sol";
+import {MockFactory} from "../Mocks/MockFactory.sol";
 
 import {DiamondHelper} from "../../DiamondHelper.sol";
 import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
@@ -14,21 +15,24 @@ import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 contract Setup is ExtendedTest {
     ERC20Mock public asset;
     IStrategy public strategy;
+    MockFactory public mockFactory;
     MockYieldSource public yieldSource;
 
     DiamondHelper public diamondHelper;
 
     address public management = address(1);
-    address public treasury = address(2);
-    address public keeper = address(3);
+    address public protocolFeeRecipient = address(2);
+    address public performanceFeeRecipient = address(3);
+    address public keeper = address(4);
     address public user = address(10);
 
-    // we need to be able to divide by 10 twice and get non 0 number
-    uint256 public minFuzzAmount = 100;
+    // Fuzz from $0.01 of 1e6 stable coin up to 1 trillion of a 1e18 coin
+    uint256 public minFuzzAmount = 10_000;
     uint256 public maxFuzzAmount = 1e30;
+    uint256 public MAX_BPS = 10_000;
     // TODO: make these adjustable
     uint256 public decimals = 18;
-    uint256 public wad = 1e18;
+    uint256 public wad = 10**decimals;
     uint256 public profitMaxUnlockTime = 10 days;
     uint256 public maxPPSPercentDelta = 100;
 
@@ -37,6 +41,9 @@ contract Setup is ExtendedTest {
         bytes4[] memory selectors = getSelectors();
         diamondHelper = new DiamondHelper(selectors);
 
+        // deploy the mock factory next for deterministic location
+        mockFactory = new MockFactory(0, protocolFeeRecipient);
+
         diamondHelper.setLibrary(address(BaseLibrary));
 
         // create asset we will be using as the underlying asset
@@ -44,7 +51,9 @@ contract Setup is ExtendedTest {
         // create a mock yield source to deposit into
         yieldSource = new MockYieldSource(address(asset));
         // we save the mock base strategy as a IStrategy to give it the needed interface
-        strategy = IStrategy(address(new MockStrategy(address(asset), address(yieldSource))));
+        strategy = IStrategy(
+            address(new MockStrategy(address(asset), address(yieldSource)))
+        );
 
         // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0
@@ -64,18 +73,21 @@ contract Setup is ExtendedTest {
         // set keeper
         strategy.setKeeper(keeper);
         // set treasury
-        strategy.setTreasury(treasury);
+        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
         // set management of the strategy
         strategy.setManagement(management);
 
         // label all the used addresses for traces
         vm.label(management, "management");
         vm.label(keeper, "keeper");
-        vm.label(treasury, "treasury");
+        vm.label(protocolFeeRecipient, "protocolFeeRecipient");
+        vm.label(performanceFeeRecipient, "performanceFeeRecipient");
         vm.label(address(asset), "asset");
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");
         vm.label(address(diamondHelper), "selector heleper");
+        vm.label(address(yieldSource), "Mock Yield Source");
+        vm.label(address(mockFactory), "mock Factory");
     }
 
     function mintAndDepositIntoStrategy(address _user, uint256 _amount) public {
@@ -89,11 +101,35 @@ contract Setup is ExtendedTest {
         vm.prank(_user);
         strategy.deposit(_amount, _user);
 
-        assertEq(asset.balanceOf(address(yieldSource)), beforeBalance + _amount);
+        assertEq(
+            asset.balanceOf(address(yieldSource)),
+            beforeBalance + _amount
+        );
     }
 
     function getSelectors() public pure returns (bytes4[] memory selectors) {
-        string[21] memory _selectors = [
+        string[42] memory _selectors = [
+            "dd62ed3e",
+            "095ea7b3",
+            "70a08231",
+            "07a2d13a",
+            "c6e6f592",
+            "a457c2d7",
+            "6e553f65",
+            "39509351",
+            "534021b0",
+            "94bf804d",
+            "ef8b30f7",
+            "b3d7f6b9",
+            "4cdad506",
+            "0a28a477",
+            "ba087652",
+            "969b1cdb",
+            "01e1d114",
+            "18160ddd",
+            "a9059cbb",
+            "23b872dd",
+            "b460af94",
             "dd62ed3e",
             "095ea7b3",
             "70a08231",
