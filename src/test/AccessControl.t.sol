@@ -98,7 +98,9 @@ contract AccesssControlTest is Setup {
         // TODO: add a test with > MAX_BPS
     }
 
-    function test_settingPerformanceFeeRecipient_reverts(address _address) public {
+    function test_settingPerformanceFeeRecipient_reverts(address _address)
+        public
+    {
         vm.assume(_address != management);
 
         address _performanceFeeRecipient = strategy.performanceFeeRecipient();
@@ -156,9 +158,11 @@ contract AccesssControlTest is Setup {
 
     // TODO: add test to re init on the library
 
-    function test_accessControl_invest(address _address, uint256 _amount, bool _reported)
-        public
-    {
+    function test_accessControl_invest(
+        address _address,
+        uint256 _amount,
+        bool _reported
+    ) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
         vm.assume(_address != address(strategy));
 

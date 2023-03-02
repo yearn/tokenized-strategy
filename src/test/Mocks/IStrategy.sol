@@ -47,6 +47,8 @@ interface IStrategy is IERC4626 {
 
     function profitMaxUnlockTime() external view returns (uint256);
 
+    function lastReport() external view returns (uint256);
+
     // Setters
     function setManagement(address) external;
 
@@ -54,7 +56,8 @@ interface IStrategy is IERC4626 {
 
     function setPerformanceFee(uint256 _performanceFee) external;
 
-    function setPerformanceFeeRecipient(address _performanceFeeRecipient) external;
+    function setPerformanceFeeRecipient(address _performanceFeeRecipient)
+        external;
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external;
 }

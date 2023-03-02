@@ -45,22 +45,19 @@ contract AccountingTest is Setup {
         strategy.redeem(_amount, _address, _address);
 
         // should have pulled out just the deposit amount
-        assertEq(
-            asset.balanceOf(_address),
-            beforeBalance + _amount
-        );
+        assertEq(asset.balanceOf(_address), beforeBalance + _amount);
         assertEq(strategy.totalDebt(), 0);
         assertEq(strategy.totalIdle(), 0);
         assertEq(asset.balanceOf(address(strategy)), toAirdrop);
     }
 
-
-    function test_airdropDoesNotIncreasePPS_reportRecordsIt(address _address, uint256 _amount)
-        public
-    {
+    function test_airdropDoesNotIncreasePPS_reportRecordsIt(
+        address _address,
+        uint256 _amount
+    ) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-
+        console.log("Mock factory at", address(mockFactory));
         // set fees to 0 for calculations simplicity
         vm.prank(management);
         strategy.setPerformanceFee(0);
@@ -130,9 +127,10 @@ contract AccountingTest is Setup {
         assertEq(asset.balanceOf(address(strategy)), toAirdrop);
     }
 
-    function test_earningYieldDoesNotIncreasePPS(address _address, uint256 _amount)
-        public
-    {
+    function test_earningYieldDoesNotIncreasePPS(
+        address _address,
+        uint256 _amount
+    ) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 
@@ -164,18 +162,16 @@ contract AccountingTest is Setup {
         strategy.redeem(_amount, _address, _address);
 
         // should have pulled out just the deposit amount
-        assertEq(
-            asset.balanceOf(_address),
-            beforeBalance + _amount
-        );
+        assertEq(asset.balanceOf(_address), beforeBalance + _amount);
         assertEq(strategy.totalDebt(), 0);
         assertEq(strategy.totalIdle(), 0);
         assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
     }
 
-    function test_earningYieldDoesNotIncreasePPS_reportRecodsIt(address _address, uint256 _amount)
-        public
-    {
+    function test_earningYieldDoesNotIncreasePPS_reportRecodsIt(
+        address _address,
+        uint256 _amount
+    ) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 
@@ -189,7 +185,7 @@ contract AccountingTest is Setup {
 
         // deposit into the vault
         mintAndDepositIntoStrategy(_address, _amount);
- 
+
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
 
@@ -247,6 +243,4 @@ contract AccountingTest is Setup {
         assertEq(strategy.totalIdle(), 0);
         assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
     }
-
-    
 }

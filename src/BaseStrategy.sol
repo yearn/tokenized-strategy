@@ -40,35 +40,32 @@ abstract contract BaseStrategy is IBaseStrategy {
 
     // TODO: Should these all be moved to the library to save bytecode
 
-    // The decimals of the underlying asset we will use as well
+    // The decimals of the underlying asset we will use.
+    // Keep this private with a getter function so it can be easily accessed by strategists but not updated
     uint8 private _decimals;
-    // The Name  of the strategy
-    string private _name;
-    // The symbol used for the ERC20 implementation
-    string private _symbol;
 
     constructor(
         address _asset,
-        string memory name_,
-        string memory symbol_
+        string memory _name,
+        string memory _symbol
     ) {
-        _initialize(_asset, name_, symbol_, msg.sender);
+        _initialize(_asset, _name, _symbol, msg.sender);
     }
 
     function initialize(
         address _asset,
-        string memory name_,
-        string memory symbol_,
+        string memory _name,
+        string memory _symbol,
         address _management
     ) external {
-        _initialize(_asset, name_, symbol_, _management);
+        _initialize(_asset, _name, _symbol, _management);
     }
 
     // TODO: ADD additional variables for keeper performance fee etc?
     function _initialize(
         address _asset,
-        string memory name_,
-        string memory symbol_,
+        string memory _name,
+        string memory _symbol,
         address _management
     ) internal {
         // make sure we have not been initialized
@@ -76,12 +73,10 @@ abstract contract BaseStrategy is IBaseStrategy {
 
         // set ERC20 variables
         asset = _asset;
-        _name = name_;
-        _symbol = symbol_;
         _decimals = IERC20Metadata(_asset).decimals();
 
         // initilize the strategies storage variables
-        BaseLibrary.init(_asset, _management);
+        BaseLibrary.init(_asset, _name, _symbol, _management);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -95,7 +90,7 @@ abstract contract BaseStrategy is IBaseStrategy {
         _invest(_assets, _reported);
     }
 
-    function freeFunds(uint256 _amount) external onlySelf{
+    function freeFunds(uint256 _amount) external onlySelf {
         _freeFunds(_amount);
     }
 
@@ -115,14 +110,10 @@ abstract contract BaseStrategy is IBaseStrategy {
     // TODO: this should be able to invest asset.balnceOf(address(this)) since its always post report/deposit
     //      depositing donated want wont reflect in pps until the next report cycle.
     // Should do any needed param checks, 0 will get passed in as 'assets'
-    function _invest(uint256 assets, bool _reported)
-        internal
-        virtual;
+    function _invest(uint256 assets, bool _reported) internal virtual;
 
     // Will attempt to free the 'amount' of assets and return the acutal amount
-    function _freeFunds(uint256 amount)
-        internal
-        virtual;
+    function _freeFunds(uint256 amount) internal virtual;
 
     // internal non-view function to return the accurate amount of funds currently invested
     // should do any needed accrual etc. before returning the the amount invested
@@ -175,21 +166,6 @@ abstract contract BaseStrategy is IBaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     // NOTE: Do We keep these simple read only function in the Base since they are immutable or move them to the library
-
-    /**
-     * @dev Returns the name of the token.
-     */
-    function name() public view returns (string memory) {
-        return _name;
-    }
-
-    /**
-     * @dev Returns the symbol of the token, usually a shorter version of the
-     * name.
-     */
-    function symbol() public view returns (string memory) {
-        return _symbol;
-    }
 
     /**
      * @dev Returns the number of decimals used to get its user representation.
