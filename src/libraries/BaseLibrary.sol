@@ -32,6 +32,7 @@ import "forge-std/console.sol";
 //      add events
 //      remove trigger
 //       Bump sol version
+//      Does base strategy need to hold errors and events?
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -161,7 +162,7 @@ library BaseLibrary {
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
-    // Factory address
+    // Factory address NOTE: This will be set to deployed factory. deterministic address for testing is used now
     address internal constant FACTORY =
         0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
 
@@ -391,7 +392,7 @@ library BaseLibrary {
         IBaseStrategy(address(this)).invest(toInvest, _reported);
 
         // Always get the actual amount invested for higher accuracy
-        // We double check the amount to assure for complete accuracy no matteer what
+        // We double check the amount to assure for complete accuracy no matter what
         uint256 invested = Math.min(
             before - _asset.balanceOf(address(this)),
             toInvest
@@ -412,7 +413,7 @@ library BaseLibrary {
         uint256 idle = a.totalIdle;
 
         if (idle >= _amount) {
-            // we dont need to withdraw anything
+            // We dont need to withdraw anything
             a.totalIdle -= _amount;
         } else {
             // withdraw if we dont have enough idle
@@ -435,12 +436,18 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     // This should only ever be called through protected relays as swaps will likely occur
+    // TODO: add unchecked {} where applicable
     function report()
         public
         onlyKeepers
         returns (uint256 profit, uint256 loss)
     {
-        uint256 oldTotalAssets = totalAssets();
+        // Cache storage pointer since its used again at the end
+        AssetsData storage a = _assetsStorage();
+        uint256 oldTotalAssets;
+        unchecked {
+            oldTotalAssets = a.totalIdle + a.totalDebt;
+        }
         // Calculate protocol fees before we burn shares and update lastReport
         (
             uint256 totalFees,
@@ -451,14 +458,13 @@ library BaseLibrary {
         _burnUnlockedShares();
 
         // Tell the strategy to report the real total assets it has.
-        // It should account for invested and loose 'asset' so we cann accuratly update the totalIdle to account
+        // It should account for invested and loose 'asset' so we can accuratly update the totalIdle to account
         // for sold but non-reinvested funds during reward harvesting.
         uint256 _invested = IBaseStrategy(address(this)).totalInvested();
 
         // Cache storage pointer
         ProfitData storage p = _profitStorage();
         uint256 performanceFees;
-        uint256 sharesToLock;
 
         // Calculate profit/loss
         if (_invested > oldTotalAssets) {
@@ -473,10 +479,10 @@ library BaseLibrary {
             loss = oldTotalAssets - _invested;
         }
 
+        // We need to get the shares for fees to issue before any minting or burning
         uint256 sharesForFees = convertToShares(totalFees);
-
+        uint256 sharesToLock;
         if (loss + totalFees >= profit) {
-            console.log("We have a net loss");
             // We have a net loss
             // Will try and unlock the difference between between the gain and the loss
             uint256 sharesToBurn = Math.min(
@@ -489,25 +495,29 @@ library BaseLibrary {
             }
         } else {
             // we have a net profit
+            // lock (profit - fees)
             sharesToLock = convertToShares(profit - totalFees);
             _mint(address(this), sharesToLock);
         }
 
         // Mint fees shares.
-        if (totalFees > 0) {
-            uint256 performanceShares = (sharesForFees * performanceFees) /
+        if (sharesForFees > 0) {
+            uint256 performanceFeeShares = (sharesForFees * performanceFees) /
                 totalFees;
-            if (performanceShares > 0) {
-                _mint(p.performanceFeeRecipient, performanceShares);
+            if (performanceFeeShares > 0) {
+                _mint(p.performanceFeeRecipient, performanceFeeShares);
             }
 
-            _mint(protocolFeesRecipient, sharesForFees - performanceShares);
+            if (sharesForFees - performanceFeeShares > 0) {
+                _mint(
+                    protocolFeesRecipient,
+                    sharesForFees - performanceFeeShares
+                );
+            }
         }
 
         {
             // Scoped to avoid stack to deep errors
-            uint256 totalLockedShares = balanceOf(address(this));
-            // lock (profit - fees) of shares issued
             uint256 remainingTime;
             uint256 _fullProfitUnlockDate = p.fullProfitUnlockDate;
             if (_fullProfitUnlockDate > block.timestamp) {
@@ -515,6 +525,7 @@ library BaseLibrary {
             }
 
             // Update unlocking rate and time to fully unlocked
+            uint256 totalLockedShares = balanceOf(address(this));
             uint256 _profitMaxUnlockTime = p.profitMaxUnlockTime;
             if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
                 uint256 previouslyLockedShares = totalLockedShares -
@@ -539,16 +550,14 @@ library BaseLibrary {
             }
         }
 
-        // update storage variables
+        // Update storage variables
         uint256 new_idle = _erc20Storage().asset.balanceOf(address(this));
-        AssetsData storage a = _assetsStorage();
         a.totalIdle = new_idle;
         // the new debt should only be what is not loose
         a.totalDebt = _invested - new_idle;
         p.lastReport = block.timestamp;
 
         // emit event with info
-        // TODO: Convert back from shares for cases of total Loss
         emit Reported(
             profit,
             loss,
@@ -565,21 +574,18 @@ library BaseLibrary {
         view
         returns (uint256 protocolFees, address protocolFeesRecipient)
     {
-        uint256 secondsSinceLastReport = block.timestamp -
-            _profitStorage().lastReport;
-
         (
             uint16 protocolFeeBps,
             uint32 protocolFeeLastChange,
             address _protocolFeesRecipient
         ) = IFactory(FACTORY).protocol_fee_config();
 
-        protocolFeesRecipient = _protocolFeesRecipient;
         if (protocolFeeBps > 0) {
+            protocolFeesRecipient = _protocolFeesRecipient;
             // NOTE: charge fees since last report OR last fee change
             //      (this will mean less fees are charged after a change in protocol_fees, but fees should not change frequently)
-            secondsSinceLastReport = Math.min(
-                secondsSinceLastReport,
+            uint256 secondsSinceLastReport = Math.min(
+                block.timestamp - _profitStorage().lastReport,
                 block.timestamp - uint256(protocolFeeLastChange)
             );
 
@@ -786,10 +792,9 @@ library BaseLibrary {
     }
 
     /*//////////////////////////////////////////////////////////////
-                    EXTERNAL EIP-2535 VIEW FUNCTIONS
+                    EXTERNAL ERC-2535 VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    // TODO: Implement the Diamon Loupe function using the selector helper
     /// @notice Gets all facet addresses and their four byte function selectors.
     /// @return facets_ Facet
     function facets() external view returns (IDiamondLoupe.Facet[] memory) {
