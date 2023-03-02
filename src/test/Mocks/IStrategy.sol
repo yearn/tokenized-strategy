@@ -22,6 +22,8 @@ interface IStrategy is IERC4626 {
 
     function totalInvested() external returns (uint256);
 
+    function tendThis(uint256 _totalIdle) external;
+
     function tend() external;
 
     // Base Library functions \\

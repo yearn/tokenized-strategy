@@ -97,7 +97,9 @@ contract AccesssControlTest is Setup {
 
         assertEq(strategy.performanceFee(), _performanceFee);
 
-        // TODO: add a test with > MAX_BPS
+        vm.prank(management);
+        vm.expectRevert("MAX BPS");
+        strategy.setPerformanceFee(_amount + MAX_BPS);
     }
 
     function test_settingPerformanceFeeRecipient_reverts(address _address)
@@ -250,6 +252,21 @@ contract AccesssControlTest is Setup {
         assertEq(amountOut, _amount, "!out");
     }
 
+    function test_accessControl_tendThis(address _address, uint256 _amount)
+        public
+    {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        vm.assume(_address != address(strategy));
+
+        // doesnt work from random address
+        vm.prank(_address);
+        vm.expectRevert(IStrategy.Unauthorized.selector);
+        strategy.tendThis(_amount);
+
+        vm.prank(address(strategy));
+        strategy.tendThis(_amount);
+    }
+
     function test_accessControl_tend(address _address, uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != keeper && _address != management);
@@ -258,11 +275,6 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
-        strategy.tend();
-
-        // doesnt work from library either
-        vm.prank(address(strategy));
         vm.expectRevert(IStrategy.Unauthorized.selector);
         strategy.tend();
 

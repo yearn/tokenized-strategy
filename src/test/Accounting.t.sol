@@ -57,7 +57,7 @@ contract AccountingTest is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-        console.log("Mock factory at", address(mockFactory));
+
         // set fees to 0 for calculations simplicity
         vm.prank(management);
         strategy.setPerformanceFee(0);
@@ -242,5 +242,133 @@ contract AccountingTest is Setup {
         assertEq(strategy.totalDebt(), 0);
         assertEq(strategy.totalIdle(), 0);
         assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
+    }
+
+    function test_tend_noIdle_harvestProfit(
+        uint256 _amount,
+        uint256 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = bound(_profitFactor, 1, MAX_BPS);
+
+        setFees(0, 0);
+        // nothing has happened pps should be 1
+        uint256 pricePerShare = strategy.pricePerShare();
+        assertEq(pricePerShare, wad);
+
+        // deposit into the vault
+        mintAndDepositIntoStrategy(user, _amount);
+
+        // should still be 1
+        assertEq(strategy.pricePerShare(), pricePerShare);
+
+        // aidrop to strategy to simulate a harvesting of rewards
+        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
+        asset.mint(address(strategy), toAirdrop);
+        assertEq(asset.balanceOf(address(strategy)), toAirdrop);
+
+        vm.prank(keeper);
+        strategy.tend();
+
+        // Should have deposited the toAirdrop amount but no other changes
+        assertEq(strategy.totalAssets(), _amount, "!assets");
+        assertEq(strategy.totalDebt(), _amount, "1debt");
+        assertEq(strategy.totalIdle(), 0, "!idle");
+        assertEq(
+            asset.balanceOf(address(yieldSource)),
+            _amount + toAirdrop,
+            "!yieldsource"
+        );
+        assertEq(strategy.pricePerShare(), wad, "!pps");
+
+        // Make sure we now report the profit correctly
+        vm.prank(keeper);
+        strategy.report();
+
+        skip(profitMaxUnlockTime);
+
+        assertRelApproxEq(
+            strategy.pricePerShare(),
+            wad + ((wad * _profitFactor) / MAX_BPS),
+            MAX_BPS
+        );
+
+        uint256 beforeBalance = asset.balanceOf(user);
+        vm.prank(user);
+        strategy.redeem(_amount, user, user);
+
+        // should have pulled out the deposit plus profit that was reported but not the second airdrop
+        assertEq(asset.balanceOf(user), beforeBalance + _amount + toAirdrop);
+        assertEq(strategy.totalDebt(), 0);
+        assertEq(strategy.totalIdle(), 0);
+        assertEq(asset.balanceOf(address(yieldSource)), 0);
+    }
+
+    function test_tend_idleFunds_harvestProfit(
+        uint256 _amount,
+        uint256 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = bound(_profitFactor, 1, MAX_BPS);
+
+        // Use the illiquid mock strategy so it doesnt deposit all funds
+        setUpIlliquidStrategy();
+
+        setFees(0, 0);
+        // nothing has happened pps should be 1
+        uint256 pricePerShare = strategy.pricePerShare();
+        assertEq(pricePerShare, wad);
+
+        // deposit into the vault
+        mintAndDepositIntoStrategy(user, _amount);
+
+        uint256 expectedDeposit = _amount / 2;
+        assertEq(strategy.totalAssets(), _amount, "!assets");
+        assertEq(strategy.totalDebt(), expectedDeposit, "1debt");
+        assertEq(strategy.totalIdle(), _amount - expectedDeposit, "!idle");
+        assertEq(
+            asset.balanceOf(address(yieldSource)),
+            expectedDeposit,
+            "!yieldsource"
+        );
+        // should still be 1
+        assertEq(strategy.pricePerShare(), wad);
+
+        // aidrop to strategy to simulate a harvesting of rewards
+        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
+        asset.mint(address(strategy), toAirdrop);
+        assertEq(asset.balanceOf(address(strategy)), _amount - expectedDeposit + toAirdrop);
+
+        vm.prank(keeper);
+        strategy.tend();
+
+        // Should have withdrawn all the funds from the yield source
+        assertEq(strategy.totalAssets(), _amount, "!assets");
+        assertEq(strategy.totalDebt(), 0, "1debt");
+        assertEq(strategy.totalIdle(), _amount, "!idle");
+        assertEq(
+            asset.balanceOf(address(yieldSource)),
+            0,
+            "!yieldsource"
+        );
+        assertEq(asset.balanceOf(address(strategy)), _amount + toAirdrop);
+        assertEq(strategy.pricePerShare(), wad, "!pps");
+
+        // Make sure we now report the profit correctly
+        vm.prank(keeper);
+        strategy.report();
+
+        assertEq(strategy.totalAssets(), _amount + toAirdrop);
+        assertEq(strategy.totalDebt(), (_amount + toAirdrop) / 2);
+        assertEq(strategy.totalIdle(), (_amount + toAirdrop) - ((_amount + toAirdrop) / 2));
+        assertEq(asset.balanceOf(address(yieldSource)), (_amount + toAirdrop) / 2);
+
+        skip(profitMaxUnlockTime);
+
+        assertRelApproxEq(
+            strategy.pricePerShare(),
+            wad + ((wad * _profitFactor) / MAX_BPS),
+            MAX_BPS
+        );
     }
 }

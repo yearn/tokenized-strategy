@@ -86,13 +86,6 @@ contract ProfitLockingTest is Setup {
         );
     }
 
-    function setFees(uint16 _protocolFee, uint256 _performanceFee) public {
-        mockFactory.setFee(_protocolFee);
-        vm.prank(management);
-
-        strategy.setPerformanceFee(_performanceFee);
-    }
-
     function getExpectedProtocolFee(uint256 _amount, uint16 _fee)
         public
         view

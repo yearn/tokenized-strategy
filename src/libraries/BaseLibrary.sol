@@ -382,6 +382,7 @@ library BaseLibrary {
 
     // post deposit/report hook to deposit any loose funds
     function _depositFunds(uint256 _newAmount, bool _reported) internal {
+        
         AssetsData storage a = _assetsStorage();
         ERC20 _asset = _erc20Storage().asset;
         // We will deposit up to current idle plus the new amount added
@@ -435,7 +436,27 @@ library BaseLibrary {
                         PROFIT LOCKING
     //////////////////////////////////////////////////////////////*/
 
-    // This should only ever be called through protected relays as swaps will likely occur
+    /**
+    * @notice This should only ever be called through protected relays as swaps will likely occur.
+    * @dev Function for keepers to call to harvest and record all profits accrued.
+    *
+    * This will account for any gains/losses since the last report and charge fees accordingly.
+    *
+    * Any profit over the totalFees charged will be immediatly locked so there is no change in PricePerShare.
+    * Then slowly unlocked over the 'maxProfitUnlockTime' each second based on the calculated 'profitUnlockingRate'.
+    *
+    * Any 'loss' or fees greater than 'profit' will attempted to be offset with any remaining locked shares from the last
+    * report in order to reduce any negative impact to PPS.
+    *
+    * Will then recalculate the new time to unlock profits over and the rate based on a weighted average of any remaining time from the last
+    * report and the new amount of shares to be locked.
+    *
+    * Finally will tell the strategy to _invest all idle funds which should include both the totalIdle before the call as well
+    * any amount of 'asset' freed up during the totalInvested() call.
+    *
+    * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
+    * @return loss The notional amount of loss since the last report in terms of "asset" if any.
+    */
     // TODO: add unchecked {} where applicable
     function report()
         public
@@ -446,8 +467,10 @@ library BaseLibrary {
         AssetsData storage a = _assetsStorage();
         uint256 oldTotalAssets;
         unchecked {
+            // Manuaully calculate totalAssets to save an sLoad
             oldTotalAssets = a.totalIdle + a.totalDebt;
         }
+
         // Calculate protocol fees before we burn shares and update lastReport
         (
             uint256 totalFees,
@@ -471,7 +494,7 @@ library BaseLibrary {
             // We have a profit
             profit = _invested - oldTotalAssets;
 
-            // Asses fees
+            // Asses performance fees
             performanceFees = (profit * p.performanceFee) / MAX_BPS;
             totalFees += performanceFees;
         } else {
@@ -612,6 +635,53 @@ library BaseLibrary {
         }
 
         _burn(address(this), unlcokdedShares);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        TENDING LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev To be called by 'keeper' if a custom tendTrigger() is implemented.
+     *
+     * This will callback the internal _tend call in the BaseStrategy with the total current
+     * amount available to the strategy to invest.
+     *
+     * Keepers are expected to use protected relays in tend calls so this can be used for illiquid
+     * or manipulatable strategies to compound rewards, perform maintence or invest/withdraw funds.
+     *
+     * All accounting for totalDebt and totalIdle updates will be done here post _tend.
+     *
+     * @notice This should never cause an increase in PPS. Total assets should be the same before and after
+     *
+     * A report() call will be needed to record the profit.
+     */
+    function tend() external onlyKeepers {
+        AssetsData storage a = _assetsStorage();
+        ERC20 _asset = _erc20Storage().asset;
+
+        uint256 beforeBalance = _asset.balanceOf(address(this));
+        IBaseStrategy(address(this)).tendThis(a.totalIdle);
+        uint256 afterBalance = _asset.balanceOf(address(this));
+
+        // Adjust storage according to the changes without adjusting totalAssets().
+        if (beforeBalance > afterBalance) {
+            // Idle funds were deposited.
+            uint256 invested = Math.min(
+                beforeBalance - afterBalance,
+                a.totalIdle
+            );
+            a.totalIdle -= invested;
+            a.totalDebt += invested;
+        } else if (afterBalance > beforeBalance) {
+            // We default to use any funds freed as idle for cheaper withdraw/redeems.
+            uint256 harvested = Math.min(
+                afterBalance - beforeBalance,
+                a.totalDebt
+            );
+            a.totalIdle += harvested;
+            a.totalDebt -= harvested;
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -766,29 +836,6 @@ library BaseLibrary {
         onlyManagement
     {
         _profitStorage().profitMaxUnlockTime = _profitMaxUnlockTime;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                    REPORT FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    // NOTE: Should this be moved to general helper contract or keep it her to allow it to be overridden
-    function reportTrigger() external view returns (bool) {
-        // nothing to report
-        if (_assetsStorage().totalDebt == 0) return false;
-
-        // to costly
-        if (!isBaseFeeAcceptable()) return false;
-
-        return
-            block.timestamp - _profitStorage().lastReport >
-            _profitStorage().profitMaxUnlockTime;
-    }
-
-    function isBaseFeeAcceptable() public view returns (bool) {
-        return
-            IBaseFee(0xb5e1CAcB567d98faaDB60a1fD4820720141f064F)
-                .isCurrentBaseFeeAcceptable();
     }
 
     /*//////////////////////////////////////////////////////////////
