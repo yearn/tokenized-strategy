@@ -27,7 +27,7 @@ contract Setup is ExtendedTest {
     address public keeper = address(4);
     address public user = address(10);
 
-    // Fuzz from $0.01 of 1e6 stable coin up to 1 trillion of a 1e18 coin
+    // Fuzz from $0.01 of 1e6 stable coins up to 1 trillion of a 1e18 coin
     uint256 public minFuzzAmount = 10_000;
     uint256 public maxFuzzAmount = 1e30;
     uint256 public MAX_BPS = 10_000;

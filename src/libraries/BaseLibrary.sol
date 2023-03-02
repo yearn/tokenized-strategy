@@ -30,10 +30,9 @@ import "forge-std/console.sol";
 /// TODO:
 //      Add api version
 //      add events
-//      remove trigger
 //       Bump sol version
 //      Does base strategy need to hold errors and events?
-
+//      add unchecked {} where applicable
 library BaseLibrary {
     using SafeERC20 for ERC20;
     using Math for uint256;
@@ -163,6 +162,7 @@ library BaseLibrary {
     uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
     // Factory address NOTE: This will be set to deployed factory. deterministic address for testing is used now
+    // TODO: how to account for protocol fees when the strategy is empty
     address internal constant FACTORY =
         0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
 
@@ -457,7 +457,6 @@ library BaseLibrary {
     * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
     * @return loss The notional amount of loss since the last report in terms of "asset" if any.
     */
-    // TODO: add unchecked {} where applicable
     function report()
         public
         onlyKeepers
@@ -658,10 +657,12 @@ library BaseLibrary {
      */
     function tend() external onlyKeepers {
         AssetsData storage a = _assetsStorage();
+        // Expected Behavior is this will get used twice so we cache it
+        uint256 totalIdle = a.totalIdle;
         ERC20 _asset = _erc20Storage().asset;
-
+        
         uint256 beforeBalance = _asset.balanceOf(address(this));
-        IBaseStrategy(address(this)).tendThis(a.totalIdle);
+        IBaseStrategy(address(this)).tendThis(totalIdle);
         uint256 afterBalance = _asset.balanceOf(address(this));
 
         // Adjust storage according to the changes without adjusting totalAssets().
@@ -669,7 +670,7 @@ library BaseLibrary {
             // Idle funds were deposited.
             uint256 invested = Math.min(
                 beforeBalance - afterBalance,
-                a.totalIdle
+                totalIdle
             );
             a.totalIdle -= invested;
             a.totalDebt += invested;
@@ -898,7 +899,6 @@ library BaseLibrary {
         return _erc20Storage().symbol;
     }
 
-    // TODO: account for unlocked shares for address(this)
     function balanceOf(address account) public view returns (uint256) {
         if (account == address(this)) {
             return _erc20Storage().balances[account] - _unlockedShares();

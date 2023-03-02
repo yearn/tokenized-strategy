@@ -38,8 +38,6 @@ abstract contract BaseStrategy is IBaseStrategy {
     // Underlying asset the Strategy is earning yield on
     address public asset;
 
-    // TODO: Should these all be moved to the library to save bytecode
-
     // The decimals of the underlying asset we will use.
     // Keep this private with a getter function so it can be easily accessed by strategists but not updated
     uint8 private _decimals;
@@ -86,6 +84,7 @@ abstract contract BaseStrategy is IBaseStrategy {
       // These function are left external so they can be called by the BaseLibrary post a delegateCall.   \\
      //  If the library calls an external function of another contract the msg.sender will be the original \\
     //   contract that delegate called the library. Therefore msg.sender will be the strategy itself.       \\
+
 
     /**
     * @notice This can only be called after a 'deposit', 'mint' or 'report' delegateCall to the library so msg.sender == address(this).

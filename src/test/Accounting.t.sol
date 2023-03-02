@@ -11,6 +11,8 @@ contract AccountingTest is Setup {
         super.setUp();
     }
 
+    // TODO: use profit factor for all these and set fees to 0 for calculations
+
     function test_airdropDoesNotIncreasePPS(address _address, uint256 _amount)
         public
     {
