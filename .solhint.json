@@ -12,6 +12,7 @@
       "avoid-sha3": "warn",
       "not-rely-on-time": "off",
       "private-vars-leading-underscore": "off",
-      "reason-string": ["warn", { "maxLength": 64 }]
+      "reason-string": ["warn", { "maxLength": 64 }],
+      "no-console": "off"
     }
   }
