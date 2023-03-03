@@ -13,9 +13,10 @@ contract AccountingTest is Setup {
 
     // TODO: use profit factor for all these and set fees to 0 for calculations
 
-    function test_airdropDoesNotIncreasePPS(address _address, uint256 _amount)
-        public
-    {
+    function test_airdropDoesNotIncreasePPS(
+        address _address,
+        uint256 _amount
+    ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 

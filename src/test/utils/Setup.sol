@@ -33,7 +33,7 @@ contract Setup is ExtendedTest {
     uint256 public MAX_BPS = 10_000;
     // TODO: make these adjustable
     uint256 public decimals = 18;
-    uint256 public wad = 10**decimals;
+    uint256 public wad = 10 ** decimals;
     uint256 public profitMaxUnlockTime = 10 days;
     uint256 public maxPPSPercentDelta = 100;
 

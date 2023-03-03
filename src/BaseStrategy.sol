@@ -42,11 +42,7 @@ abstract contract BaseStrategy is IBaseStrategy {
     // Keep this private with a getter function so it can be easily accessed by strategists but not updated
     uint8 private _decimals;
 
-    constructor(
-        address _asset,
-        string memory _name,
-        string memory _symbol
-    ) {
+    constructor(address _asset, string memory _name, string memory _symbol) {
         _initialize(_asset, _name, _symbol, msg.sender);
     }
 
@@ -199,9 +195,7 @@ abstract contract BaseStrategy is IBaseStrategy {
         return type(uint256).max;
     }
 
-    function maxMint(
-        address /*_owner*/
-    ) public view virtual returns (uint256) {
+    function maxMint(address /*_owner*/) public view virtual returns (uint256) {
         return type(uint256).max;
     }
 

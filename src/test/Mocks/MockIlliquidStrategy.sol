@@ -10,9 +10,10 @@ import {BaseStrategy, BaseLibrary} from "../../BaseStrategy.sol";
 contract MockIlliquidStrategy is BaseStrategy {
     address public yieldSource;
 
-    constructor(address _asset, address _yieldSource)
-        BaseStrategy(_asset, "Test Strategy", "tsSTGY")
-    {
+    constructor(
+        address _asset,
+        address _yieldSource
+    ) BaseStrategy(_asset, "Test Strategy", "tsSTGY") {
         yieldSource = _yieldSource;
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
     }
@@ -38,12 +39,9 @@ contract MockIlliquidStrategy is BaseStrategy {
         }
     }
 
-    function maxWithdraw(address _owner)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function maxWithdraw(
+        address _owner
+    ) public view override returns (uint256) {
         return Math.min(BaseLibrary.totalIdle(), super.maxWithdraw(_owner));
     }
 
