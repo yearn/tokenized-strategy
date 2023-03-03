@@ -1,4 +1,5 @@
 name: Slither Analysis
+
 on:
   push:
     branches:
