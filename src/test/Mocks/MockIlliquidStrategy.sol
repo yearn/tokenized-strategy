@@ -38,11 +38,20 @@ contract MockIlliquidStrategy is BaseStrategy {
         }
     }
 
-    function maxWithdraw(address _owner) public view override returns (uint256) {
+    function maxWithdraw(address _owner)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return Math.min(BaseLibrary.totalIdle(), super.maxWithdraw(_owner));
     }
 
     function maxRedeem(address _owner) public view override returns (uint256) {
-        return Math.min(BaseLibrary.convertToShares(BaseLibrary.totalIdle()), super.maxWithdraw(_owner));
+        return
+            Math.min(
+                BaseLibrary.convertToShares(BaseLibrary.totalIdle()),
+                super.maxWithdraw(_owner)
+            );
     }
 }

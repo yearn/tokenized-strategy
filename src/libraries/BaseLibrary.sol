@@ -382,7 +382,6 @@ library BaseLibrary {
 
     // post deposit/report hook to deposit any loose funds
     function _depositFunds(uint256 _newAmount, bool _reported) internal {
-        
         AssetsData storage a = _assetsStorage();
         ERC20 _asset = _erc20Storage().asset;
         // We will deposit up to current idle plus the new amount added
@@ -437,26 +436,26 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-    * @notice This should only ever be called through protected relays as swaps will likely occur.
-    * @dev Function for keepers to call to harvest and record all profits accrued.
-    *
-    * This will account for any gains/losses since the last report and charge fees accordingly.
-    *
-    * Any profit over the totalFees charged will be immediatly locked so there is no change in PricePerShare.
-    * Then slowly unlocked over the 'maxProfitUnlockTime' each second based on the calculated 'profitUnlockingRate'.
-    *
-    * Any 'loss' or fees greater than 'profit' will attempted to be offset with any remaining locked shares from the last
-    * report in order to reduce any negative impact to PPS.
-    *
-    * Will then recalculate the new time to unlock profits over and the rate based on a weighted average of any remaining time from the last
-    * report and the new amount of shares to be locked.
-    *
-    * Finally will tell the strategy to _invest all idle funds which should include both the totalIdle before the call as well
-    * any amount of 'asset' freed up during the totalInvested() call.
-    *
-    * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
-    * @return loss The notional amount of loss since the last report in terms of "asset" if any.
-    */
+     * @notice This should only ever be called through protected relays as swaps will likely occur.
+     * @dev Function for keepers to call to harvest and record all profits accrued.
+     *
+     * This will account for any gains/losses since the last report and charge fees accordingly.
+     *
+     * Any profit over the totalFees charged will be immediatly locked so there is no change in PricePerShare.
+     * Then slowly unlocked over the 'maxProfitUnlockTime' each second based on the calculated 'profitUnlockingRate'.
+     *
+     * Any 'loss' or fees greater than 'profit' will attempted to be offset with any remaining locked shares from the last
+     * report in order to reduce any negative impact to PPS.
+     *
+     * Will then recalculate the new time to unlock profits over and the rate based on a weighted average of any remaining time from the last
+     * report and the new amount of shares to be locked.
+     *
+     * Finally will tell the strategy to _invest all idle funds which should include both the totalIdle before the call as well
+     * any amount of 'asset' freed up during the totalInvested() call.
+     *
+     * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
+     * @return loss The notional amount of loss since the last report in terms of "asset" if any.
+     */
     function report()
         public
         onlyKeepers
@@ -658,11 +657,11 @@ library BaseLibrary {
     function tend() external onlyKeepers {
         AssetsData storage a = _assetsStorage();
         // Expected Behavior is this will get used twice so we cache it
-        uint256 totalIdle = a.totalIdle;
+        uint256 _totalIdle = a.totalIdle;
         ERC20 _asset = _erc20Storage().asset;
-        
+
         uint256 beforeBalance = _asset.balanceOf(address(this));
-        IBaseStrategy(address(this)).tendThis(totalIdle);
+        IBaseStrategy(address(this)).tendThis(_totalIdle);
         uint256 afterBalance = _asset.balanceOf(address(this));
 
         // Adjust storage according to the changes without adjusting totalAssets().
@@ -670,7 +669,7 @@ library BaseLibrary {
             // Idle funds were deposited.
             uint256 invested = Math.min(
                 beforeBalance - afterBalance,
-                totalIdle
+                _totalIdle
             );
             a.totalIdle -= invested;
             a.totalDebt += invested;
