@@ -33,7 +33,7 @@ contract Setup is ExtendedTest {
     uint256 public MAX_BPS = 10_000;
     // TODO: make these adjustable
     uint256 public decimals = 18;
-    uint256 public wad = 10**decimals;
+    uint256 public wad = 10 ** decimals;
     uint256 public profitMaxUnlockTime = 10 days;
     uint256 public maxPPSPercentDelta = 100;
 
@@ -98,14 +98,11 @@ contract Setup is ExtendedTest {
         asset.approve(address(strategy), _amount);
 
         uint256 beforeBalance = strategy.totalAssets();
-        
+
         vm.prank(_user);
         strategy.deposit(_amount, _user);
 
-        assertEq(
-            strategy.totalAssets(),
-            beforeBalance + _amount
-        );
+        assertEq(strategy.totalAssets(), beforeBalance + _amount);
     }
 
     function getSelectors() public pure returns (bytes4[] memory selectors) {
@@ -167,7 +164,11 @@ contract Setup is ExtendedTest {
     }
 
     function setUpIlliquidStrategy() public {
-        strategy = IStrategy(address(new MockIlliquidStrategy(address(asset), address(yieldSource))));
+        strategy = IStrategy(
+            address(
+                new MockIlliquidStrategy(address(asset), address(yieldSource))
+            )
+        );
 
         // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0

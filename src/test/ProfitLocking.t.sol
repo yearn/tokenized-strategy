@@ -86,11 +86,10 @@ contract ProfitLockingTest is Setup {
         );
     }
 
-    function getExpectedProtocolFee(uint256 _amount, uint16 _fee)
-        public
-        view
-        returns (uint256)
-    {
+    function getExpectedProtocolFee(
+        uint256 _amount,
+        uint16 _fee
+    ) public view returns (uint256) {
         uint256 timePassed = Math.min(
             block.timestamp - strategy.lastReport(),
             block.timestamp - mockFactory.lastChange()

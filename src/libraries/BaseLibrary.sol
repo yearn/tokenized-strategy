@@ -18,11 +18,7 @@ interface IFactory {
     function protocol_fee_config()
         external
         view
-        returns (
-            uint16,
-            uint32,
-            address
-        );
+        returns (uint16, uint32, address);
 }
 
 import "forge-std/console.sol";
@@ -273,10 +269,10 @@ library BaseLibrary {
                         ERC4626 FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
-    function deposit(uint256 assets, address receiver)
-        public
-        returns (uint256 shares)
-    {
+    function deposit(
+        uint256 assets,
+        address receiver
+    ) public returns (uint256 shares) {
         // check lower than max
         require(
             assets <= IBaseStrategy(address(this)).maxDeposit(receiver),
@@ -302,10 +298,10 @@ library BaseLibrary {
         _depositFunds(assets, false);
     }
 
-    function mint(uint256 shares, address receiver)
-        public
-        returns (uint256 assets)
-    {
+    function mint(
+        uint256 shares,
+        address receiver
+    ) public returns (uint256 assets) {
         require(
             shares <= IBaseStrategy(address(this)).maxMint(receiver),
             "ERC4626: mint more than max"
@@ -382,7 +378,6 @@ library BaseLibrary {
 
     // post deposit/report hook to deposit any loose funds
     function _depositFunds(uint256 _newAmount, bool _reported) internal {
-        
         AssetsData storage a = _assetsStorage();
         ERC20 _asset = _erc20Storage().asset;
         // We will deposit up to current idle plus the new amount added
@@ -437,26 +432,26 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-    * @notice This should only ever be called through protected relays as swaps will likely occur.
-    * @dev Function for keepers to call to harvest and record all profits accrued.
-    *
-    * This will account for any gains/losses since the last report and charge fees accordingly.
-    *
-    * Any profit over the totalFees charged will be immediatly locked so there is no change in PricePerShare.
-    * Then slowly unlocked over the 'maxProfitUnlockTime' each second based on the calculated 'profitUnlockingRate'.
-    *
-    * Any 'loss' or fees greater than 'profit' will attempted to be offset with any remaining locked shares from the last
-    * report in order to reduce any negative impact to PPS.
-    *
-    * Will then recalculate the new time to unlock profits over and the rate based on a weighted average of any remaining time from the last
-    * report and the new amount of shares to be locked.
-    *
-    * Finally will tell the strategy to _invest all idle funds which should include both the totalIdle before the call as well
-    * any amount of 'asset' freed up during the totalInvested() call.
-    *
-    * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
-    * @return loss The notional amount of loss since the last report in terms of "asset" if any.
-    */
+     * @notice This should only ever be called through protected relays as swaps will likely occur.
+     * @dev Function for keepers to call to harvest and record all profits accrued.
+     *
+     * This will account for any gains/losses since the last report and charge fees accordingly.
+     *
+     * Any profit over the totalFees charged will be immediatly locked so there is no change in PricePerShare.
+     * Then slowly unlocked over the 'maxProfitUnlockTime' each second based on the calculated 'profitUnlockingRate'.
+     *
+     * Any 'loss' or fees greater than 'profit' will attempted to be offset with any remaining locked shares from the last
+     * report in order to reduce any negative impact to PPS.
+     *
+     * Will then recalculate the new time to unlock profits over and the rate based on a weighted average of any remaining time from the last
+     * report and the new amount of shares to be locked.
+     *
+     * Finally will tell the strategy to _invest all idle funds which should include both the totalIdle before the call as well
+     * any amount of 'asset' freed up during the totalInvested() call.
+     *
+     * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
+     * @return loss The notional amount of loss since the last report in terms of "asset" if any.
+     */
     function report()
         public
         onlyKeepers
@@ -591,7 +586,9 @@ library BaseLibrary {
         _depositFunds(0, true);
     }
 
-    function _assessProtocolFees(uint256 _oldTotalAssets)
+    function _assessProtocolFees(
+        uint256 _oldTotalAssets
+    )
         internal
         view
         returns (uint256 protocolFees, address protocolFeesRecipient)
@@ -658,11 +655,11 @@ library BaseLibrary {
     function tend() external onlyKeepers {
         AssetsData storage a = _assetsStorage();
         // Expected Behavior is this will get used twice so we cache it
-        uint256 totalIdle = a.totalIdle;
+        uint256 _totalIdle = a.totalIdle;
         ERC20 _asset = _erc20Storage().asset;
-        
+
         uint256 beforeBalance = _asset.balanceOf(address(this));
-        IBaseStrategy(address(this)).tendThis(totalIdle);
+        IBaseStrategy(address(this)).tendThis(_totalIdle);
         uint256 afterBalance = _asset.balanceOf(address(this));
 
         // Adjust storage according to the changes without adjusting totalAssets().
@@ -670,7 +667,7 @@ library BaseLibrary {
             // Idle funds were deposited.
             uint256 invested = Math.min(
                 beforeBalance - afterBalance,
-                totalIdle
+                _totalIdle
             );
             a.totalIdle -= invested;
             a.totalDebt += invested;
@@ -766,7 +763,7 @@ library BaseLibrary {
     // External view function to pull public variables from storage
 
     function pricePerShare() external view returns (uint256) {
-        return convertToAssets(10**IBaseStrategy(address(this)).decimals());
+        return convertToAssets(10 ** IBaseStrategy(address(this)).decimals());
     }
 
     function totalIdle() external view returns (uint256) {
@@ -816,26 +813,23 @@ library BaseLibrary {
         _accessStorage().keeper = _keeper;
     }
 
-    function setPerformanceFee(uint256 _performanceFee)
-        external
-        onlyManagement
-    {
+    function setPerformanceFee(
+        uint256 _performanceFee
+    ) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
         _profitStorage().performanceFee = _performanceFee;
     }
 
-    function setPerformanceFeeRecipient(address _performanceFeeRecipient)
-        external
-        onlyManagement
-    {
+    function setPerformanceFeeRecipient(
+        address _performanceFeeRecipient
+    ) external onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
         _profitStorage().performanceFeeRecipient = _performanceFeeRecipient;
     }
 
-    function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime)
-        external
-        onlyManagement
-    {
+    function setProfitMaxUnlockTime(
+        uint256 _profitMaxUnlockTime
+    ) external onlyManagement {
         _profitStorage().profitMaxUnlockTime = _profitMaxUnlockTime;
     }
 
@@ -852,11 +846,9 @@ library BaseLibrary {
     /// @notice Gets all the function selectors supported by a specific facet.
     /// @param _facet The facet address.
     /// @return facetFunctionSelectors_
-    function facetFunctionSelectors(address _facet)
-        external
-        view
-        returns (bytes4[] memory)
-    {
+    function facetFunctionSelectors(
+        address _facet
+    ) external view returns (bytes4[] memory) {
         return DiamondHelper(diamondHelper).facetFunctionSelectors(_facet);
     }
 
@@ -870,11 +862,9 @@ library BaseLibrary {
     /// @dev If facet is not found return address(0).
     /// @param _functionSelector The function selector.
     /// @return facetAddress_ The facet address.
-    function facetAddress(bytes4 _functionSelector)
-        external
-        view
-        returns (address)
-    {
+    function facetAddress(
+        bytes4 _functionSelector
+    ) external view returns (address) {
         return DiamondHelper(diamondHelper).facetAddress(_functionSelector);
     }
 
@@ -923,11 +913,10 @@ library BaseLibrary {
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender)
-        public
-        view
-        returns (uint256)
-    {
+    function allowance(
+        address owner,
+        address spender
+    ) public view returns (uint256) {
         return _erc20Storage().allowances[owner][spender];
     }
 
@@ -986,10 +975,10 @@ library BaseLibrary {
      *
      * - `spender` cannot be the zero address.
      */
-    function increaseAllowance(address spender, uint256 addedValue)
-        public
-        returns (bool)
-    {
+    function increaseAllowance(
+        address spender,
+        uint256 addedValue
+    ) public returns (bool) {
         address owner = msg.sender;
         _approve(owner, spender, allowance(owner, spender) + addedValue);
         return true;
@@ -1009,10 +998,10 @@ library BaseLibrary {
      * - `spender` must have allowance for the caller of at least
      * `subtractedValue`.
      */
-    function decreaseAllowance(address spender, uint256 subtractedValue)
-        public
-        returns (bool)
-    {
+    function decreaseAllowance(
+        address spender,
+        uint256 subtractedValue
+    ) public returns (bool) {
         address owner = msg.sender;
         uint256 currentAllowance = allowance(owner, spender);
         require(
@@ -1040,11 +1029,7 @@ library BaseLibrary {
      * - `to` cannot be the zero address.
      * - `from` must have a balance of at least `amount`.
      */
-    function _transfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal {
+    function _transfer(address from, address to, uint256 amount) internal {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(to != address(this), "ERC20 transfer to strategy");
@@ -1096,11 +1081,7 @@ library BaseLibrary {
      * - `owner` cannot be the zero address.
      * - `spender` cannot be the zero address.
      */
-    function _approve(
-        address owner,
-        address spender,
-        uint256 amount
-    ) internal {
+    function _approve(address owner, address spender, uint256 amount) internal {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 

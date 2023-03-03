@@ -13,9 +13,10 @@ contract AccountingTest is Setup {
 
     // TODO: use profit factor for all these and set fees to 0 for calculations
 
-    function test_airdropDoesNotIncreasePPS(address _address, uint256 _amount)
-        public
-    {
+    function test_airdropDoesNotIncreasePPS(
+        address _address,
+        uint256 _amount
+    ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 
@@ -339,7 +340,10 @@ contract AccountingTest is Setup {
         // aidrop to strategy to simulate a harvesting of rewards
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
-        assertEq(asset.balanceOf(address(strategy)), _amount - expectedDeposit + toAirdrop);
+        assertEq(
+            asset.balanceOf(address(strategy)),
+            _amount - expectedDeposit + toAirdrop
+        );
 
         vm.prank(keeper);
         strategy.tend();
@@ -348,11 +352,7 @@ contract AccountingTest is Setup {
         assertEq(strategy.totalAssets(), _amount, "!assets");
         assertEq(strategy.totalDebt(), 0, "1debt");
         assertEq(strategy.totalIdle(), _amount, "!idle");
-        assertEq(
-            asset.balanceOf(address(yieldSource)),
-            0,
-            "!yieldsource"
-        );
+        assertEq(asset.balanceOf(address(yieldSource)), 0, "!yieldsource");
         assertEq(asset.balanceOf(address(strategy)), _amount + toAirdrop);
         assertEq(strategy.pricePerShare(), wad, "!pps");
 
@@ -362,8 +362,14 @@ contract AccountingTest is Setup {
 
         assertEq(strategy.totalAssets(), _amount + toAirdrop);
         assertEq(strategy.totalDebt(), (_amount + toAirdrop) / 2);
-        assertEq(strategy.totalIdle(), (_amount + toAirdrop) - ((_amount + toAirdrop) / 2));
-        assertEq(asset.balanceOf(address(yieldSource)), (_amount + toAirdrop) / 2);
+        assertEq(
+            strategy.totalIdle(),
+            (_amount + toAirdrop) - ((_amount + toAirdrop) / 2)
+        );
+        assertEq(
+            asset.balanceOf(address(yieldSource)),
+            (_amount + toAirdrop) / 2
+        );
 
         skip(profitMaxUnlockTime);
 

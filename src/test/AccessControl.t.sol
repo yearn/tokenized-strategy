@@ -102,9 +102,9 @@ contract AccesssControlTest is Setup {
         strategy.setPerformanceFee(_amount + MAX_BPS);
     }
 
-    function test_settingPerformanceFeeRecipient_reverts(address _address)
-        public
-    {
+    function test_settingPerformanceFeeRecipient_reverts(
+        address _address
+    ) public {
         vm.assume(_address != management);
 
         address _performanceFeeRecipient = strategy.performanceFeeRecipient();
@@ -190,9 +190,10 @@ contract AccesssControlTest is Setup {
         assertEq(asset.balanceOf(address(yieldSource)), _amount, "!out");
     }
 
-    function test_accessControl_freeFunds(address _address, uint256 _amount)
-        public
-    {
+    function test_accessControl_freeFunds(
+        address _address,
+        uint256 _amount
+    ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
@@ -223,9 +224,10 @@ contract AccesssControlTest is Setup {
         assertEq(asset.balanceOf(address(strategy)), _amount, "!out");
     }
 
-    function test_accessControl_totalInvested(address _address, uint256 _amount)
-        public
-    {
+    function test_accessControl_totalInvested(
+        address _address,
+        uint256 _amount
+    ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
@@ -252,9 +254,10 @@ contract AccesssControlTest is Setup {
         assertEq(amountOut, _amount, "!out");
     }
 
-    function test_accessControl_tendThis(address _address, uint256 _amount)
-        public
-    {
+    function test_accessControl_tendThis(
+        address _address,
+        uint256 _amount
+    ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
