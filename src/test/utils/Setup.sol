@@ -7,6 +7,7 @@ import {ExtendedTest} from "./ExtendedTest.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {IStrategy} from "../Mocks/IStrategy.sol";
 import {MockStrategy, MockYieldSource} from "../Mocks/MockStrategy.sol";
+import {MockIlliquidStrategy} from "../Mocks/MockIlliquidStrategy.sol";
 import {MockFactory} from "../Mocks/MockFactory.sol";
 
 import {DiamondHelper} from "../../DiamondHelper.sol";
@@ -26,7 +27,7 @@ contract Setup is ExtendedTest {
     address public keeper = address(4);
     address public user = address(10);
 
-    // Fuzz from $0.01 of 1e6 stable coin up to 1 trillion of a 1e18 coin
+    // Fuzz from $0.01 of 1e6 stable coins up to 1 trillion of a 1e18 coin
     uint256 public minFuzzAmount = 10_000;
     uint256 public maxFuzzAmount = 1e30;
     uint256 public MAX_BPS = 10_000;
@@ -96,13 +97,13 @@ contract Setup is ExtendedTest {
         vm.prank(_user);
         asset.approve(address(strategy), _amount);
 
-        uint256 beforeBalance = asset.balanceOf(address(yieldSource));
-
+        uint256 beforeBalance = strategy.totalAssets();
+        
         vm.prank(_user);
         strategy.deposit(_amount, _user);
 
         assertEq(
-            asset.balanceOf(address(yieldSource)),
+            strategy.totalAssets(),
             beforeBalance + _amount
         );
     }
@@ -156,5 +157,38 @@ contract Setup is ExtendedTest {
         for (uint256 i; i < _selectors.length; ++i) {
             selectors[i] = bytes4(bytes(_selectors[i]));
         }
+    }
+
+    function setFees(uint16 _protocolFee, uint256 _performanceFee) public {
+        mockFactory.setFee(_protocolFee);
+        vm.prank(management);
+
+        strategy.setPerformanceFee(_performanceFee);
+    }
+
+    function setUpIlliquidStrategy() public {
+        strategy = IStrategy(address(new MockIlliquidStrategy(address(asset), address(yieldSource))));
+
+        // set the slots for the baseLibrary to the correct address
+        // store the libraries address at slot 0
+        vm.store(
+            address(strategy),
+            bytes32(0),
+            bytes32(uint256(uint160(address(BaseLibrary))))
+        );
+
+        // make sure our storage is set correctly
+        assertEq(
+            MockStrategy(payable(address(strategy))).baseLibrary(),
+            address(BaseLibrary),
+            "lib slot"
+        );
+
+        // set keeper
+        strategy.setKeeper(keeper);
+        // set treasury
+        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+        // set management of the strategy
+        strategy.setManagement(management);
     }
 }

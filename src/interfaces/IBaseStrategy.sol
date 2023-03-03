@@ -76,7 +76,7 @@ interface IBaseStrategy {
 
     function totalInvested() external returns (uint256);
 
-    function tend() external;
+    function tendThis(uint256 _totalIdle) external;
 
     /**
      * @dev Returns the number of decimals used to get its user representation.
