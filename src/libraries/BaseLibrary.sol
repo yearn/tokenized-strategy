@@ -36,27 +36,29 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-    * @notice Emitted whent the 'mangement' address is updtaed to 'newManagement'.
+     * @notice Emitted whent the 'mangement' address is updtaed to 'newManagement'.
      */
     event UpdateManagement(address indexed newManagement);
 
     /**
-    * @notice Emitted whent the 'keeper' address is updtaed to 'newKeeper'.
+     * @notice Emitted whent the 'keeper' address is updtaed to 'newKeeper'.
      */
     event UpdateKeeper(address indexed newKeeper);
 
     /**
-    * @notice Emitted whent the 'performaneFee' is updtaed to 'newPerformanceFee'.
+     * @notice Emitted whent the 'performaneFee' is updtaed to 'newPerformanceFee'.
      */
     event UpdatePerformanceFee(uint256 newPerformanceFee);
 
     /**
-    * @notice Emitted whent the 'performanceFeeRecipient' address is updtaed to 'newPerformanceFeeRecipient'.
+     * @notice Emitted whent the 'performanceFeeRecipient' address is updtaed to 'newPerformanceFeeRecipient'.
      */
-    event UpdatePerformanceFeeRecipient(address indexed newPerformanceFeeRecipient);
+    event UpdatePerformanceFeeRecipient(
+        address indexed newPerformanceFeeRecipient
+    );
 
     /**
-    * @notice Emitted whent the 'profitMaxUnlockTime' is updtaed to 'newProfitMaxUnlockTime'.
+     * @notice Emitted whent the 'profitMaxUnlockTime' is updtaed to 'newProfitMaxUnlockTime'.
      */
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 
@@ -603,7 +605,7 @@ library BaseLibrary {
             profit,
             loss,
             performanceFees,
-            totalFees - performanceFees
+            totalFees - performanceFees // Protocol fees
         );
 
         // invest any idle funds, tell strategy it is during a report call
@@ -881,18 +883,18 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-    * @notice Gets all facet addresses and their four byte function selectors.
-    * @return facets_ Facet
-    */
+     * @notice Gets all facet addresses and their four byte function selectors.
+     * @return facets_ Facet
+     */
     function facets() external view returns (IDiamondLoupe.Facet[] memory) {
         return DiamondHelper(diamondHelper).facets();
     }
 
     /**
-    * @notice Gets all the function selectors supported by a specific facet.
-    * @param _facet The facet address.
-    * @return facetFunctionSelectors_
-    */
+     * @notice Gets all the function selectors supported by a specific facet.
+     * @param _facet The facet address.
+     * @return facetFunctionSelectors_
+     */
     function facetFunctionSelectors(
         address _facet
     ) external view returns (bytes4[] memory) {
@@ -900,19 +902,19 @@ library BaseLibrary {
     }
 
     /**
-    * @notice Get all the facet addresses used by a diamond.
-    * @return facetAddresses_
-    */
+     * @notice Get all the facet addresses used by a diamond.
+     * @return facetAddresses_
+     */
     function facetAddresses() external view returns (address[] memory) {
         return DiamondHelper(diamondHelper).facetAddresses();
     }
 
     /**
-    * @notice Gets the facet that supports the given selector.
-    * @dev If facet is not found return address(0).
-    * @param _functionSelector The function selector.
-    * @return facetAddress_ The facet address.
-    */
+     * @notice Gets the facet that supports the given selector.
+     * @dev If facet is not found return address(0).
+     * @param _functionSelector The function selector.
+     * @return facetAddress_ The facet address.
+     */
     function facetAddress(
         bytes4 _functionSelector
     ) external view returns (address) {

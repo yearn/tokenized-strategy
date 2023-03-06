@@ -22,7 +22,7 @@ contract ProfitLockingTest is Setup {
         asset.mint(address(strategy), profit);
 
         // Check the event matches the expected values
-        vm.expectEmit(true, true, false, true, address(strategy));
+        vm.expectEmit(true, true, true, true, address(strategy));
         emit BaseLibrary.Reported(profit, 0, _performanceFees, _protocolFees);
 
         vm.prank(keeper);

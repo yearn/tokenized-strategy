@@ -14,6 +14,9 @@ contract AccesssControlTest is Setup {
     function test_setManagement(address _address) public {
         vm.assume(_address != management && _address != address(0));
 
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit BaseLibrary.UpdateManagement(_address);
+
         vm.prank(management);
         strategy.setManagement(_address);
 
@@ -23,6 +26,9 @@ contract AccesssControlTest is Setup {
     function test_setKeeper(address _address) public {
         vm.assume(_address != keeper);
 
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit BaseLibrary.UpdateKeeper(_address);
+
         vm.prank(management);
         strategy.setKeeper(_address);
 
@@ -31,6 +37,9 @@ contract AccesssControlTest is Setup {
 
     function test_setPerformanceFee(uint256 _amount) public {
         _amount = bound(_amount, 0, 9_999);
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit BaseLibrary.UpdatePerformanceFee(_amount);
 
         vm.prank(management);
         strategy.setPerformanceFee(_amount);
@@ -43,6 +52,9 @@ contract AccesssControlTest is Setup {
             _address != performanceFeeRecipient && _address != address(0)
         );
 
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit BaseLibrary.UpdatePerformanceFeeRecipient(_address);
+
         vm.prank(management);
         strategy.setPerformanceFeeRecipient(_address);
 
@@ -51,6 +63,9 @@ contract AccesssControlTest is Setup {
 
     function test_setProfitMaxUnlockTime(uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit BaseLibrary.UpdateProfitMaxUnlockTime(_amount);
 
         vm.prank(management);
         strategy.setProfitMaxUnlockTime(_amount);
