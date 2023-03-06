@@ -190,14 +190,14 @@ library BaseLibrary {
         0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
 
     /**
-    * @dev Custom storgage slots that will store their specific structs for each strategies storage variables.
-    *
-    * Any storage updates done by the library effect the storage of the calling contract. Each of these variabless
-    * point to the specic location that will be used to store the corresponding struct that holds that data.
-    *
-    * We intentionally use large strings in order to get high slots that that should allow for stratgists
-    * to use any amount of storage in the implementations without worrying about collisions. The assets stuct is the
-    * lowest and it sits a slot > 1e75.
+     * @dev Custom storgage slots that will store their specific structs for each strategies storage variables.
+     *
+     * Any storage updates done by the library effect the storage of the calling contract. Each of these variabless
+     * point to the specic location that will be used to store the corresponding struct that holds that data.
+     *
+     * We intentionally use large strings in order to get high slots that that should allow for stratgists
+     * to use any amount of storage in the implementations without worrying about collisions. The assets stuct is the
+     * lowest and it sits a slot > 1e75.
      */
 
     // Storage slot to use for ERC20 variables
@@ -870,9 +870,7 @@ library BaseLibrary {
         emit UpdateKeeper(_keeper);
     }
 
-    function setPerformanceFee(
-        uint16 _performanceFee
-    ) external onlyManagement {
+    function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
         _profitStorage().performanceFee = _performanceFee;
 
