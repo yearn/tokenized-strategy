@@ -156,7 +156,7 @@ contract Setup is ExtendedTest {
         }
     }
 
-    function setFees(uint16 _protocolFee, uint256 _performanceFee) public {
+    function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
         mockFactory.setFee(_protocolFee);
         vm.prank(management);
 

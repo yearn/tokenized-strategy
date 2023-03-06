@@ -56,7 +56,7 @@ interface IStrategy is IERC4626 {
 
     function setKeeper(address _keeper) external;
 
-    function setPerformanceFee(uint256 _performanceFee) external;
+    function setPerformanceFee(uint16 _performanceFee) external;
 
     function setPerformanceFeeRecipient(
         address _performanceFeeRecipient

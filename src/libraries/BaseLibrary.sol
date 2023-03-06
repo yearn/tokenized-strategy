@@ -20,8 +20,6 @@ interface IFactory {
 import "forge-std/console.sol";
 
 /// TODO:
-//      Add api version
-//      add events
 //       Bump sol version
 //      Does base strategy need to hold errors and events?
 //      add unchecked {} where applicable
@@ -48,7 +46,7 @@ library BaseLibrary {
     /**
      * @notice Emitted whent the 'performaneFee' is updtaed to 'newPerformanceFee'.
      */
-    event UpdatePerformanceFee(uint256 newPerformanceFee);
+    event UpdatePerformanceFee(uint16 newPerformanceFee);
 
     /**
      * @notice Emitted whent the 'performanceFeeRecipient' address is updtaed to 'newPerformanceFeeRecipient'.
@@ -138,7 +136,7 @@ library BaseLibrary {
         uint256 profitUnlockingRate;
         uint256 profitMaxUnlockTime;
         uint256 lastReport;
-        uint256 performanceFee;
+        uint16 performanceFee;
         address performanceFeeRecipient;
     }
 
@@ -161,6 +159,8 @@ library BaseLibrary {
         _;
     }
 
+    // These are left public to allow for the strategy to use them as well
+
     function isManagement() public view {
         if (msg.sender != _accessStorage().management) revert Unauthorized();
     }
@@ -175,33 +175,47 @@ library BaseLibrary {
                                CONSTANT
     //////////////////////////////////////////////////////////////*/
 
+    string private constant API_VERSION = "3.1.0";
+
     // NOTE: holder address based on expected location during tests
-    address public constant diamondHelper =
+    address private constant diamondHelper =
         0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
 
-    uint256 internal constant MAX_BPS = 10_000;
-    uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
+    uint256 private constant MAX_BPS = 10_000;
+    uint256 private constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
     // Factory address NOTE: This will be set to deployed factory. deterministic address for testing is used now
     // TODO: how to account for protocol fees when the strategy is empty
-    address internal constant FACTORY =
+    address private constant FACTORY =
         0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
 
-    // storage slot to use for ERC20 variables
-    // TODO: make this one longer than the rest to assure no collisions
-    bytes32 internal constant ERC20_STRATEGY_STORAGE =
-        bytes32(uint256(keccak256("yearn.erc20.strategy.storage")) - 1);
+    /**
+    * @dev Custom storgage slots that will store their specific structs for each strategies storage variables.
+    *
+    * Any storage updates done by the library effect the storage of the calling contract. Each of these variabless
+    * point to the specic location that will be used to store the corresponding struct that holds that data.
+    *
+    * We intentionally use large strings in order to get high slots that that should allow for stratgists
+    * to use any amount of storage in the implementations without worrying about collisions. The assets stuct is the
+    * lowest and it sits a slot > 1e75.
+     */
+
+    // Storage slot to use for ERC20 variables
+    // We intentionally may this string the longest to get the highest slot to avoid any collisions with the mappings
+    // that may be set before the other structs have been fully instantiated.
+    bytes32 private constant ERC20_STRATEGY_STORAGE =
+        bytes32(uint256(keccak256("yearn.erc20.data.strategy.storage")) - 1);
 
     // storage slot for debt and idle
-    bytes32 internal constant ASSETS_STRATEGY_STORAGE =
+    bytes32 private constant ASSETS_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.assets.strategy.storage")) - 1);
 
     // storage slot to use for report/ profit locking variables
-    bytes32 internal constant PROFIT_LOCKING_STORAGE =
+    bytes32 private constant PROFIT_LOCKING_STORAGE =
         bytes32(uint256(keccak256("yearn.profit.locking.storage")) - 1);
 
     // storage slot to use for the permissined addresses for a strategy
-    bytes32 internal constant ACCESS_CONTROL_STORAGE =
+    bytes32 private constant ACCESS_CONTROL_STORAGE =
         bytes32(uint256(keccak256("yearn.access.control.storage")) - 1);
 
     /*//////////////////////////////////////////////////////////////
@@ -402,7 +416,7 @@ library BaseLibrary {
     }
 
     // post deposit/report hook to deposit any loose funds
-    function _depositFunds(uint256 _newAmount, bool _reported) internal {
+    function _depositFunds(uint256 _newAmount, bool _reported) private {
         AssetsData storage a = _assetsStorage();
         ERC20 _asset = _erc20Storage().asset;
         // We will deposit up to current idle plus the new amount added
@@ -427,7 +441,7 @@ library BaseLibrary {
 
     // TODO: Make this better
     //      This should return the actual amount freed so it can accept losses
-    function _withdrawFunds(uint256 _amount) internal {
+    function _withdrawFunds(uint256 _amount) private {
         AssetsData storage a = _assetsStorage();
         ERC20 _asset = _erc20Storage().asset;
 
@@ -478,7 +492,7 @@ library BaseLibrary {
      * @return loss The notional amount of loss since the last report in terms of "asset" if any.
      */
     function report()
-        public
+        external
         onlyKeepers
         returns (uint256 profit, uint256 loss)
     {
@@ -615,7 +629,7 @@ library BaseLibrary {
     function _assessProtocolFees(
         uint256 _oldTotalAssets
     )
-        internal
+        private
         view
         returns (uint256 protocolFees, address protocolFeesRecipient)
     {
@@ -645,7 +659,7 @@ library BaseLibrary {
         }
     }
 
-    function _burnUnlockedShares() internal {
+    function _burnUnlockedShares() private {
         uint256 unlcokdedShares = _unlockedShares();
         if (unlcokdedShares == 0) {
             return;
@@ -722,7 +736,7 @@ library BaseLibrary {
         return _erc20Storage().totalSupply - _unlockedShares();
     }
 
-    function _unlockedShares() internal view returns (uint256) {
+    function _unlockedShares() private view returns (uint256) {
         // should save 2 extra calls for most scenarios
         ProfitData storage p = _profitStorage();
         uint256 _fullProfitUnlockDate = p.fullProfitUnlockDate;
@@ -789,6 +803,10 @@ library BaseLibrary {
 
     // External view function to pull public variables from storage
 
+    function apiVersion() external pure returns (string memory) {
+        return API_VERSION;
+    }
+
     function totalIdle() external view returns (uint256) {
         return _assetsStorage().totalIdle;
     }
@@ -805,7 +823,7 @@ library BaseLibrary {
         return _accessStorage().keeper;
     }
 
-    function performanceFee() external view returns (uint256) {
+    function performanceFee() external view returns (uint16) {
         return _profitStorage().performanceFee;
     }
 
@@ -853,7 +871,7 @@ library BaseLibrary {
     }
 
     function setPerformanceFee(
-        uint256 _performanceFee
+        uint16 _performanceFee
     ) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
         _profitStorage().performanceFee = _performanceFee;
@@ -1083,7 +1101,7 @@ library BaseLibrary {
      * - `to` cannot be the zero address.
      * - `from` must have a balance of at least `amount`.
      */
-    function _transfer(address from, address to, uint256 amount) internal {
+    function _transfer(address from, address to, uint256 amount) private {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(to != address(this), "ERC20 transfer to strategy");
@@ -1101,7 +1119,7 @@ library BaseLibrary {
         emit Transfer(from, to, amount);
     }
 
-    function _mint(address account, uint256 amount) internal {
+    function _mint(address account, uint256 amount) private {
         require(account != address(0), "ERC20: mint to the zero address");
 
         _erc20Storage().totalSupply += amount;
@@ -1109,7 +1127,7 @@ library BaseLibrary {
         emit Transfer(address(0), account, amount);
     }
 
-    function _burn(address account, uint256 amount) internal {
+    function _burn(address account, uint256 amount) private {
         require(account != address(0), "ERC20: burn from the zero address");
 
         uint256 accountBalance = _erc20Storage().balances[account];
@@ -1135,7 +1153,7 @@ library BaseLibrary {
      * - `owner` cannot be the zero address.
      * - `spender` cannot be the zero address.
      */
-    function _approve(address owner, address spender, uint256 amount) internal {
+    function _approve(address owner, address spender, uint256 amount) private {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
@@ -1155,7 +1173,7 @@ library BaseLibrary {
         address owner,
         address spender,
         uint256 amount
-    ) internal {
+    ) private {
         uint256 currentAllowance = allowance(owner, spender);
         if (currentAllowance != type(uint256).max) {
             require(

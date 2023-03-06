@@ -112,7 +112,7 @@ contract ProfitLockingTest is Setup {
         );
         // set all fees to 0
         uint16 protocolFee = 0;
-        uint256 performanceFee = 0;
+        uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
         // Increase time to simulate interest being earned
@@ -183,7 +183,7 @@ contract ProfitLockingTest is Setup {
         );
         // set protocol fee to 100 bps so there will always be fees charged over a 10 day period with minFuzzAmount
         uint16 protocolFee = 100;
-        uint256 performanceFee = 0;
+        uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
 
@@ -278,7 +278,7 @@ contract ProfitLockingTest is Setup {
         );
         // set perf fee to 10%
         uint16 protocolFee = 0;
-        uint256 performanceFee = 1_000;
+        uint16 performanceFee = 1_000;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
         // Increase time to simulate interest being earned
@@ -372,7 +372,7 @@ contract ProfitLockingTest is Setup {
         );
         // set perf fee to 10% protcol fee to 100 bps
         uint16 protocolFee = 100;
-        uint256 performanceFee = 1_000;
+        uint16 performanceFee = 1_000;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
         // Increase time to simulate interest being earned
@@ -481,7 +481,7 @@ contract ProfitLockingTest is Setup {
         );
         // set fees to 0
         uint16 protocolFee = 0;
-        uint256 performanceFee = 0;
+        uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
 
@@ -580,7 +580,7 @@ contract ProfitLockingTest is Setup {
         );
         // set fees
         uint16 protocolFee = 100;
-        uint256 performanceFee = 0;
+        uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
 
@@ -697,7 +697,7 @@ contract ProfitLockingTest is Setup {
         );
         // set fees
         uint16 protocolFee = 0;
-        uint256 performanceFee = 1_000;
+        uint16 performanceFee = 1_000;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
 
@@ -818,7 +818,7 @@ contract ProfitLockingTest is Setup {
         );
         // set fees
         uint16 protocolFee = 100;
-        uint256 performanceFee = 1_000;
+        uint16 performanceFee = 1_000;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
 
@@ -944,7 +944,7 @@ contract ProfitLockingTest is Setup {
         );
         // set all fees to 0
         uint16 protocolFee = 0;
-        uint256 performanceFee = 0;
+        uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
         // Increase time to simulate interest being earned
@@ -1005,7 +1005,7 @@ contract ProfitLockingTest is Setup {
         );
         // set all fees to 0
         uint16 protocolFee = 100;
-        uint256 performanceFee = 0;
+        uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(_address, _amount);
         // Increase time to simulate interest being earned
@@ -1085,7 +1085,7 @@ contract ProfitLockingTest is Setup {
         );
         // set all fees to 0
         uint16 protocolFee = 0;
-        //uint256 performanceFee = 0;
+        //uint16 performanceFee = 0;
         setFees(protocolFee, 0);
         mintAndDepositIntoStrategy(_address, _amount);
         // Increase time to simulate interest being earned
