@@ -10,10 +10,6 @@ import {DiamondHelper, IDiamond, IDiamondLoupe} from "../DiamondHelper.sol";
 
 import {IBaseStrategy} from "../interfaces/IBaseStrategy.sol";
 
-interface IBaseFee {
-    function isCurrentBaseFeeAcceptable() external view returns (bool);
-}
-
 interface IFactory {
     function protocol_fee_config()
         external
@@ -29,6 +25,8 @@ import "forge-std/console.sol";
 //       Bump sol version
 //      Does base strategy need to hold errors and events?
 //      add unchecked {} where applicable
+//      add cloning
+
 library BaseLibrary {
     using SafeERC20 for ERC20;
     using Math for uint256;
@@ -36,6 +34,31 @@ library BaseLibrary {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+
+    /**
+    * @notice Emitted whent the 'mangement' address is updtaed to 'newManagement'.
+     */
+    event UpdateManagement(address indexed newManagement);
+
+    /**
+    * @notice Emitted whent the 'keeper' address is updtaed to 'newKeeper'.
+     */
+    event UpdateKeeper(address indexed newKeeper);
+
+    /**
+    * @notice Emitted whent the 'performaneFee' is updtaed to 'newPerformanceFee'.
+     */
+    event UpdatePerformanceFee(uint256 newPerformanceFee);
+
+    /**
+    * @notice Emitted whent the 'performanceFeeRecipient' address is updtaed to 'newPerformanceFeeRecipient'.
+     */
+    event UpdatePerformanceFeeRecipient(address indexed newPerformanceFeeRecipient);
+
+    /**
+    * @notice Emitted whent the 'profitMaxUnlockTime' is updtaed to 'newProfitMaxUnlockTime'.
+     */
+    event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 
     /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
@@ -432,8 +455,8 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice This should only ever be called through protected relays as swaps will likely occur.
-     * @dev Function for keepers to call to harvest and record all profits accrued.
+     * @notice Function for keepers to call to harvest and record all profits accrued.
+     * @dev This should only ever be called through protected relays as swaps will likely occur.
      *
      * This will account for any gains/losses since the last report and charge fees accordingly.
      *
@@ -496,14 +519,14 @@ library BaseLibrary {
             loss = oldTotalAssets - _invested;
         }
 
-        // We need to get the shares for fees to issue before any minting or burning
+        // We need to get the shares for fees to issue at current PPS before any minting or burning
         uint256 sharesForFees = convertToShares(totalFees);
         uint256 sharesToLock;
         if (loss + totalFees >= profit) {
             // We have a net loss
             // Will try and unlock the difference between between the gain and the loss
             uint256 sharesToBurn = Math.min(
-                convertToShares((loss + totalFees) - profit),
+                convertToShares((loss + totalFees) - profit), // Check vault code
                 balanceOf(address(this))
             );
 
@@ -568,10 +591,11 @@ library BaseLibrary {
         }
 
         // Update storage variables
-        uint256 new_idle = _erc20Storage().asset.balanceOf(address(this));
-        a.totalIdle = new_idle;
+        uint256 newIdle = _erc20Storage().asset.balanceOf(address(this));
+        // Set totalIdle to the actual amount we have loose
+        a.totalIdle = newIdle;
         // the new debt should only be what is not loose
-        a.totalDebt = _invested - new_idle;
+        a.totalDebt = _invested - newIdle;
         p.lastReport = block.timestamp;
 
         // emit event with info
@@ -638,17 +662,18 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev To be called by 'keeper' if a custom tendTrigger() is implemented.
+     * @notice For a 'keeper' to 'tend' the strategy if a custom tendTrigger() is implemented.
+     * @dev Both 'tendTrigger' and '_tend' will need to be overridden for this to be used.
      *
-     * This will callback the internal _tend call in the BaseStrategy with the total current
+     * This will callback the internal '_tend' call in the BaseStrategy with the total current
      * amount available to the strategy to invest.
      *
      * Keepers are expected to use protected relays in tend calls so this can be used for illiquid
      * or manipulatable strategies to compound rewards, perform maintence or invest/withdraw funds.
      *
-     * All accounting for totalDebt and totalIdle updates will be done here post _tend.
+     * All accounting for totalDebt and totalIdle updates will be done here post '_tend'.
      *
-     * @notice This should never cause an increase in PPS. Total assets should be the same before and after
+     * This should never cause an increase in PPS. Total assets should be the same before and after
      *
      * A report() call will be needed to record the profit.
      */
@@ -696,7 +721,7 @@ library BaseLibrary {
     }
 
     function _unlockedShares() internal view returns (uint256) {
-        // should save 2 extra calls for most of the time
+        // should save 2 extra calls for most scenarios
         ProfitData storage p = _profitStorage();
         uint256 _fullProfitUnlockDate = p.fullProfitUnlockDate;
         uint256 unlockedShares;
@@ -762,10 +787,6 @@ library BaseLibrary {
 
     // External view function to pull public variables from storage
 
-    function pricePerShare() external view returns (uint256) {
-        return convertToAssets(10 ** IBaseStrategy(address(this)).decimals());
-    }
-
     function totalIdle() external view returns (uint256) {
         return _assetsStorage().totalIdle;
     }
@@ -790,12 +811,24 @@ library BaseLibrary {
         return _profitStorage().performanceFeeRecipient;
     }
 
+    function fullProfitUnlockDate() external view returns (uint256) {
+        return _profitStorage().fullProfitUnlockDate;
+    }
+
+    function profitUnlockingRate() external view returns (uint256) {
+        return _profitStorage().profitUnlockingRate;
+    }
+
     function profitMaxUnlockTime() external view returns (uint256) {
         return _profitStorage().profitMaxUnlockTime;
     }
 
     function lastReport() external view returns (uint256) {
         return _profitStorage().lastReport;
+    }
+
+    function pricePerShare() external view returns (uint256) {
+        return convertToAssets(10 ** IBaseStrategy(address(this)).decimals());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -807,10 +840,14 @@ library BaseLibrary {
     function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
         _accessStorage().management = _management;
+
+        emit UpdateManagement(_management);
     }
 
     function setKeeper(address _keeper) external onlyManagement {
         _accessStorage().keeper = _keeper;
+
+        emit UpdateKeeper(_keeper);
     }
 
     function setPerformanceFee(
@@ -818,6 +855,8 @@ library BaseLibrary {
     ) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
         _profitStorage().performanceFee = _performanceFee;
+
+        emit UpdatePerformanceFee(_performanceFee);
     }
 
     function setPerformanceFeeRecipient(
@@ -825,46 +864,59 @@ library BaseLibrary {
     ) external onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
         _profitStorage().performanceFeeRecipient = _performanceFeeRecipient;
+
+        emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
     }
 
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
         _profitStorage().profitMaxUnlockTime = _profitMaxUnlockTime;
+
+        emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
 
     /*//////////////////////////////////////////////////////////////
                     EXTERNAL ERC-2535 VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Gets all facet addresses and their four byte function selectors.
-    /// @return facets_ Facet
+    /**
+    * @notice Gets all facet addresses and their four byte function selectors.
+    * @return facets_ Facet
+    */
     function facets() external view returns (IDiamondLoupe.Facet[] memory) {
         return DiamondHelper(diamondHelper).facets();
     }
 
-    /// @notice Gets all the function selectors supported by a specific facet.
-    /// @param _facet The facet address.
-    /// @return facetFunctionSelectors_
+    /**
+    * @notice Gets all the function selectors supported by a specific facet.
+    * @param _facet The facet address.
+    * @return facetFunctionSelectors_
+    */
     function facetFunctionSelectors(
         address _facet
     ) external view returns (bytes4[] memory) {
         return DiamondHelper(diamondHelper).facetFunctionSelectors(_facet);
     }
 
-    /// @notice Get all the facet addresses used by a diamond.
-    /// @return facetAddresses_
+    /**
+    * @notice Get all the facet addresses used by a diamond.
+    * @return facetAddresses_
+    */
     function facetAddresses() external view returns (address[] memory) {
         return DiamondHelper(diamondHelper).facetAddresses();
     }
 
-    /// @notice Gets the facet that supports the given selector.
-    /// @dev If facet is not found return address(0).
-    /// @param _functionSelector The function selector.
-    /// @return facetAddress_ The facet address.
+    /**
+    * @notice Gets the facet that supports the given selector.
+    * @dev If facet is not found return address(0).
+    * @param _functionSelector The function selector.
+    * @return facetAddress_ The facet address.
+    */
     function facetAddress(
         bytes4 _functionSelector
     ) external view returns (address) {
+        // TODO: iterate through the array to return address(0) for non used selectors
         return DiamondHelper(diamondHelper).facetAddress(_functionSelector);
     }
 
