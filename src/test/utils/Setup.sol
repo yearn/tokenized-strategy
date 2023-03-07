@@ -56,6 +56,8 @@ contract Setup is ExtendedTest {
             address(new MockStrategy(address(asset), address(yieldSource)))
         );
 
+        console.log("Symbol: ", ERC20Mock(address(strategy)).symbol());
+
         // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0
         vm.store(

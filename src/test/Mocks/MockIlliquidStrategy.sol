@@ -13,7 +13,7 @@ contract MockIlliquidStrategy is BaseStrategy {
     constructor(
         address _asset,
         address _yieldSource
-    ) BaseStrategy(_asset, "Test Strategy", "tsSTGY") {
+    ) BaseStrategy(_asset, "Test Strategy") {
         yieldSource = _yieldSource;
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
     }

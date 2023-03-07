@@ -162,11 +162,11 @@ library BaseLibrary {
     // These are left public to allow for the strategy to use them as well
 
     function isManagement() public view {
-        if (msg.sender != _accessStorage().management) revert Unauthorized();
+        if (msg.sender != _accessControlStorage().management) revert Unauthorized();
     }
 
     function isKeeper() public view {
-        AccessData storage c = _accessStorage();
+        AccessData storage c = _accessControlStorage();
         if (msg.sender != c.management && msg.sender != c.keeper)
             revert Unauthorized();
     }
@@ -249,7 +249,7 @@ library BaseLibrary {
         }
     }
 
-    function _accessStorage() private pure returns (AccessData storage c) {
+    function _accessControlStorage() private pure returns (AccessData storage c) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
         bytes32 slot = ACCESS_CONTROL_STORAGE;
@@ -280,7 +280,7 @@ library BaseLibrary {
         e.symbol = _symbol;
 
         // set the default management address
-        _accessStorage().management = _management;
+        _accessControlStorage().management = _management;
 
         // cache profit data pointer
         ProfitData storage p = _profitStorage();
@@ -293,7 +293,7 @@ library BaseLibrary {
         // set last report to this block
         p.lastReport = block.timestamp;
 
-        // emit the standard DiamondCut event with the values from out helper contract
+        // emit the standard DiamondCut event with the values from our helper contract
         emit DiamondCut(
             // struct containing the address of the library, the add enum and array of all function selectors
             DiamondHelper(diamondHelper).diamondCut(),
@@ -816,11 +816,11 @@ library BaseLibrary {
     }
 
     function management() external view returns (address) {
-        return _accessStorage().management;
+        return _accessControlStorage().management;
     }
 
     function keeper() external view returns (address) {
-        return _accessStorage().keeper;
+        return _accessControlStorage().keeper;
     }
 
     function performanceFee() external view returns (uint16) {
@@ -859,13 +859,13 @@ library BaseLibrary {
 
     function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
-        _accessStorage().management = _management;
+        _accessControlStorage().management = _management;
 
         emit UpdateManagement(_management);
     }
 
     function setKeeper(address _keeper) external onlyManagement {
-        _accessStorage().keeper = _keeper;
+        _accessControlStorage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
     }

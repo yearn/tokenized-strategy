@@ -46,24 +46,22 @@ abstract contract BaseStrategy is IBaseStrategy {
     // Keep this private with a getter function so it can be easily accessed by strategists but not updated
     uint8 private _decimals;
 
-    constructor(address _asset, string memory _name, string memory _symbol) {
-        _initialize(_asset, _name, _symbol, msg.sender);
+    constructor(address _asset, string memory _name) {
+        _initialize(_asset, _name, msg.sender);
     }
 
     function initialize(
         address _asset,
         string memory _name,
-        string memory _symbol,
         address _management
     ) external {
-        _initialize(_asset, _name, _symbol, _management);
+        _initialize(_asset, _name, _management);
     }
 
     // TODO: ADD additional variables for keeper performance fee etc?
     function _initialize(
         address _asset,
         string memory _name,
-        string memory _symbol,
         address _management
     ) internal {
         // make sure we have not been initialized
@@ -71,9 +69,11 @@ abstract contract BaseStrategy is IBaseStrategy {
 
         // set ERC20 variables
         asset = _asset;
-        _decimals = IERC20Metadata(_asset).decimals();
+        IERC20Metadata a = IERC20Metadata(_asset);
+        _decimals = a.decimals();
 
         // initilize the strategies storage variables
+        string memory _symbol = string(abi.encodePacked("ys", a.symbol(), "-", _name));
         BaseLibrary.init(_asset, _name, _symbol, _management);
     }
 
@@ -81,9 +81,9 @@ abstract contract BaseStrategy is IBaseStrategy {
                         BASELIBRARY HOOKS
     //////////////////////////////////////////////////////////////*/
 
-    // These function are left external so they can be called by the BaseLibrary post a delegateCall.   \\
-    //  If the library calls an external function of another contract the msg.sender will be the original \\
-    //   contract that delegate called the library. Therefore msg.sender will be the strategy itself.       \\
+    // These function are left external so they can be called by the BaseLibrary during a delegateCall.     \\
+    // If the library calls an external function of another contract the msg.sender will be the original    \\
+    // contract that delegate called the library. Therefore msg.sender will be the strategy itself.         \\
 
     /**
      * @notice Should invest up to '_amount' of 'asset'.
