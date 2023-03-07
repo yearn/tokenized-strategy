@@ -253,7 +253,6 @@ abstract contract BaseStrategy is IBaseStrategy {
     // exeute a function on the baseLibrary and return any value.
     fallback() external payable {
         // load our target address
-        // IF needed this could call the helper contract based on the sig to make external library functions unavailable
         address _baseLibrary = baseLibrary;
         // Execute external function from facet using delegatecall and return any value.
         assembly {

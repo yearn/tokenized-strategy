@@ -288,7 +288,7 @@ library BaseLibrary {
         p.profitMaxUnlockTime = 10 days;
         // default to mangement as the treasury TODO: allow this to be customized
         p.performanceFeeRecipient = _management;
-        // default to a 10% performance fee
+        // default to a 10% performance fee?
         p.performanceFee = 1_000;
         // set last report to this block
         p.lastReport = block.timestamp;
@@ -427,7 +427,7 @@ library BaseLibrary {
         IBaseStrategy(address(this)).invest(toInvest, _reported);
 
         // Always get the actual amount invested for higher accuracy
-        // We double check the amount to assure for complete accuracy no matter what
+        // We double check the diff agianst toInvest to never underflow
         uint256 invested = Math.min(
             before - _asset.balanceOf(address(this)),
             toInvest
@@ -855,8 +855,6 @@ library BaseLibrary {
                         SETTER FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
-    // TODO: These should all emit events
-
     function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
         _accessStorage().management = _management;
@@ -934,7 +932,6 @@ library BaseLibrary {
     function facetAddress(
         bytes4 _functionSelector
     ) external view returns (address) {
-        // TODO: iterate through the array to return address(0) for non used selectors
         return DiamondHelper(diamondHelper).facetAddress(_functionSelector);
     }
 
