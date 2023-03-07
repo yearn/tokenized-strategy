@@ -13,6 +13,11 @@ import {MockFactory} from "../Mocks/MockFactory.sol";
 import {DiamondHelper} from "../../DiamondHelper.sol";
 import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 
+interface ERC {
+    function symbol() external returns (string memory);
+    function name() external returns (string memory);
+}
+
 contract Setup is ExtendedTest {
     ERC20Mock public asset;
     IMockStrategy public strategy;
@@ -71,6 +76,8 @@ contract Setup is ExtendedTest {
     }
 
     function mintAndDepositIntoStrategy(address _user, uint256 _amount) public {
+        // console.log("Current bal ", strategy.balanceOf(address(strategy)));
+        console.log("Symbol: ", ERC(address(strategy)).name());
         asset.mint(_user, _amount);
 
         vm.prank(_user);
