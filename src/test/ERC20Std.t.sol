@@ -9,6 +9,8 @@ import {Setup, MockStrategy, IStrategy} from "./utils/Setup.sol";
 contract ERC20BaseTest is Setup {
 
     address internal immutable self = address(this);
+    
+    bytes internal constant ARITHMETIC_ERROR = abi.encodeWithSignature("Panic(uint256)", 0x11);
 
     function setUp() public override {
         super.setUp();
@@ -65,6 +67,21 @@ contract ERC20BaseTest is Setup {
         assertTrue(strategy.increaseAllowance(account_, addedAmount_));
 
         assertEq(strategy.allowance(self, account_), initialAmount_ + addedAmount_);
+    }
+
+    function testFuzz_increaseAllowanceOverflows_reverts(address account_, uint256 initialAmount_, uint256 addedAmount_) public {
+        vm.assume(account_ != address(0) && account_ != address(strategy));
+        initialAmount_ = bound(initialAmount_, type(uint256).max / 2 + 1, type(uint256).max);
+        addedAmount_   = bound(addedAmount_, type(uint256).max / 2 + 1, type(uint256).max);
+
+        strategy.approve(account_, initialAmount_);
+
+        assertEq(strategy.allowance(self, account_), initialAmount_);
+
+        vm.expectRevert(ARITHMETIC_ERROR);
+        strategy.increaseAllowance(account_, addedAmount_);
+
+        assertEq(strategy.allowance(self, account_), initialAmount_);
     }
 
     function testFuzz_decreaseAllowance_nonInfiniteApproval(address account_, uint256 initialAmount_, uint256 subtractedAmount_) public {
@@ -163,7 +180,7 @@ contract ERC20BaseTest is Setup {
 
         mintAndDepositIntoStrategy(address(account), amount_ - 1);
 
-        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        vm.expectRevert(ARITHMETIC_ERROR);
         account.erc20_transfer(address(strategy), recipient_, amount_);
 
         mintAndDepositIntoStrategy(address(account), 1);
@@ -200,7 +217,7 @@ contract ERC20BaseTest is Setup {
         mintAndDepositIntoStrategy(address(owner), amount_ - 1);
         owner.erc20_approve(address(strategy), self, amount_);
 
-        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        vm.expectRevert(ARITHMETIC_ERROR);
         strategy.transferFrom(address(owner), recipient_, amount_);
 
         mintAndDepositIntoStrategy(address(owner), 1);

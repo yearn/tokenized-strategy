@@ -156,7 +156,7 @@ contract Setup is ExtendedTest {
 
         // make sure our storage is set correctly
         assertEq(
-            MockStrategy(payable(address(_strategy))).baseLibrary(),
+            MockStrategy(payable(address(_strategy))).baseLibraryAddress(),
             address(BaseLibrary),
             "lib slot"
         );
@@ -188,7 +188,7 @@ contract Setup is ExtendedTest {
 
         // make sure our storage is set correctly
         assertEq(
-            MockStrategy(payable(address(_strategy))).baseLibrary(),
+            MockStrategy(payable(address(_strategy))).baseLibraryAddress(),
             address(BaseLibrary),
             "lib slot"
         );

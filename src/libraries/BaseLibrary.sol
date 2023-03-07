@@ -315,6 +315,8 @@ library BaseLibrary {
                         ERC4626 FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
+    // TODO: make sure we cannot have address(this) be the reciever on deposits
+
     function deposit(
         uint256 assets,
         address receiver
@@ -979,8 +981,7 @@ library BaseLibrary {
      * - the caller must have a balance of at least `amount`.
      */
     function transfer(address to, uint256 amount) public returns (bool) {
-        address owner = msg.sender;
-        _transfer(owner, to, amount);
+        _transfer(msg.sender, to, amount);
         return true;
     }
 
@@ -1005,8 +1006,7 @@ library BaseLibrary {
      * - `spender` cannot be the zero address.
      */
     function approve(address spender, uint256 amount) public returns (bool) {
-        address owner = msg.sender;
-        _approve(owner, spender, amount);
+        _approve(msg.sender, spender, amount);
         return true;
     }
 
@@ -1031,8 +1031,7 @@ library BaseLibrary {
         address to,
         uint256 amount
     ) public returns (bool) {
-        address spender = msg.sender;
-        _spendAllowance(from, spender, amount);
+        _spendAllowance(from, msg.sender, amount);
         _transfer(from, to, amount);
         return true;
     }
@@ -1101,22 +1100,18 @@ library BaseLibrary {
      *
      * - `from` cannot be the zero address.
      * - `to` cannot be the zero address.
+     * - `to` cannot be the strategies address
      * - `from` must have a balance of at least `amount`.
      */
     function _transfer(address from, address to, uint256 amount) private {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(to != address(this), "ERC20 transfer to strategy");
-
-        uint256 fromBalance = _erc20Storage().balances[from];
-        require(
-            fromBalance >= amount,
-            "ERC20: transfer amount exceeds balance"
-        );
+      
+        _erc20Storage().balances[from] -= amount;
         unchecked {
-            _erc20Storage().balances[from] = fromBalance - amount;
+            _erc20Storage().balances[to] += amount;
         }
-        _erc20Storage().balances[to] += amount;
 
         emit Transfer(from, to, amount);
     }
@@ -1125,6 +1120,7 @@ library BaseLibrary {
         require(account != address(0), "ERC20: mint to the zero address");
 
         _erc20Storage().totalSupply += amount;
+        // TODO: add uncheced
         _erc20Storage().balances[account] += amount;
         emit Transfer(address(0), account, amount);
     }
