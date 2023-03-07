@@ -10,7 +10,7 @@ interface IBaseLibrary is IERC4626, IERC20Permit {
     // errors
     error Unauthorized();
 
-    function isKeeper() external;
+    function isKeeperOrManagement() external;
 
     function isManagement() external;
 
