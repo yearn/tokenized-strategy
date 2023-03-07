@@ -20,7 +20,7 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     modifier onlyKeepers() {
-        BaseLibrary.isKeeper();
+        BaseLibrary.isKeeperOrManagement();
         _;
     }
 

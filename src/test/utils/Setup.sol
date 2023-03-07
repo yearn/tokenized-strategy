@@ -100,7 +100,6 @@ contract Setup is ExtendedTest {
 
     function mintAndDepositIntoStrategy(address _user, uint256 _amount) public {
         asset.mint(_user, _amount);
-
         vm.prank(_user);
         asset.approve(address(strategy), _amount);
 

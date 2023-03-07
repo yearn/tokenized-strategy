@@ -155,7 +155,7 @@ library BaseLibrary {
     }
 
     modifier onlyKeepers() {
-        isKeeper();
+        isKeeperOrManagement();
         _;
     }
 
@@ -165,7 +165,7 @@ library BaseLibrary {
         if (msg.sender != _accessControlStorage().management) revert Unauthorized();
     }
 
-    function isKeeper() public view {
+    function isKeeperOrManagement() public view {
         AccessData storage c = _accessControlStorage();
         if (msg.sender != c.management && msg.sender != c.keeper)
             revert Unauthorized();
