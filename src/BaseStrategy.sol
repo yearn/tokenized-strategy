@@ -8,6 +8,8 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 import {BaseLibrary} from "./libraries/BaseLibrary.sol";
 
+import "forge-std/console.sol";
+
 abstract contract BaseStrategy is IBaseStrategy {
     modifier onlySelf() {
         _onlySelf();

@@ -121,6 +121,9 @@ library BaseLibrary {
         string name;
         string symbol;
         uint256 totalSupply;
+        uint256 INITIAL_CHAIN_ID;
+        bytes32 INITIAL_DOMAIN_SEPARATOR;
+        mapping (address => uint256) nonces;
         mapping(address => uint256) balances;
         mapping(address => mapping(address => uint256)) allowances;
     }
@@ -278,6 +281,10 @@ library BaseLibrary {
         // Set the Tokens name and symbol
         e.name = _name;
         e.symbol = _symbol;
+        // Set initial chain id for permit replay protection
+        e.INITIAL_CHAIN_ID = block.chainid;
+        // Set the inital domain seperator for permit functions
+        e.INITIAL_DOMAIN_SEPARATOR = computeDomainSeparator();
 
         // set the default management address
         _accessStorage().management = _management;
@@ -1179,5 +1186,77 @@ library BaseLibrary {
                 _approve(owner, spender, currentAllowance - amount);
             }
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             EIP-2612 LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    function nonces(address _owner) external view returns (uint256) {
+        return _erc20Storage().nonces[_owner];        
+    }
+
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public {
+        require(deadline >= block.timestamp, "ERC20: PERMIT_DEADLINE_EXPIRED");
+
+        // Unchecked because the only math done is incrementing
+        // the owner's nonce which cannot realistically overflow.
+        unchecked {
+            address recoveredAddress = ecrecover(
+                keccak256(
+                    abi.encodePacked(
+                        "\x19\x01",
+                        DOMAIN_SEPARATOR(),
+                        keccak256(
+                            abi.encode(
+                                keccak256(
+                                    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+                                ),
+                                owner,
+                                spender,
+                                value,
+                                _erc20Storage().nonces[owner]++,
+                                deadline
+                            )
+                        )
+                    )
+                ),
+                v,
+                r,
+                s
+            );
+
+            require(recoveredAddress != address(0) && recoveredAddress == owner, "ERC20: INVALID_SIGNER");
+
+            _erc20Storage().allowances[recoveredAddress][spender] = value;
+        }
+
+        emit Approval(owner, spender, value);
+    }
+
+    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+        ERC20Data storage e = _erc20Storage();
+        return block.chainid == e.INITIAL_CHAIN_ID ? e.INITIAL_DOMAIN_SEPARATOR : computeDomainSeparator();
+    }
+
+    function computeDomainSeparator() internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                    keccak256(bytes(_erc20Storage().name)),
+                    keccak256(bytes(API_VERSION)),
+                    block.chainid,
+                    address(this)
+                )
+            );
     }
 }
