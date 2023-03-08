@@ -65,9 +65,15 @@ interface IStrategy is IERC4626, IERC20Permit {
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external;
 
-    // ERC20 
+    // ERC20
 
-    function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool);
+    function decreaseAllowance(
+        address spender,
+        uint256 subtractedValue
+    ) external returns (bool);
 
-    function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
+    function increaseAllowance(
+        address spender,
+        uint256 addedValue
+    ) external returns (bool);
 }
