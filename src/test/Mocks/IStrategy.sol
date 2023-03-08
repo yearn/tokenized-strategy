@@ -10,6 +10,9 @@ interface IStrategy is IERC4626, IERC20Permit {
     // errors
     error Unauthorized();
 
+    function isKeeper() external;
+    function isManagement() external;
+
     function initialize(
         address _asset,
         string memory name_,
@@ -29,7 +32,7 @@ interface IStrategy is IERC4626, IERC20Permit {
 
     // Base Library functions \\
 
-    function init(address _asset, address _management) external;
+    //function init(address _asset, string memory _name, string memory _symbol, address _management) external;
 
     function report() external returns (uint256 _profit, uint256 _loss);
 

@@ -45,6 +45,8 @@ contract Setup is ExtendedTest {
         // deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
 
+        console.log(address(BaseLibrary));
+
         diamondHelper.setLibrary(address(BaseLibrary));
 
         // create asset we will be using as the underlying asset
@@ -148,6 +150,7 @@ contract Setup is ExtendedTest {
 
         // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0
+        /*
         vm.store(
             address(_strategy),
             bytes32(0),
@@ -156,10 +159,11 @@ contract Setup is ExtendedTest {
 
         // make sure our storage is set correctly
         assertEq(
-            MockStrategy(payable(address(_strategy))).baseLibraryAddress(),
+            MockStrategy(payable(address(_strategy))).baseLibrary(),
             address(BaseLibrary),
             "lib slot"
         );
+        */
 
         // set keeper
         _strategy.setKeeper(keeper);

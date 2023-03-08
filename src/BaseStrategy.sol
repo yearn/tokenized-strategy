@@ -6,11 +6,30 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 
 // Custom Base Strategy interfacies
 import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
-import {BaseLibrary} from "./libraries/BaseLibrary.sol";
+//import {BaseLibrary} from "./libraries/BaseLibrary.sol";
+import {IStrategy} from "./test/Mocks/IStrategy.sol";
 
 import "forge-std/console.sol";
 
+library DelegateCalls {
+
+    function init(address _library, address _asset, string memory _name, string memory _symbol, address _management) internal {
+        _delegate(_library, abi.encodeWithSignature("init(address,string,string,address)", _asset, _name, _symbol, _management));
+    }
+
+    function _delegate(address _library, bytes memory _callData) internal returns (bytes memory) {
+        // Execute external function from facet using delegatecall and return any value.
+        (bool success, bytes memory data) = _library.delegatecall(_callData);
+
+        require(success, "delegatecall failed");
+
+        return data;
+    }
+}
+
 abstract contract BaseStrategy is IBaseStrategy {
+    using DelegateCalls for address;
+
     modifier onlySelf() {
         _onlySelf();
         _;
@@ -35,11 +54,14 @@ abstract contract BaseStrategy is IBaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     // NOTE: This will be set to internal constants once the library has actually been deployed
-    address public baseLibraryAddress;
+    address public baseLibraryAddress = 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
     //////////////////////////////////////////////////////////////*/
+    // Using address(this) will mean any calls to the BaseLibrary will lead to a static call to itself.
+    // Which should hit the fallback function and delegate call that to the actual BaseLibrary
+    IStrategy public immutable BaseLibrary = IStrategy(address(this));
 
     // Underlying asset the Strategy is earning yield on
     address public asset;
@@ -70,13 +92,16 @@ abstract contract BaseStrategy is IBaseStrategy {
     ) internal {
         // make sure we have not been initialized
         require(asset == address(0), "!init");
-
+        
         // set ERC20 variables
         asset = _asset;
         _decimals = IERC20Metadata(_asset).decimals();
 
         // initilize the strategies storage variables
-        BaseLibrary.init(_asset, _name, _symbol, _management);
+        // NOTE: We cannot use the `BaseLibrary` call since this contract is not deployed fully yet
+        // So we need to manually delegateCall the library. This uses the DelegateCalls library.
+        // This is also the only time an internal delegateCall should not be for a view function
+        baseLibraryAddress.init(_asset, _name, _symbol, _management);
     }
 
     /*//////////////////////////////////////////////////////////////
