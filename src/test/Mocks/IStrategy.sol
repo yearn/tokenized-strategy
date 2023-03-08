@@ -11,6 +11,7 @@ interface IStrategy is IERC4626, IERC20Permit {
     error Unauthorized();
 
     function isKeeper() external;
+
     function isManagement() external;
 
     function initialize(

@@ -12,12 +12,29 @@ import {IStrategy} from "./test/Mocks/IStrategy.sol";
 import "forge-std/console.sol";
 
 library DelegateCalls {
-
-    function init(address _library, address _asset, string memory _name, string memory _symbol, address _management) internal {
-        _delegate(_library, abi.encodeWithSignature("init(address,string,string,address)", _asset, _name, _symbol, _management));
+    function init(
+        address _library,
+        address _asset,
+        string memory _name,
+        string memory _symbol,
+        address _management
+    ) internal {
+        _delegate(
+            _library,
+            abi.encodeWithSignature(
+                "init(address,string,string,address)",
+                _asset,
+                _name,
+                _symbol,
+                _management
+            )
+        );
     }
 
-    function _delegate(address _library, bytes memory _callData) internal returns (bytes memory) {
+    function _delegate(
+        address _library,
+        bytes memory _callData
+    ) internal returns (bytes memory) {
         // Execute external function from facet using delegatecall and return any value.
         (bool success, bytes memory data) = _library.delegatecall(_callData);
 
@@ -54,7 +71,8 @@ abstract contract BaseStrategy is IBaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     // NOTE: This will be set to internal constants once the library has actually been deployed
-    address public baseLibraryAddress = 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
+    address public baseLibraryAddress =
+        0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
@@ -92,7 +110,7 @@ abstract contract BaseStrategy is IBaseStrategy {
     ) internal {
         // make sure we have not been initialized
         require(asset == address(0), "!init");
-        
+
         // set ERC20 variables
         asset = _asset;
         _decimals = IERC20Metadata(_asset).decimals();

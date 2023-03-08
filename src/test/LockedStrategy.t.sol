@@ -7,8 +7,7 @@ import {Setup, DiamondHelper, MockFactory, ERC20Mock, MockYieldSource, IStrategy
 import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 
 contract LockedStrategyTest is Setup {
-    function setUp() public override {
-    }
+    function setUp() public override {}
 
     function test_deployStrategy() public {
         // deploy the selector helper first to get a deterministic location
