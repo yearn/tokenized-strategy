@@ -3,9 +3,10 @@
 pragma solidity 0.8.14;
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 
 // Interface to use during testing that implements the 4626 standard the Library functions and the Strategies immutable functions
-interface IStrategy is IERC4626 {
+interface IStrategy is IERC4626, IERC20Permit {
     // errors
     error Unauthorized();
 
@@ -63,4 +64,16 @@ interface IStrategy is IERC4626 {
     ) external;
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external;
+
+    // ERC20
+
+    function decreaseAllowance(
+        address spender,
+        uint256 subtractedValue
+    ) external returns (bool);
+
+    function increaseAllowance(
+        address spender,
+        uint256 addedValue
+    ) external returns (bool);
 }

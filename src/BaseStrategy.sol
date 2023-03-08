@@ -8,6 +8,8 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 import {BaseLibrary} from "./libraries/BaseLibrary.sol";
 
+import "forge-std/console.sol";
+
 abstract contract BaseStrategy is IBaseStrategy {
     modifier onlySelf() {
         _onlySelf();
@@ -33,7 +35,7 @@ abstract contract BaseStrategy is IBaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     // NOTE: This will be set to internal constants once the library has actually been deployed
-    address public baseLibrary;
+    address public baseLibraryAddress;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
@@ -253,8 +255,7 @@ abstract contract BaseStrategy is IBaseStrategy {
     // exeute a function on the baseLibrary and return any value.
     fallback() external payable {
         // load our target address
-        // IF needed this could call the helper contract based on the sig to make external library functions unavailable
-        address _baseLibrary = baseLibrary;
+        address _baseLibraryAddress = baseLibraryAddress;
         // Execute external function from facet using delegatecall and return any value.
         assembly {
             // copy function selector and any arguments
@@ -262,7 +263,7 @@ abstract contract BaseStrategy is IBaseStrategy {
             // execute function call using the facet
             let result := delegatecall(
                 gas(),
-                _baseLibrary,
+                _baseLibraryAddress,
                 0,
                 calldatasize(),
                 0,

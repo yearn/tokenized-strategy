@@ -2,6 +2,7 @@
 src = 'src'
 out = 'out'
 libs = ['lib']
+
 remappings = [
     'forge-std/=lib/forge-std/src/',
     '@openzeppelin/=lib/openzeppelin-contracts/',
@@ -9,7 +10,7 @@ remappings = [
 fs_permissions = [{ access = "read", path = "./"}]
 
 [fuzz]
-runs = 250
+runs = 1000
 max_test_rejects = 100000
 
 # See more config options https://github.com/gakonst/foundry/tree/master/config

@@ -121,6 +121,9 @@ library BaseLibrary {
         string name;
         string symbol;
         uint256 totalSupply;
+        uint256 INITIAL_CHAIN_ID;
+        bytes32 INITIAL_DOMAIN_SEPARATOR;
+        mapping(address => uint256) nonces;
         mapping(address => uint256) balances;
         mapping(address => mapping(address => uint256)) allowances;
     }
@@ -278,6 +281,10 @@ library BaseLibrary {
         // Set the Tokens name and symbol
         e.name = _name;
         e.symbol = _symbol;
+        // Set initial chain id for permit replay protection
+        e.INITIAL_CHAIN_ID = block.chainid;
+        // Set the inital domain seperator for permit functions
+        e.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
 
         // set the default management address
         _accessStorage().management = _management;
@@ -288,7 +295,7 @@ library BaseLibrary {
         p.profitMaxUnlockTime = 10 days;
         // default to mangement as the treasury TODO: allow this to be customized
         p.performanceFeeRecipient = _management;
-        // default to a 10% performance fee
+        // default to a 10% performance fee?
         p.performanceFee = 1_000;
         // set last report to this block
         p.lastReport = block.timestamp;
@@ -308,10 +315,13 @@ library BaseLibrary {
                         ERC4626 FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
+    // TODO: make sure we cannot have address(this) be the reciever on deposits
+
     function deposit(
         uint256 assets,
         address receiver
     ) public returns (uint256 shares) {
+        require(receiver != address(this), "ERC4626: mint to self");
         // check lower than max
         require(
             assets <= IBaseStrategy(address(this)).maxDeposit(receiver),
@@ -341,6 +351,7 @@ library BaseLibrary {
         uint256 shares,
         address receiver
     ) public returns (uint256 assets) {
+        require(receiver != address(this), "ERC4626: mint to self");
         require(
             shares <= IBaseStrategy(address(this)).maxMint(receiver),
             "ERC4626: mint more than max"
@@ -427,7 +438,7 @@ library BaseLibrary {
         IBaseStrategy(address(this)).invest(toInvest, _reported);
 
         // Always get the actual amount invested for higher accuracy
-        // We double check the amount to assure for complete accuracy no matter what
+        // We double check the diff agianst toInvest to never underflow
         uint256 invested = Math.min(
             before - _asset.balanceOf(address(this)),
             toInvest
@@ -855,8 +866,6 @@ library BaseLibrary {
                         SETTER FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
-    // TODO: These should all emit events
-
     function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
         _accessStorage().management = _management;
@@ -934,7 +943,6 @@ library BaseLibrary {
     function facetAddress(
         bytes4 _functionSelector
     ) external view returns (address) {
-        // TODO: iterate through the array to return address(0) for non used selectors
         return DiamondHelper(diamondHelper).facetAddress(_functionSelector);
     }
 
@@ -942,23 +950,30 @@ library BaseLibrary {
                         ERC20 FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
-    // TODO: ADD permit functions
-
     /**
-     * @dev Returns the name of the token.
+     * @notice Returns the name of the token.
+     * @return . The name the strategy is using for its token.
      */
     function name() public view returns (string memory) {
         return _erc20Storage().name;
     }
 
     /**
-     * @dev Returns the symbol of the token, usually a shorter version of the
-     * name.
+     * @notice Returns the symbol of the token, usually a shorter version of the name.
+     * @dev Should be some iteration of 'ys + asset symbol'
+     * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
         return _erc20Storage().symbol;
     }
 
+    /**
+     * @notice Returns the current balance for a given '_account'.
+     * @dev If the '_account is the strategy then this will subtract the amount of
+     * shares that have been unlocked since the last profit first.
+     * @param account the address to return the balance for.
+     * @return . The current balance in y shares of the '_account'.
+     */
     function balanceOf(address account) public view returns (uint256) {
         if (account == address(this)) {
             return _erc20Storage().balances[account] - _unlockedShares();
@@ -967,21 +982,32 @@ library BaseLibrary {
     }
 
     /**
-     * @dev See {IERC20-transfer}.
-     *
+     * @notice Transfer '_amount` of shares from `msg.sender` to `to`.
+     * @dev
      * Requirements:
      *
      * - `to` cannot be the zero address.
-     * - the caller must have a balance of at least `amount`.
+     * - `to` cannot be the address of the strategy.
+     * - the caller must have a balance of at least `_amount`.
+     *
+     * @param to The address shares will be transferred to.
+     * @param amount The amount of shares to be transferred from sender.
+     * @return . a boolean value indicating whether the operation succeeded.
      */
     function transfer(address to, uint256 amount) public returns (bool) {
-        address owner = msg.sender;
-        _transfer(owner, to, amount);
+        _transfer(msg.sender, to, amount);
         return true;
     }
 
     /**
-     * @dev See {IERC20-allowance}.
+     * @notice Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     * @param owner The address who owns the shares.
+     * @param spender The address who would be moving the owners shares.
+     * @return . The remaining amount of shares of `owner` that could be moved by `spender`.
      */
     function allowance(
         address owner,
@@ -991,7 +1017,8 @@ library BaseLibrary {
     }
 
     /**
-     * @dev See {IERC20-approve}.
+     * @notice Sets `amount` as the allowance of `spender` over the caller's tokens.
+     * @dev
      *
      * NOTE: If `amount` is the maximum `uint256`, the allowance is not updated on
      * `transferFrom`. This is semantically equivalent to an infinite approval.
@@ -999,18 +1026,33 @@ library BaseLibrary {
      * Requirements:
      *
      * - `spender` cannot be the zero address.
+     *
+     * IMPORTANT: Beware that changing an allowance with this method brings the risk
+     * that someone may use both the old and the new allowance by unfortunate
+     * transaction ordering. One possible solution to mitigate this race
+     * condition is to first reduce the spender's allowance to 0 and set the
+     * desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     *
+     * Emits an {Approval} event.
+     *
+     * @param spender the address to allow the shares to be moved by.
+     * @param amount the amount of shares to allow `spender` to move.
+     * @return . a boolean value indicating whether the operation succeeded.
      */
     function approve(address spender, uint256 amount) public returns (bool) {
-        address owner = msg.sender;
-        _approve(owner, spender, amount);
+        _approve(msg.sender, spender, amount);
         return true;
     }
 
     /**
-     * @dev See {IERC20-transferFrom}.
+     * @notice `amount` tokens from `from` to `to` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
      *
+     * @dev
      * Emits an {Approval} event indicating the updated allowance. This is not
-     * required by the EIP. See the note at the beginning of {ERC20}.
+     * required by the EIP.
      *
      * NOTE: Does not update the allowance if the current allowance
      * is the maximum `uint256`.
@@ -1018,25 +1060,32 @@ library BaseLibrary {
      * Requirements:
      *
      * - `from` and `to` cannot be the zero address.
+     * - `to` cannot be the address of the strategy.
      * - `from` must have a balance of at least `amount`.
      * - the caller must have allowance for ``from``'s tokens of at least
      * `amount`.
+     *
+     * Emits a {Transfer} event.
+     *
+     * @param from the address to be moving shares from.
+     * @param to the address to be moving shares to.
+     * @param amount the quantity of shares to move.
+     * @return . a boolean value indicating whether the operation succeeded.
      */
     function transferFrom(
         address from,
         address to,
         uint256 amount
     ) public returns (bool) {
-        address spender = msg.sender;
-        _spendAllowance(from, spender, amount);
+        _spendAllowance(from, msg.sender, amount);
         _transfer(from, to, amount);
         return true;
     }
 
     /**
-     * @dev Atomically increases the allowance granted to `spender` by the caller.
+     * @notice Atomically increases the allowance granted to `spender` by the caller.
      *
-     * This is an alternative to {approve} that can be used as a mitigation for
+     * @dev This is an alternative to {approve} that can be used as a mitigation for
      * problems described in {IERC20-approve}.
      *
      * Emits an {Approval} event indicating the updated allowance.
@@ -1044,6 +1093,11 @@ library BaseLibrary {
      * Requirements:
      *
      * - `spender` cannot be the zero address.
+     * - cannot give spender over uint256.max allowance
+     *
+     * @param spender the account that will be able to move the senders shares.
+     * @param addedValue the extra amount to add to the current allowance.
+     * @return . a boolean value indicating whether the operation succeeded.
      */
     function increaseAllowance(
         address spender,
@@ -1055,9 +1109,9 @@ library BaseLibrary {
     }
 
     /**
-     * @dev Atomically decreases the allowance granted to `spender` by the caller.
+     * @notice Atomically decreases the allowance granted to `spender` by the caller.
      *
-     * This is an alternative to {approve} that can be used as a mitigation for
+     * @dev This is an alternative to {approve} that can be used as a mitigation for
      * problems described in {IERC20-approve}.
      *
      * Emits an {Approval} event indicating the updated allowance.
@@ -1067,21 +1121,17 @@ library BaseLibrary {
      * - `spender` cannot be the zero address.
      * - `spender` must have allowance for the caller of at least
      * `subtractedValue`.
+     *
+     * @param spender the account that will be able to move less of the senders shares.
+     * @param subtractedValue the amount to decrease the current allowance by.
+     * @return . a boolean value indicating whether the operation succeeded.
      */
     function decreaseAllowance(
         address spender,
         uint256 subtractedValue
     ) public returns (bool) {
         address owner = msg.sender;
-        uint256 currentAllowance = allowance(owner, spender);
-        require(
-            currentAllowance >= subtractedValue,
-            "ERC20: decreased allowance below zero"
-        );
-        unchecked {
-            _approve(owner, spender, currentAllowance - subtractedValue);
-        }
-
+        _approve(owner, spender, allowance(owner, spender) - subtractedValue);
         return true;
     }
 
@@ -1097,44 +1147,64 @@ library BaseLibrary {
      *
      * - `from` cannot be the zero address.
      * - `to` cannot be the zero address.
+     * - `to` cannot be the strategies address
      * - `from` must have a balance of at least `amount`.
+     *
      */
     function _transfer(address from, address to, uint256 amount) private {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(to != address(this), "ERC20 transfer to strategy");
+        ERC20Data storage e = _erc20Storage();
 
-        uint256 fromBalance = _erc20Storage().balances[from];
-        require(
-            fromBalance >= amount,
-            "ERC20: transfer amount exceeds balance"
-        );
+        e.balances[from] -= amount;
         unchecked {
-            _erc20Storage().balances[from] = fromBalance - amount;
+            e.balances[to] += amount;
         }
-        _erc20Storage().balances[to] += amount;
 
         emit Transfer(from, to, amount);
     }
 
+    /** @dev Creates `amount` tokens and assigns them to `account`, increasing
+     * the total supply.
+     *
+     * Emits a {Transfer} event with `from` set to the zero address.
+     *
+     * Requirements:
+     *
+     * - `account` cannot be the zero address.
+     *
+     */
     function _mint(address account, uint256 amount) private {
         require(account != address(0), "ERC20: mint to the zero address");
+        ERC20Data storage e = _erc20Storage();
 
-        _erc20Storage().totalSupply += amount;
-        _erc20Storage().balances[account] += amount;
+        e.totalSupply += amount;
+        unchecked {
+            e.balances[account] += amount;
+        }
         emit Transfer(address(0), account, amount);
     }
 
+    /**
+     * @dev Destroys `amount` tokens from `account`, reducing the
+     * total supply.
+     *
+     * Emits a {Transfer} event with `to` set to the zero address.
+     *
+     * Requirements:
+     *
+     * - `account` cannot be the zero address.
+     * - `account` must have at least `amount` tokens.
+     */
     function _burn(address account, uint256 amount) private {
         require(account != address(0), "ERC20: burn from the zero address");
+        ERC20Data storage e = _erc20Storage();
 
-        uint256 accountBalance = _erc20Storage().balances[account];
-        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+        e.balances[account] -= amount;
         unchecked {
-            _erc20Storage().balances[account] = accountBalance - amount;
+            e.totalSupply -= amount;
         }
-        _erc20Storage().totalSupply -= amount;
-
         emit Transfer(account, address(0), amount);
     }
 
@@ -1182,5 +1252,132 @@ library BaseLibrary {
                 _approve(owner, spender, currentAllowance - amount);
             }
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             EIP-2612 LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Returns the current nonce for `owner`. This value must be
+     * included whenever a signature is generated for {permit}.
+     *
+     * @dev Every successful call to {permit} increases ``owner``'s nonce by one. This
+     * prevents a signature from being used multiple times.
+     *
+     * @param _owner the address of the account to return the nonce for.
+     * @return . the current nonce for the account.
+     */
+    function nonces(address _owner) external view returns (uint256) {
+        return _erc20Storage().nonces[_owner];
+    }
+
+    /**
+     * @notice Sets `value` as the allowance of `spender` over ``owner``'s tokens,
+     * given ``owner``'s signed approval.
+     *
+     * @dev IMPORTANT: The same issues {IERC20-approve} has related to transaction
+     * ordering also apply here.
+     *
+     * Emits an {Approval} event.
+     *
+     * Requirements:
+     *
+     * - `spender` cannot be the zero address.
+     * - `deadline` must be a timestamp in the future.
+     * - `v`, `r` and `s` must be a valid `secp256k1` signature from `owner`
+     * over the EIP712-formatted function arguments.
+     * - the signature must use ``owner``'s current nonce (see {nonces}).
+     *
+     * For more information on the signature format, see the
+     * https://eips.ethereum.org/EIPS/eip-2612#specification[relevant EIP
+     * section].
+     */
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public {
+        require(deadline >= block.timestamp, "ERC20: PERMIT_DEADLINE_EXPIRED");
+
+        // Unchecked because the only math done is incrementing
+        // the owner's nonce which cannot realistically overflow.
+        unchecked {
+            address recoveredAddress = ecrecover(
+                keccak256(
+                    abi.encodePacked(
+                        "\x19\x01",
+                        DOMAIN_SEPARATOR(),
+                        keccak256(
+                            abi.encode(
+                                keccak256(
+                                    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+                                ),
+                                owner,
+                                spender,
+                                value,
+                                _erc20Storage().nonces[owner]++,
+                                deadline
+                            )
+                        )
+                    )
+                ),
+                v,
+                r,
+                s
+            );
+
+            require(
+                recoveredAddress != address(0) && recoveredAddress == owner,
+                "ERC20: INVALID_SIGNER"
+            );
+
+            _approve(recoveredAddress, spender, value);
+        }
+    }
+
+    /**
+     * @notice Returns the domain separator used in the encoding of the signature
+     * for {permit}, as defined by {EIP712}.
+     *
+     * @dev This checks that the current chain id is the same as when the contract was deployed to
+     * prevent replay attacks. If false it will calculate a new domain seperator based on the new chain id.
+     *
+     * @return . The domain seperator that will be used for any {permit} calls.
+     */
+    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+        ERC20Data storage e = _erc20Storage();
+        return
+            block.chainid == e.INITIAL_CHAIN_ID
+                ? e.INITIAL_DOMAIN_SEPARATOR
+                : _computeDomainSeparator();
+    }
+
+    /**
+     * @dev Calculates and returns the domain seperator to be used in any
+     * permit functions for the strategies {permit} calls.
+     *
+     * This will be used at the initilization of each new strategies storage.
+     * It would then be used in the future in the case of any forks in which
+     * the current chain id is not the same as the origin al.
+     *
+     */
+    function _computeDomainSeparator() internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    keccak256(
+                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                    ),
+                    keccak256(bytes(_erc20Storage().name)),
+                    keccak256(bytes(API_VERSION)),
+                    block.chainid,
+                    address(this)
+                )
+            );
     }
 }

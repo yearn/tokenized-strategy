@@ -14,3 +14,4 @@ docs/
 .env
 
 node_modules/
+.gas-snapshot

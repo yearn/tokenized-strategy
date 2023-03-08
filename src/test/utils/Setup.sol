@@ -51,32 +51,9 @@ contract Setup is ExtendedTest {
         asset = new ERC20Mock("Test asset", "tTKN", address(this), 0);
         // create a mock yield source to deposit into
         yieldSource = new MockYieldSource(address(asset));
-        // we save the mock base strategy as a IStrategy to give it the needed interface
-        strategy = IStrategy(
-            address(new MockStrategy(address(asset), address(yieldSource)))
-        );
 
-        // set the slots for the baseLibrary to the correct address
-        // store the libraries address at slot 0
-        vm.store(
-            address(strategy),
-            bytes32(0),
-            bytes32(uint256(uint160(address(BaseLibrary))))
-        );
-
-        // make sure our storage is set correctly
-        assertEq(
-            MockStrategy(payable(address(strategy))).baseLibrary(),
-            address(BaseLibrary),
-            "lib slot"
-        );
-
-        // set keeper
-        strategy.setKeeper(keeper);
-        // set treasury
-        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
-        // set management of the strategy
-        strategy.setManagement(management);
+        // Deploy strategy and set variables
+        strategy = IStrategy(setUpStrategy());
 
         // label all the used addresses for traces
         vm.label(management, "management");
@@ -163,8 +140,39 @@ contract Setup is ExtendedTest {
         strategy.setPerformanceFee(_performanceFee);
     }
 
-    function setUpIlliquidStrategy() public {
-        strategy = IStrategy(
+    function setUpStrategy() public returns (address) {
+        // we save the mock base strategy as a IStrategy to give it the needed interface
+        IStrategy _strategy = IStrategy(
+            address(new MockStrategy(address(asset), address(yieldSource)))
+        );
+
+        // set the slots for the baseLibrary to the correct address
+        // store the libraries address at slot 0
+        vm.store(
+            address(_strategy),
+            bytes32(0),
+            bytes32(uint256(uint160(address(BaseLibrary))))
+        );
+
+        // make sure our storage is set correctly
+        assertEq(
+            MockStrategy(payable(address(_strategy))).baseLibraryAddress(),
+            address(BaseLibrary),
+            "lib slot"
+        );
+
+        // set keeper
+        _strategy.setKeeper(keeper);
+        // set treasury
+        _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+        // set management of the strategy
+        _strategy.setManagement(management);
+
+        return address(_strategy);
+    }
+
+    function setUpIlliquidStrategy() public returns (address) {
+        IStrategy _strategy = IStrategy(
             address(
                 new MockIlliquidStrategy(address(asset), address(yieldSource))
             )
@@ -173,23 +181,25 @@ contract Setup is ExtendedTest {
         // set the slots for the baseLibrary to the correct address
         // store the libraries address at slot 0
         vm.store(
-            address(strategy),
+            address(_strategy),
             bytes32(0),
             bytes32(uint256(uint160(address(BaseLibrary))))
         );
 
         // make sure our storage is set correctly
         assertEq(
-            MockStrategy(payable(address(strategy))).baseLibrary(),
+            MockStrategy(payable(address(_strategy))).baseLibraryAddress(),
             address(BaseLibrary),
             "lib slot"
         );
 
         // set keeper
-        strategy.setKeeper(keeper);
+        _strategy.setKeeper(keeper);
         // set treasury
-        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+        _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
         // set management of the strategy
-        strategy.setManagement(management);
+        _strategy.setManagement(management);
+
+        return address(_strategy);
     }
 }
