@@ -25,6 +25,7 @@ import "forge-std/console.sol";
 //      add unchecked {} where applicable
 //      add cloning
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
+//      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -117,7 +118,9 @@ library BaseLibrary {
                         STORAGE STRUCTS
     //////////////////////////////////////////////////////////////*/
 
-    struct ERC20Data {
+    // TODO: this should be able to be packed better
+    struct BaseStrategyData {
+
         ERC20 asset;
         string name;
         string symbol;
@@ -127,24 +130,20 @@ library BaseLibrary {
         mapping(address => uint256) nonces;
         mapping(address => uint256) balances;
         mapping(address => mapping(address => uint256)) allowances;
-    }
+    
 
-    struct AssetsData {
         uint256 totalIdle;
         uint256 totalDebt;
-    }
+    
 
-    // TODO: this should be able to be packed better
-    struct ProfitData {
         uint256 fullProfitUnlockDate;
         uint256 profitUnlockingRate;
         uint256 profitMaxUnlockTime;
         uint256 lastReport;
         uint16 performanceFee;
         address performanceFeeRecipient;
-    }
+    
 
-    struct AccessData {
         address management;
         address keeper;
     }
@@ -166,12 +165,12 @@ library BaseLibrary {
     // These are left public to allow for the strategy to use them as well
 
     function isManagement() public view {
-        if (msg.sender != _accessStorage().management) revert Unauthorized();
+        if (msg.sender != _baseStrategyStorgage().management) revert Unauthorized();
     }
 
     function isKeeper() public view {
-        AccessData storage c = _accessStorage();
-        if (msg.sender != c.management && msg.sender != c.keeper)
+        BaseStrategyData storage S = _baseStrategyStorgage();
+        if (msg.sender != S.management && msg.sender != S.keeper)
             revert Unauthorized();
     }
 
@@ -203,62 +202,19 @@ library BaseLibrary {
      * to use any amount of storage in the implementations without worrying about collisions. The assets stuct is the
      * lowest and it sits a slot > 1e75.
      */
-
-    // Storage slot to use for ERC20 variables
-    // We intentionally may this string the longest to get the highest slot to avoid any collisions with the mappings
-    // that may be set before the other structs have been fully instantiated.
-    bytes32 private constant ERC20_STRATEGY_STORAGE =
-        bytes32(uint256(keccak256("yearn.erc20.data.strategy.storage")) - 1);
-
-    // storage slot for debt and idle
-    bytes32 private constant ASSETS_STRATEGY_STORAGE =
-        bytes32(uint256(keccak256("yearn.assets.strategy.storage")) - 1);
-
-    // storage slot to use for report/ profit locking variables
-    bytes32 private constant PROFIT_LOCKING_STORAGE =
-        bytes32(uint256(keccak256("yearn.profit.locking.storage")) - 1);
-
-    // storage slot to use for the permissined addresses for a strategy
-    bytes32 private constant ACCESS_CONTROL_STORAGE =
-        bytes32(uint256(keccak256("yearn.access.control.storage")) - 1);
+    bytes32 private constant BASE_STRATEGY_STORAGE =
+        bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
     /*//////////////////////////////////////////////////////////////
                     STORAGE GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _erc20Storage() private pure returns (ERC20Data storage e) {
+    function _baseStrategyStorgage() private pure returns (BaseStrategyData storage S) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
-        bytes32 slot = ERC20_STRATEGY_STORAGE;
+        bytes32 slot = BASE_STRATEGY_STORAGE;
         assembly {
-            e.slot := slot
-        }
-    }
-
-    function _assetsStorage() private pure returns (AssetsData storage a) {
-        // Since STORAGE_SLOT is a constant, we have to put a variable
-        // on the stack to access it from an inline assembly block.
-        bytes32 slot = ASSETS_STRATEGY_STORAGE;
-        assembly {
-            a.slot := slot
-        }
-    }
-
-    function _profitStorage() private pure returns (ProfitData storage p) {
-        // Since STORAGE_SLOT is a constant, we have to put a variable
-        // on the stack to access it from an inline assembly block.
-        bytes32 slot = PROFIT_LOCKING_STORAGE;
-        assembly {
-            p.slot := slot
-        }
-    }
-
-    function _accessStorage() private pure returns (AccessData storage c) {
-        // Since STORAGE_SLOT is a constant, we have to put a variable
-        // on the stack to access it from an inline assembly block.
-        bytes32 slot = ACCESS_CONTROL_STORAGE;
-        assembly {
-            c.slot := slot
+            S.slot := slot
         }
     }
 
@@ -273,36 +229,31 @@ library BaseLibrary {
         address _management
     ) external {
         // cache storage pointer
-        ERC20Data storage e = _erc20Storage();
+        BaseStrategyData storage S = _baseStrategyStorgage();
 
         // make sure we aren't initiliazed
-        require(address(e.asset) == address(0), "!init");
+        require(address(S.asset) == address(0), "!init");
         // set the strategys underlying asset
-        e.asset = ERC20(_asset);
+        S.asset = ERC20(_asset);
         // Set the Tokens name and symbol
-        e.name = _name;
-        e.symbol = _symbol;
+        S.name = _name;
+        S.symbol = _symbol;
         // Set initial chain id for permit replay protection
-        e.INITIAL_CHAIN_ID = block.chainid;
+        S.INITIAL_CHAIN_ID = block.chainid;
         // Set the inital domain seperator for permit functions
-        e.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
+        S.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
 
         // set the default management address
-        _accessStorage().management = _management;
+        S.management = _management;
 
-        // Initiliaze the assets struct
-        _assetsStorage().totalDebt = 0;
-
-        // cache profit data pointer
-        ProfitData storage p = _profitStorage();
         // default to a 10 day profit unlock period
-        p.profitMaxUnlockTime = 10 days;
+        S.profitMaxUnlockTime = 10 days;
         // default to mangement as the treasury TODO: allow this to be customized
-        p.performanceFeeRecipient = _management;
+        S.performanceFeeRecipient = _management;
         // default to a 10% performance fee?
-        p.performanceFee = 1_000;
+        S.performanceFee = 1_000;
         // set last report to this block
-        p.lastReport = block.timestamp;
+        S.lastReport = block.timestamp;
 
         // emit the standard DiamondCut event with the values from out helper contract
         emit DiamondCut(
@@ -336,7 +287,7 @@ library BaseLibrary {
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
         // Need to transfer before minting or ERC777s could reenter.
-        _erc20Storage().asset.safeTransferFrom(
+        _baseStrategyStorgage().asset.safeTransferFrom(
             msg.sender,
             address(this),
             assets
@@ -361,7 +312,7 @@ library BaseLibrary {
         assets = previewMint(shares); // No need to check for rounding error, previewMint rounds up.
 
         // Need to transfer before minting or ERC777s could reenter.
-        _erc20Storage().asset.safeTransferFrom(
+        _baseStrategyStorgage().asset.safeTransferFrom(
             msg.sender,
             address(this),
             assets
@@ -395,7 +346,7 @@ library BaseLibrary {
 
         _burn(owner, shares);
 
-        _erc20Storage().asset.safeTransfer(receiver, assets);
+        _baseStrategyStorgage().asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
@@ -419,17 +370,17 @@ library BaseLibrary {
 
         _burn(owner, shares);
 
-        _erc20Storage().asset.safeTransfer(receiver, assets);
+        _baseStrategyStorgage().asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     // post deposit/report hook to deposit any loose funds
     function _depositFunds(uint256 _newAmount, bool _reported) private {
-        AssetsData storage a = _assetsStorage();
-        ERC20 _asset = _erc20Storage().asset;
+        BaseStrategyData storage S = _baseStrategyStorgage();
+        ERC20 _asset = S.asset;
         // We will deposit up to current idle plus the new amount added
-        uint256 toInvest = a.totalIdle + _newAmount;
+        uint256 toInvest = S.totalIdle + _newAmount;
 
         uint256 before = _asset.balanceOf(address(this));
         // invest if applicable
@@ -443,22 +394,22 @@ library BaseLibrary {
         );
 
         // adjust total Assets
-        a.totalDebt += invested;
+        S.totalDebt += invested;
         // check if we invested all the loose asset
-        a.totalIdle = toInvest - invested;
+        S.totalIdle = toInvest - invested;
     }
 
     // TODO: Make this better
     //      This should return the actual amount freed so it can accept losses
     function _withdrawFunds(uint256 _amount) private {
-        AssetsData storage a = _assetsStorage();
-        ERC20 _asset = _erc20Storage().asset;
+        BaseStrategyData storage S = _baseStrategyStorgage();
+        ERC20 _asset = S.asset;
 
-        uint256 idle = a.totalIdle;
+        uint256 idle = S.totalIdle;
 
         if (idle >= _amount) {
             // We dont need to withdraw anything
-            a.totalIdle -= _amount;
+            S.totalIdle -= _amount;
         } else {
             // withdraw if we dont have enough idle
             uint256 before = _asset.balanceOf(address(this));
@@ -468,10 +419,10 @@ library BaseLibrary {
             // get the exact amount to account for loss or errors
             uint256 withdrawn = _asset.balanceOf(address(this)) - before;
             // TODO: should account for errors here to not overflow or over withdraw
-            a.totalDebt -= withdrawn;
+            S.totalDebt -= withdrawn;
 
             // we are giving the full amount of our idle funds
-            a.totalIdle = 0;
+            S.totalIdle = 0;
         }
     }
 
@@ -506,11 +457,11 @@ library BaseLibrary {
         returns (uint256 profit, uint256 loss)
     {
         // Cache storage pointer since its used again at the end
-        AssetsData storage a = _assetsStorage();
+        BaseStrategyData storage S = _baseStrategyStorgage();
         uint256 oldTotalAssets;
         unchecked {
-            // Manuaully calculate totalAssets to save an sLoad
-            oldTotalAssets = a.totalIdle + a.totalDebt;
+            // Manuaully calculate totalAssets to save an SLOAD
+            oldTotalAssets = S.totalIdle + S.totalDebt;
         }
 
         // Calculate protocol fees before we burn shares and update lastReport
@@ -527,8 +478,6 @@ library BaseLibrary {
         // for sold but non-reinvested funds during reward harvesting.
         uint256 _invested = IBaseStrategy(address(this)).totalInvested();
 
-        // Cache storage pointer
-        ProfitData storage p = _profitStorage();
         uint256 performanceFees;
 
         // Calculate profit/loss
@@ -537,7 +486,7 @@ library BaseLibrary {
             profit = _invested - oldTotalAssets;
 
             // Asses performance fees
-            performanceFees = (profit * p.performanceFee) / MAX_BPS;
+            performanceFees = (profit * S.performanceFee) / MAX_BPS;
             totalFees += performanceFees;
         } else {
             // We have a loss
@@ -570,7 +519,7 @@ library BaseLibrary {
             uint256 performanceFeeShares = (sharesForFees * performanceFees) /
                 totalFees;
             if (performanceFeeShares > 0) {
-                _mint(p.performanceFeeRecipient, performanceFeeShares);
+                _mint(S.performanceFeeRecipient, performanceFeeShares);
             }
 
             if (sharesForFees - performanceFeeShares > 0) {
@@ -584,14 +533,14 @@ library BaseLibrary {
         {
             // Scoped to avoid stack to deep errors
             uint256 remainingTime;
-            uint256 _fullProfitUnlockDate = p.fullProfitUnlockDate;
+            uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
             if (_fullProfitUnlockDate > block.timestamp) {
                 remainingTime = _fullProfitUnlockDate - block.timestamp;
             }
 
             // Update unlocking rate and time to fully unlocked
             uint256 totalLockedShares = balanceOf(address(this));
-            uint256 _profitMaxUnlockTime = p.profitMaxUnlockTime;
+            uint256 _profitMaxUnlockTime = S.profitMaxUnlockTime;
             if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
                 uint256 previouslyLockedShares = totalLockedShares -
                     sharesToLock;
@@ -602,26 +551,26 @@ library BaseLibrary {
                     sharesToLock *
                     _profitMaxUnlockTime) / totalLockedShares;
 
-                p.profitUnlockingRate =
+                S.profitUnlockingRate =
                     (totalLockedShares * MAX_BPS_EXTENDED) /
                     newProfitLockingPeriod;
 
-                p.fullProfitUnlockDate =
+                S.fullProfitUnlockDate =
                     block.timestamp +
                     newProfitLockingPeriod;
             } else {
                 // NOTE: only setting this to 0 will turn in the desired effect, no need to update fullProfitUnlockDate
-                p.profitUnlockingRate = 0;
+                S.profitUnlockingRate = 0;
             }
         }
 
         // Update storage variables
-        uint256 newIdle = _erc20Storage().asset.balanceOf(address(this));
+        uint256 newIdle = S.asset.balanceOf(address(this));
         // Set totalIdle to the actual amount we have loose
-        a.totalIdle = newIdle;
+        S.totalIdle = newIdle;
         // the new debt should only be what is not loose
-        a.totalDebt = _invested - newIdle;
-        p.lastReport = block.timestamp;
+        S.totalDebt = _invested - newIdle;
+        S.lastReport = block.timestamp;
 
         // emit event with info
         emit Reported(
@@ -653,7 +602,7 @@ library BaseLibrary {
             // NOTE: charge fees since last report OR last fee change
             //      (this will mean less fees are charged after a change in protocol_fees, but fees should not change frequently)
             uint256 secondsSinceLastReport = Math.min(
-                block.timestamp - _profitStorage().lastReport,
+                block.timestamp - _baseStrategyStorgage().lastReport,
                 block.timestamp - uint256(protocolFeeLastChange)
             );
 
@@ -675,8 +624,8 @@ library BaseLibrary {
         }
 
         // update variables (done here to keep _unlcokdedShares() as a view function)
-        if (_profitStorage().fullProfitUnlockDate > block.timestamp) {
-            _profitStorage().lastReport = block.timestamp;
+        if (_baseStrategyStorgage().fullProfitUnlockDate > block.timestamp) {
+            _baseStrategyStorgage().lastReport = block.timestamp;
         }
 
         _burn(address(this), unlcokdedShares);
@@ -703,10 +652,10 @@ library BaseLibrary {
      * A report() call will be needed to record the profit.
      */
     function tend() external onlyKeepers {
-        AssetsData storage a = _assetsStorage();
+        BaseStrategyData storage S = _baseStrategyStorgage();
         // Expected Behavior is this will get used twice so we cache it
-        uint256 _totalIdle = a.totalIdle;
-        ERC20 _asset = _erc20Storage().asset;
+        uint256 _totalIdle = S.totalIdle;
+        ERC20 _asset = S.asset;
 
         uint256 beforeBalance = _asset.balanceOf(address(this));
         IBaseStrategy(address(this)).tendThis(_totalIdle);
@@ -719,16 +668,16 @@ library BaseLibrary {
                 beforeBalance - afterBalance,
                 _totalIdle
             );
-            a.totalIdle -= invested;
-            a.totalDebt += invested;
+            S.totalIdle -= invested;
+            S.totalDebt += invested;
         } else if (afterBalance > beforeBalance) {
             // We default to use any funds freed as idle for cheaper withdraw/redeems.
             uint256 harvested = Math.min(
                 afterBalance - beforeBalance,
-                a.totalDebt
+                S.totalDebt
             );
-            a.totalIdle += harvested;
-            a.totalDebt -= harvested;
+            S.totalIdle += harvested;
+            S.totalDebt -= harvested;
         }
     }
 
@@ -737,26 +686,26 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     function totalAssets() public view returns (uint256) {
-        AssetsData storage a = _assetsStorage();
-        return a.totalIdle + a.totalDebt;
+        BaseStrategyData storage S = _baseStrategyStorgage();
+        return S.totalIdle + S.totalDebt;
     }
 
     function totalSupply() public view returns (uint256) {
-        return _erc20Storage().totalSupply - _unlockedShares();
+        return _baseStrategyStorgage().totalSupply - _unlockedShares();
     }
 
     function _unlockedShares() private view returns (uint256) {
         // should save 2 extra calls for most scenarios
-        ProfitData storage p = _profitStorage();
-        uint256 _fullProfitUnlockDate = p.fullProfitUnlockDate;
+        BaseStrategyData storage S = _baseStrategyStorgage();
+        uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         uint256 unlockedShares;
         if (_fullProfitUnlockDate > block.timestamp) {
             unlockedShares =
-                (p.profitUnlockingRate * (block.timestamp - p.lastReport)) /
+                (S.profitUnlockingRate * (block.timestamp - S.lastReport)) /
                 MAX_BPS_EXTENDED;
         } else if (_fullProfitUnlockDate != 0) {
             // All shares have been unlocked
-            unlockedShares = _erc20Storage().balances[address(this)];
+            unlockedShares = S.balances[address(this)];
         }
 
         return unlockedShares;
@@ -849,43 +798,43 @@ library BaseLibrary {
     }
 
     function totalIdle() external view returns (uint256) {
-        return _assetsStorage().totalIdle;
+        return _baseStrategyStorgage().totalIdle;
     }
 
     function totalDebt() external view returns (uint256) {
-        return _assetsStorage().totalDebt;
+        return _baseStrategyStorgage().totalDebt;
     }
 
     function management() external view returns (address) {
-        return _accessStorage().management;
+        return _baseStrategyStorgage().management;
     }
 
     function keeper() external view returns (address) {
-        return _accessStorage().keeper;
+        return _baseStrategyStorgage().keeper;
     }
 
     function performanceFee() external view returns (uint16) {
-        return _profitStorage().performanceFee;
+        return _baseStrategyStorgage().performanceFee;
     }
 
     function performanceFeeRecipient() external view returns (address) {
-        return _profitStorage().performanceFeeRecipient;
+        return _baseStrategyStorgage().performanceFeeRecipient;
     }
 
     function fullProfitUnlockDate() external view returns (uint256) {
-        return _profitStorage().fullProfitUnlockDate;
+        return _baseStrategyStorgage().fullProfitUnlockDate;
     }
 
     function profitUnlockingRate() external view returns (uint256) {
-        return _profitStorage().profitUnlockingRate;
+        return _baseStrategyStorgage().profitUnlockingRate;
     }
 
     function profitMaxUnlockTime() external view returns (uint256) {
-        return _profitStorage().profitMaxUnlockTime;
+        return _baseStrategyStorgage().profitMaxUnlockTime;
     }
 
     function lastReport() external view returns (uint256) {
-        return _profitStorage().lastReport;
+        return _baseStrategyStorgage().lastReport;
     }
 
     function pricePerShare() external view returns (uint256) {
@@ -898,20 +847,20 @@ library BaseLibrary {
 
     function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
-        _accessStorage().management = _management;
+        _baseStrategyStorgage().management = _management;
 
         emit UpdateManagement(_management);
     }
 
     function setKeeper(address _keeper) external onlyManagement {
-        _accessStorage().keeper = _keeper;
+        _baseStrategyStorgage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
     }
 
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
-        _profitStorage().performanceFee = _performanceFee;
+        _baseStrategyStorgage().performanceFee = _performanceFee;
 
         emit UpdatePerformanceFee(_performanceFee);
     }
@@ -920,7 +869,7 @@ library BaseLibrary {
         address _performanceFeeRecipient
     ) external onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
-        _profitStorage().performanceFeeRecipient = _performanceFeeRecipient;
+        _baseStrategyStorgage().performanceFeeRecipient = _performanceFeeRecipient;
 
         emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
     }
@@ -928,7 +877,7 @@ library BaseLibrary {
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
-        _profitStorage().profitMaxUnlockTime = _profitMaxUnlockTime;
+        _baseStrategyStorgage().profitMaxUnlockTime = _profitMaxUnlockTime;
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
@@ -985,7 +934,7 @@ library BaseLibrary {
      * @return . The name the strategy is using for its token.
      */
     function name() public view returns (string memory) {
-        return _erc20Storage().name;
+        return _baseStrategyStorgage().name;
     }
 
     /**
@@ -994,7 +943,7 @@ library BaseLibrary {
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
-        return _erc20Storage().symbol;
+        return _baseStrategyStorgage().symbol;
     }
 
     /**
@@ -1006,9 +955,9 @@ library BaseLibrary {
      */
     function balanceOf(address account) public view returns (uint256) {
         if (account == address(this)) {
-            return _erc20Storage().balances[account] - _unlockedShares();
+            return _baseStrategyStorgage().balances[account] - _unlockedShares();
         }
-        return _erc20Storage().balances[account];
+        return _baseStrategyStorgage().balances[account];
     }
 
     /**
@@ -1043,7 +992,7 @@ library BaseLibrary {
         address owner,
         address spender
     ) public view returns (uint256) {
-        return _erc20Storage().allowances[owner][spender];
+        return _baseStrategyStorgage().allowances[owner][spender];
     }
 
     /**
@@ -1185,11 +1134,11 @@ library BaseLibrary {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(to != address(this), "ERC20 transfer to strategy");
-        ERC20Data storage e = _erc20Storage();
+        BaseStrategyData storage S = _baseStrategyStorgage();
 
-        e.balances[from] -= amount;
+        S.balances[from] -= amount;
         unchecked {
-            e.balances[to] += amount;
+            S.balances[to] += amount;
         }
 
         emit Transfer(from, to, amount);
@@ -1207,11 +1156,11 @@ library BaseLibrary {
      */
     function _mint(address account, uint256 amount) private {
         require(account != address(0), "ERC20: mint to the zero address");
-        ERC20Data storage e = _erc20Storage();
+        BaseStrategyData storage S = _baseStrategyStorgage();
 
-        e.totalSupply += amount;
+        S.totalSupply += amount;
         unchecked {
-            e.balances[account] += amount;
+            S.balances[account] += amount;
         }
         emit Transfer(address(0), account, amount);
     }
@@ -1229,11 +1178,11 @@ library BaseLibrary {
      */
     function _burn(address account, uint256 amount) private {
         require(account != address(0), "ERC20: burn from the zero address");
-        ERC20Data storage e = _erc20Storage();
+        BaseStrategyData storage S = _baseStrategyStorgage();
 
-        e.balances[account] -= amount;
+        S.balances[account] -= amount;
         unchecked {
-            e.totalSupply -= amount;
+            S.totalSupply -= amount;
         }
         emit Transfer(account, address(0), amount);
     }
@@ -1255,7 +1204,7 @@ library BaseLibrary {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
-        _erc20Storage().allowances[owner][spender] = amount;
+        _baseStrategyStorgage().allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
 
@@ -1299,7 +1248,7 @@ library BaseLibrary {
      * @return . the current nonce for the account.
      */
     function nonces(address _owner) external view returns (uint256) {
-        return _erc20Storage().nonces[_owner];
+        return _baseStrategyStorgage().nonces[_owner];
     }
 
     /**
@@ -1350,7 +1299,7 @@ library BaseLibrary {
                                 owner,
                                 spender,
                                 value,
-                                _erc20Storage().nonces[owner]++,
+                                _baseStrategyStorgage().nonces[owner]++,
                                 deadline
                             )
                         )
@@ -1380,10 +1329,10 @@ library BaseLibrary {
      * @return . The domain seperator that will be used for any {permit} calls.
      */
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
-        ERC20Data storage e = _erc20Storage();
+        BaseStrategyData storage S = _baseStrategyStorgage();
         return
-            block.chainid == e.INITIAL_CHAIN_ID
-                ? e.INITIAL_DOMAIN_SEPARATOR
+            block.chainid == S.INITIAL_CHAIN_ID
+                ? S.INITIAL_DOMAIN_SEPARATOR
                 : _computeDomainSeparator();
     }
 
@@ -1403,7 +1352,7 @@ library BaseLibrary {
                     keccak256(
                         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
                     ),
-                    keccak256(bytes(_erc20Storage().name)),
+                    keccak256(bytes(_baseStrategyStorgage().name)),
                     keccak256(bytes(API_VERSION)),
                     block.chainid,
                     address(this)
