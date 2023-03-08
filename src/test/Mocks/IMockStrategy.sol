@@ -7,8 +7,6 @@ import {IBaseStrategy} from "../../interfaces/IBaseStrategy.sol";
 
 // Interface to use during testing that implements the 4626 standard the Library functions and the Strategies immutable functions
 interface IMockStrategy is IBaseLibrary {
-
-
     function initialize(
         address _asset,
         string memory name_,
@@ -32,4 +30,3 @@ interface IMockStrategy is IBaseLibrary {
 
     function tendThis(uint256 _totalIdle) external;
 }
-

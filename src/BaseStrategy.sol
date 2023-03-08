@@ -38,8 +38,20 @@ abstract contract BaseStrategy is IBaseStrategy {
     address public baseLibraryAddress =
         0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
 
-    // Using address(this) will mean any calls to the BaseLibrary will lead to a static call to itself.
-    // Which should hit the fallback function and delegateCall that to the actual BaseLibrary
+    /**
+     * This can be used to retrieve storage data within the implementation
+     * contract as if it were a linked library.
+     *
+     *       i.e. uint256 totalAssets = BaseLibrary.totalAssets()
+     *
+     * We use this so that there does not have to be a library actually linked
+     * to the strategy when deployed that would rarely be used and only for
+     * reading storage. It also standardizies all Base Library interaction.
+     *
+     * Using address(this) will mean any calls using this variable will lead
+     * to a static call to itself. Which will hit the fallback function and
+     * delegateCall that to the actual BaseLibrary.
+     */
     IBaseLibrary public immutable BaseLibrary = IBaseLibrary(address(this));
 
     /*//////////////////////////////////////////////////////////////
@@ -50,7 +62,8 @@ abstract contract BaseStrategy is IBaseStrategy {
     address public asset;
 
     // The decimals of the underlying asset we will use.
-    // Keep this private with a getter function so it can be easily accessed by strategists but not updated
+    // Keep this private with a getter function so it can be easily
+    // accessed by strategists but not updated.
     uint8 private _decimals;
 
     constructor(address _asset, string memory _name, string memory _symbol) {
@@ -223,8 +236,8 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     // NOTE: these functions are kept in the Base to give strategists
-    //      the ability to override them for illiquid strategies.
-    // Made public to allow for the override function to use super.function() for min check
+    // the ability to override them to limit deposit or withdraws for
+    // andy strategies that want to implement deposit limts, whitelists, illiquid strategies etc.
 
     function availableDepositLimit(
         address /*_owner*/
