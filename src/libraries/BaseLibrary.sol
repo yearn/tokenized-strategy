@@ -24,6 +24,7 @@ import "forge-std/console.sol";
 //      Does base strategy need to hold errors and events?
 //      add unchecked {} where applicable
 //      add cloning
+//      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -289,6 +290,9 @@ library BaseLibrary {
         // set the default management address
         _accessStorage().management = _management;
 
+        // Initiliaze the assets struct
+        _assetsStorage().totalDebt = 0;
+
         // cache profit data pointer
         ProfitData storage p = _profitStorage();
         // default to a 10 day profit unlock period
@@ -324,7 +328,7 @@ library BaseLibrary {
         require(receiver != address(this), "ERC4626: mint to self");
         // check lower than max
         require(
-            assets <= IBaseStrategy(address(this)).maxDeposit(receiver),
+            assets <= maxDeposit(receiver),
             "ERC4626: deposit more than max"
         );
 
@@ -352,10 +356,7 @@ library BaseLibrary {
         address receiver
     ) public returns (uint256 assets) {
         require(receiver != address(this), "ERC4626: mint to self");
-        require(
-            shares <= IBaseStrategy(address(this)).maxMint(receiver),
-            "ERC4626: mint more than max"
-        );
+        require(shares <= maxMint(receiver), "ERC4626: mint more than max");
 
         assets = previewMint(shares); // No need to check for rounding error, previewMint rounds up.
 
@@ -380,7 +381,7 @@ library BaseLibrary {
         address owner
     ) public returns (uint256 shares) {
         require(
-            assets <= IBaseStrategy(address(this)).maxWithdraw(owner),
+            assets <= maxWithdraw(owner),
             "ERC4626: withdraw more than max"
         );
 
@@ -404,10 +405,7 @@ library BaseLibrary {
         address receiver,
         address owner
     ) public returns (uint256 assets) {
-        require(
-            shares <= IBaseStrategy(address(this)).maxRedeem(owner),
-            "ERC4626: redeem more than max"
-        );
+        require(shares <= maxRedeem(owner), "ERC4626: redeem more than max");
 
         if (msg.sender != owner) {
             _spendAllowance(owner, msg.sender, shares);
@@ -806,6 +804,38 @@ library BaseLibrary {
 
     function previewRedeem(uint256 shares) public view returns (uint256) {
         return convertToAssets(shares);
+    }
+
+    function maxDeposit(address _owner) public view returns (uint256) {
+        return IBaseStrategy(address(this)).availableDepositLimit(_owner);
+    }
+
+    function maxMint(address _owner) public view returns (uint256 _maxMint) {
+        _maxMint = IBaseStrategy(address(this)).availableDepositLimit(_owner);
+        if (_maxMint != type(uint256).max) {
+            _maxMint = convertToShares(_maxMint);
+        }
+    }
+
+    function maxWithdraw(address _owner) public view returns (uint256) {
+        return
+            Math.min(
+                convertToAssets(balanceOf(_owner)),
+                IBaseStrategy(address(this)).availableWithdrawLimit(_owner)
+            );
+    }
+
+    function maxRedeem(
+        address _owner
+    ) public view returns (uint256 _maxRedeem) {
+        _maxRedeem = IBaseStrategy(address(this)).availableWithdrawLimit(
+            _owner
+        );
+        if (_maxRedeem == type(uint256).max) {
+            _maxRedeem = balanceOf(_owner);
+        } else {
+            _maxRedeem = Math.min(_maxRedeem, balanceOf(_owner));
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

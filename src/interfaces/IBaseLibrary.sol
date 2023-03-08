@@ -6,7 +6,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 
 // Interface to use during testing that implements the 4626 standard the Library functions and the Strategies immutable functions
-interface IStrategy is IERC4626, IERC20Permit {
+interface IBaseLibrary is IERC4626, IERC20Permit {
     // errors
     error Unauthorized();
 
@@ -14,30 +14,15 @@ interface IStrategy is IERC4626, IERC20Permit {
 
     function isManagement() external;
 
-    function initialize(
-        address _asset,
-        string memory name_,
-        string memory symbol_,
-        address _management
-    ) external;
-
-    function invest(uint256 _assets, bool _reported) external;
-
-    function freeFunds(uint256 _amount) external;
-
-    function totalInvested() external returns (uint256);
-
-    function tendThis(uint256 _totalIdle) external;
-
     function tend() external;
 
     // Base Library functions \\
 
-    //function init(address _asset, string memory _name, string memory _symbol, address _management) external;
-
     function report() external returns (uint256 _profit, uint256 _loss);
 
     // Getters
+    function apiVersion() external returns (string memory);
+
     function pricePerShare() external view returns (uint256);
 
     function totalIdle() external view returns (uint256);
@@ -51,6 +36,10 @@ interface IStrategy is IERC4626, IERC20Permit {
     function performanceFee() external view returns (uint256);
 
     function performanceFeeRecipient() external view returns (address);
+
+    function fullProfitUnlockDate() external view returns (uint256);
+
+    function profitUnlockingRate() external view returns (uint256);
 
     function profitMaxUnlockTime() external view returns (uint256);
 

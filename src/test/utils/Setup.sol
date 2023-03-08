@@ -5,7 +5,7 @@ import "forge-std/console.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
 
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
-import {IStrategy} from "../Mocks/IStrategy.sol";
+import {IMockStrategy} from "../Mocks/IMockStrategy.sol";
 import {MockStrategy, MockYieldSource} from "../Mocks/MockStrategy.sol";
 import {MockIlliquidStrategy} from "../Mocks/MockIlliquidStrategy.sol";
 import {MockFactory} from "../Mocks/MockFactory.sol";
@@ -15,7 +15,7 @@ import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 
 contract Setup is ExtendedTest {
     ERC20Mock public asset;
-    IStrategy public strategy;
+    IMockStrategy public strategy;
     MockFactory public mockFactory;
     MockYieldSource public yieldSource;
 
@@ -55,7 +55,7 @@ contract Setup is ExtendedTest {
         yieldSource = new MockYieldSource(address(asset));
 
         // Deploy strategy and set variables
-        strategy = IStrategy(setUpStrategy());
+        strategy = IMockStrategy(setUpStrategy());
 
         // label all the used addresses for traces
         vm.label(management, "management");
@@ -143,27 +143,10 @@ contract Setup is ExtendedTest {
     }
 
     function setUpStrategy() public returns (address) {
-        // we save the mock base strategy as a IStrategy to give it the needed interface
-        IStrategy _strategy = IStrategy(
+        // we save the mock base strategy as a IBaseLibrary to give it the needed interface
+        IMockStrategy _strategy = IMockStrategy(
             address(new MockStrategy(address(asset), address(yieldSource)))
         );
-
-        // set the slots for the baseLibrary to the correct address
-        // store the libraries address at slot 0
-        /*
-        vm.store(
-            address(_strategy),
-            bytes32(0),
-            bytes32(uint256(uint160(address(BaseLibrary))))
-        );
-
-        // make sure our storage is set correctly
-        assertEq(
-            MockStrategy(payable(address(_strategy))).baseLibrary(),
-            address(BaseLibrary),
-            "lib slot"
-        );
-        */
 
         // set keeper
         _strategy.setKeeper(keeper);
@@ -176,25 +159,10 @@ contract Setup is ExtendedTest {
     }
 
     function setUpIlliquidStrategy() public returns (address) {
-        IStrategy _strategy = IStrategy(
+        IMockStrategy _strategy = IMockStrategy(
             address(
                 new MockIlliquidStrategy(address(asset), address(yieldSource))
             )
-        );
-
-        // set the slots for the baseLibrary to the correct address
-        // store the libraries address at slot 0
-        vm.store(
-            address(_strategy),
-            bytes32(0),
-            bytes32(uint256(uint160(address(BaseLibrary))))
-        );
-
-        // make sure our storage is set correctly
-        assertEq(
-            MockStrategy(payable(address(_strategy))).baseLibraryAddress(),
-            address(BaseLibrary),
-            "lib slot"
         );
 
         // set keeper

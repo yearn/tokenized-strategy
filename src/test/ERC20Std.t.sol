@@ -2,7 +2,7 @@
 pragma solidity ^0.8.14;
 
 import "forge-std/console.sol";
-import {Setup, MockStrategy, IStrategy} from "./utils/Setup.sol";
+import {Setup, MockStrategy, IMockStrategy} from "./utils/Setup.sol";
 
 // Adapted from Maple finace's ERC20 standard testing package
 // see: https://github.com/maple-labs/erc20/blob/main/contracts/test/ERC20.t.sol
@@ -667,7 +667,7 @@ contract ERC20PermitTest is Setup {
             keccak256(
                 abi.encodePacked(
                     "\x19\x01",
-                    IStrategy(token_).DOMAIN_SEPARATOR(),
+                    IMockStrategy(token_).DOMAIN_SEPARATOR(),
                     keccak256(
                         abi.encode(
                             keccak256(
@@ -708,7 +708,7 @@ contract ERC20User {
         address spender_,
         uint256 amount_
     ) external {
-        IStrategy(token_).approve(spender_, amount_);
+        IMockStrategy(token_).approve(spender_, amount_);
     }
 
     function erc20_permit(
@@ -721,7 +721,7 @@ contract ERC20User {
         bytes32 r_,
         bytes32 s_
     ) external {
-        IStrategy(token_).permit(
+        IMockStrategy(token_).permit(
             owner_,
             spender_,
             amount_,
@@ -737,7 +737,7 @@ contract ERC20User {
         address recipient_,
         uint256 amount_
     ) external returns (bool success_) {
-        return IStrategy(token_).transfer(recipient_, amount_);
+        return IMockStrategy(token_).transfer(recipient_, amount_);
     }
 
     function erc20_transferFrom(
@@ -746,6 +746,6 @@ contract ERC20User {
         address recipient_,
         uint256 amount_
     ) external returns (bool success_) {
-        return IStrategy(token_).transferFrom(owner_, recipient_, amount_);
+        return IMockStrategy(token_).transferFrom(owner_, recipient_, amount_);
     }
 }
