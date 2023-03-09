@@ -115,37 +115,61 @@ library BaseLibrary {
     error Unauthorized();
 
     /*//////////////////////////////////////////////////////////////
-                        STORAGE STRUCTS
+                        STORAGE STRUCT
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev The struct that will hold all the data for each implementation
+     * strategy that uses the library.
+     *
+     * This replaces all state variables for a traditional contract. This
+     * full struct will be initiliazed on the createion of the implemenation
+     * contract and continually updated and read from for the life f the contract.
+     *
+     * We combine all the variables into one struct to limit the amount of times
+     * custom storage slots need to be loadded during complex functions.
+     *
+     * Loading the corresponding storage slot for the struct into memory
+     * does not load any of the contents of the struct into memory. So
+     * the size has no effect on gas usage.
+     */
     // TODO: this should be able to be packed better
+    // prettier-ignore
     struct BaseStrategyData {
-
+        // The ERC20 compliant underlying asset that will be
+        // used by the implementation contract.
         ERC20 asset;
-        string name;
-        string symbol;
-        uint256 totalSupply;
-        uint256 INITIAL_CHAIN_ID;
-        bytes32 INITIAL_DOMAIN_SEPARATOR;
-        mapping(address => uint256) nonces;
-        mapping(address => uint256) balances;
-        mapping(address => mapping(address => uint256)) allowances;
-    
+        
 
-        uint256 totalIdle;
-        uint256 totalDebt;
-    
+        // These are the corresponding ERC20 variables needed for the
+        // token that is issued and burned on each deposit or withdraw.
+        string name; // The name of the token for the strategy.
+        string symbol; // The symbol of the token for the strategy.
+        uint256 totalSupply; // The total amount of shares currently issued
+        uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
+        bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain seperator used for permits on the intitial chain.
+        mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
+        mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
+        mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
+        
 
-        uint256 fullProfitUnlockDate;
-        uint256 profitUnlockingRate;
-        uint256 profitMaxUnlockTime;
-        uint256 lastReport;
-        uint16 performanceFee;
-        address performanceFeeRecipient;
-    
+        // Assets data to track totals the strategy holds.
+        uint256 totalIdle; // The total amount of loose `asset` the strategy holds.
+        uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy
+        
 
-        address management;
-        address keeper;
+        // Variables for profit reporting and locking
+        uint256 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
+        uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
+        uint256 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
+        uint256 lastReport; // The last time a {report} was called.
+        uint16 performanceFee; // The percent in Basis points of profit that is charged as a fee.
+        address performanceFeeRecipient; // The address to pay the `performanceFee` to.
+        
+
+        // Access management addressess for permisssioned functions.
+        address management; // Main address that can set all configurable variables.
+        address keeper; // Address given permission to call {report} and {tend}.
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -165,7 +189,8 @@ library BaseLibrary {
     // These are left public to allow for the strategy to use them as well
 
     function isManagement() public view {
-        if (msg.sender != _baseStrategyStorgage().management) revert Unauthorized();
+        if (msg.sender != _baseStrategyStorgage().management)
+            revert Unauthorized();
     }
 
     function isKeeper() public view {
@@ -187,29 +212,39 @@ library BaseLibrary {
     uint256 private constant MAX_BPS = 10_000;
     uint256 private constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
-    // Factory address NOTE: This will be set to deployed factory. deterministic address for testing is used now
+    // Factory address NOTE: This will be set to deployed factory.
+    // deterministic address for testing is used now
     // TODO: how to account for protocol fees when the strategy is empty
     address private constant FACTORY =
         0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
 
     /**
-     * @dev Custom storgage slots that will store their specific structs for each strategies storage variables.
+     * @dev Custom storgage slot that will be used to store the
+     * `BaseStrategyData` struct that holds each strategies
+     * specific storage variables.
      *
-     * Any storage updates done by the library effect the storage of the calling contract. Each of these variabless
-     * point to the specic location that will be used to store the corresponding struct that holds that data.
+     * Any storage updates done by the library actually update
+     * the storage of the calling contract. This variable points
+     * to the specic location that will be used to store the
+     * struct that holds all that data.
      *
-     * We intentionally use large strings in order to get high slots that that should allow for stratgists
-     * to use any amount of storage in the implementations without worrying about collisions. The assets stuct is the
-     * lowest and it sits a slot > 1e75.
+     * We intentionally use large strings in order to get high
+     * slots that that should allow for stratgists to use any
+     * amount of storage in the implementations without worrying
+     * about collisions. This storage slot sits at roughly 1e77.
      */
     bytes32 private constant BASE_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
     /*//////////////////////////////////////////////////////////////
-                    STORAGE GETTER FUNCTIONS
+                    STORAGE GETTER FUNCTION
     //////////////////////////////////////////////////////////////*/
 
-    function _baseStrategyStorgage() private pure returns (BaseStrategyData storage S) {
+    function _baseStrategyStorgage()
+        private
+        pure
+        returns (BaseStrategyData storage S)
+    {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
         bytes32 slot = BASE_STRATEGY_STORAGE;
@@ -269,8 +304,6 @@ library BaseLibrary {
     /*//////////////////////////////////////////////////////////////
                         ERC4626 FUNCIONS
     //////////////////////////////////////////////////////////////*/
-
-    // TODO: make sure we cannot have address(this) be the reciever on deposits
 
     function deposit(
         uint256 assets,
@@ -869,7 +902,8 @@ library BaseLibrary {
         address _performanceFeeRecipient
     ) external onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
-        _baseStrategyStorgage().performanceFeeRecipient = _performanceFeeRecipient;
+        _baseStrategyStorgage()
+            .performanceFeeRecipient = _performanceFeeRecipient;
 
         emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
     }
@@ -955,7 +989,8 @@ library BaseLibrary {
      */
     function balanceOf(address account) public view returns (uint256) {
         if (account == address(this)) {
-            return _baseStrategyStorgage().balances[account] - _unlockedShares();
+            return
+                _baseStrategyStorgage().balances[account] - _unlockedShares();
         }
         return _baseStrategyStorgage().balances[account];
     }
