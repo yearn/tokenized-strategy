@@ -51,7 +51,8 @@ library BaseLibrary {
     event UpdatePerformanceFee(uint16 newPerformanceFee);
 
     /**
-     * @notice Emitted whent the 'performanceFeeRecipient' address is updtaed to 'newPerformanceFeeRecipient'.
+     * @notice Emitted whent the 'performanceFeeRecipient' address is
+     * updtaed to 'newPerformanceFeeRecipient'.
      */
     event UpdatePerformanceFeeRecipient(
         address indexed newPerformanceFeeRecipient
@@ -290,7 +291,7 @@ library BaseLibrary {
         // set last report to this block
         S.lastReport = block.timestamp;
 
-        // emit the standard DiamondCut event with the values from out helper contract
+        // emit the standard DiamondCut event with the values from our helper contract
         emit DiamondCut(
             // struct containing the address of the library, the add enum and array of all function selectors
             DiamondHelper(diamondHelper).diamondCut(),

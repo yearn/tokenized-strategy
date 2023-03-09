@@ -11,6 +11,9 @@ import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
 import "forge-std/console.sol";
 
 abstract contract BaseStrategy is IBaseStrategy {
+    /*//////////////////////////////////////////////////////////////
+                            MODIFIERS
+    //////////////////////////////////////////////////////////////*/
     modifier onlySelf() {
         _onlySelf();
         _;
@@ -34,6 +37,17 @@ abstract contract BaseStrategy is IBaseStrategy {
                         CONSTANTS /IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * This is the address of the BaseLibrary that will be used by all
+     * strategies to handle the accounting, logic, storage etc.
+     *
+     * Any external calls to the strategy that don't hit one of the functions
+     * defined in the implementation will end up going to the fallback
+     * function, which will delegateCall this address.
+     *
+     * This address should be the same for every strategy, never be adjusted
+     * and always be checked before any integration with the implementation.
+     */
     // NOTE: This will be set to internal constants once the library has actually been deployed
     address public baseLibraryAddress =
         0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
@@ -52,7 +66,7 @@ abstract contract BaseStrategy is IBaseStrategy {
      * to a static call to itself. Which will hit the fallback function and
      * delegateCall that to the actual BaseLibrary.
      */
-    IBaseLibrary public immutable BaseLibrary = IBaseLibrary(address(this));
+    IBaseLibrary internal immutable BaseLibrary = IBaseLibrary(address(this));
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
