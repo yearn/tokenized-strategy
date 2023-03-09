@@ -20,19 +20,21 @@ interface ERC {
 }
 
 contract Setup is ExtendedTest {
+    // Contract instancees that we will use repeatedly.
     ERC20Mock public asset;
     IMockStrategy public strategy;
     MockFactory public mockFactory;
     MockYieldSource public yieldSource;
-
     DiamondHelper public diamondHelper;
 
+    // Addresses for different roles we will use repeatedly.
     address public management = address(1);
     address public protocolFeeRecipient = address(2);
     address public performanceFeeRecipient = address(3);
     address public keeper = address(4);
     address public user = address(10);
-
+    
+    // Integer variables that will be used repeatedly.
     // Fuzz from $0.01 of 1e6 stable coins up to 1 trillion of a 1e18 coin
     uint256 public minFuzzAmount = 10_000;
     uint256 public maxFuzzAmount = 1e30;
@@ -41,7 +43,6 @@ contract Setup is ExtendedTest {
     uint256 public decimals = 18;
     uint256 public wad = 10 ** decimals;
     uint256 public profitMaxUnlockTime = 10 days;
-    uint256 public maxPPSPercentDelta = 100;
 
     function setUp() public virtual {
         // deploy the selector helper first to get a deterministic location
@@ -50,8 +51,6 @@ contract Setup is ExtendedTest {
 
         // deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
-
-        console.log(address(BaseLibrary));
 
         diamondHelper.setLibrary(address(BaseLibrary));
 
@@ -71,7 +70,7 @@ contract Setup is ExtendedTest {
         vm.label(address(asset), "asset");
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");
-        vm.label(address(diamondHelper), "selector helper");
+        vm.label(address(diamondHelper), "Diamond heleper");
         vm.label(address(yieldSource), "Mock Yield Source");
         vm.label(address(mockFactory), "mock Factory");
     }
