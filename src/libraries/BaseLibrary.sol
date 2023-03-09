@@ -409,56 +409,83 @@ library BaseLibrary {
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
-    // post deposit/report hook to deposit any loose funds
-    function _depositFunds(uint256 _newAmount, bool _reported) private {
-        BaseStrategyData storage S = _baseStrategyStorgage();
-        ERC20 _asset = S.asset;
-        // We will deposit up to current idle plus the new amount added
-        uint256 toInvest = S.totalIdle + _newAmount;
+    function convertToShares(uint256 assets) public view returns (uint256) {
+        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
 
-        uint256 before = _asset.balanceOf(address(this));
-        // invest if applicable
-        IBaseStrategy(address(this)).invest(toInvest, _reported);
-
-        // Always get the actual amount invested for higher accuracy
-        // We double check the diff agianst toInvest to never underflow
-        uint256 invested = Math.min(
-            before - _asset.balanceOf(address(this)),
-            toInvest
-        );
-
-        // adjust total Assets
-        S.totalDebt += invested;
-        // check if we invested all the loose asset
-        S.totalIdle = toInvest - invested;
+        return
+            supply == 0
+                ? assets
+                : assets.mulDiv(supply, totalAssets(), Math.Rounding.Down);
     }
 
-    // TODO: Make this better
-    //      This should return the actual amount freed so it can accept losses
-    function _withdrawFunds(uint256 _amount) private {
-        BaseStrategyData storage S = _baseStrategyStorgage();
-        ERC20 _asset = S.asset;
+    function convertToAssets(uint256 shares) public view returns (uint256) {
+        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
 
-        uint256 idle = S.totalIdle;
+        return
+            supply == 0
+                ? shares
+                : shares.mulDiv(totalAssets(), supply, Math.Rounding.Down);
+    }
 
-        if (idle >= _amount) {
-            // We dont need to withdraw anything
-            S.totalIdle -= _amount;
-        } else {
-            // withdraw if we dont have enough idle
-            uint256 before = _asset.balanceOf(address(this));
-            // free what we need - what we have
-            IBaseStrategy(address(this)).freeFunds(_amount - idle);
+    function previewDeposit(uint256 assets) public view returns (uint256) {
+        return convertToShares(assets);
+    }
 
-            // get the exact amount to account for loss or errors
-            uint256 withdrawn = _asset.balanceOf(address(this)) - before;
-            // TODO: should account for errors here to not overflow or over withdraw
-            S.totalDebt -= withdrawn;
+    function previewMint(uint256 shares) public view returns (uint256) {
+        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
 
-            // we are giving the full amount of our idle funds
-            S.totalIdle = 0;
+        return
+            supply == 0
+                ? shares
+                : shares.mulDiv(totalAssets(), supply, Math.Rounding.Up);
+    }
+
+    function previewWithdraw(uint256 assets) public view returns (uint256) {
+        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
+
+        return
+            supply == 0
+                ? assets
+                : assets.mulDiv(supply, totalAssets(), Math.Rounding.Up);
+    }
+
+    function previewRedeem(uint256 shares) public view returns (uint256) {
+        return convertToAssets(shares);
+    }
+
+    function maxDeposit(address _owner) public view returns (uint256) {
+        return IBaseStrategy(address(this)).availableDepositLimit(_owner);
+    }
+
+    function maxMint(address _owner) public view returns (uint256 _maxMint) {
+        _maxMint = IBaseStrategy(address(this)).availableDepositLimit(_owner);
+        if (_maxMint != type(uint256).max) {
+            _maxMint = convertToShares(_maxMint);
         }
     }
+
+    function maxWithdraw(address _owner) public view returns (uint256) {
+        return
+            Math.min(
+                convertToAssets(balanceOf(_owner)),
+                IBaseStrategy(address(this)).availableWithdrawLimit(_owner)
+            );
+    }
+
+    function maxRedeem(
+        address _owner
+    ) public view returns (uint256 _maxRedeem) {
+        _maxRedeem = IBaseStrategy(address(this)).availableWithdrawLimit(
+            _owner
+        );
+        // Conversion would overflow and saves a min check if there is no withdrawal limit.
+        if (_maxRedeem == type(uint256).max) {
+            _maxRedeem = balanceOf(_owner);
+        } else {
+            _maxRedeem = Math.min(convertToShares(_maxRedeem), balanceOf(_owner));
+        }
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                         PROFIT LOCKING
@@ -665,6 +692,23 @@ library BaseLibrary {
         _burn(address(this), unlcokdedShares);
     }
 
+    function _unlockedShares() private view returns (uint256) {
+        // should save 2 extra calls for most scenarios
+        BaseStrategyData storage S = _baseStrategyStorgage();
+        uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+        uint256 unlockedShares;
+        if (_fullProfitUnlockDate > block.timestamp) {
+            unlockedShares =
+                (S.profitUnlockingRate * (block.timestamp - S.lastReport)) /
+                MAX_BPS_EXTENDED;
+        } else if (_fullProfitUnlockDate != 0) {
+            // All shares have been unlocked
+            unlockedShares = S.balances[address(this)];
+        }
+
+        return unlockedShares;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         TENDING LOGIC
     //////////////////////////////////////////////////////////////*/
@@ -728,96 +772,54 @@ library BaseLibrary {
         return _baseStrategyStorgage().totalSupply - _unlockedShares();
     }
 
-    function _unlockedShares() private view returns (uint256) {
-        // should save 2 extra calls for most scenarios
+    // post deposit/report hook to deposit any loose funds
+    function _depositFunds(uint256 _newAmount, bool _reported) private {
         BaseStrategyData storage S = _baseStrategyStorgage();
-        uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
-        uint256 unlockedShares;
-        if (_fullProfitUnlockDate > block.timestamp) {
-            unlockedShares =
-                (S.profitUnlockingRate * (block.timestamp - S.lastReport)) /
-                MAX_BPS_EXTENDED;
-        } else if (_fullProfitUnlockDate != 0) {
-            // All shares have been unlocked
-            unlockedShares = S.balances[address(this)];
-        }
+        ERC20 _asset = S.asset;
+        // We will deposit up to current idle plus the new amount added
+        uint256 toInvest = S.totalIdle + _newAmount;
 
-        return unlockedShares;
-    }
+        uint256 before = _asset.balanceOf(address(this));
+        // invest if applicable
+        IBaseStrategy(address(this)).invest(toInvest, _reported);
 
-    function convertToShares(uint256 assets) public view returns (uint256) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
-
-        return
-            supply == 0
-                ? assets
-                : assets.mulDiv(supply, totalAssets(), Math.Rounding.Down);
-    }
-
-    function convertToAssets(uint256 shares) public view returns (uint256) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
-
-        return
-            supply == 0
-                ? shares
-                : shares.mulDiv(totalAssets(), supply, Math.Rounding.Down);
-    }
-
-    function previewDeposit(uint256 assets) public view returns (uint256) {
-        return convertToShares(assets);
-    }
-
-    function previewMint(uint256 shares) public view returns (uint256) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
-
-        return
-            supply == 0
-                ? shares
-                : shares.mulDiv(totalAssets(), supply, Math.Rounding.Up);
-    }
-
-    function previewWithdraw(uint256 assets) public view returns (uint256) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
-
-        return
-            supply == 0
-                ? assets
-                : assets.mulDiv(supply, totalAssets(), Math.Rounding.Up);
-    }
-
-    function previewRedeem(uint256 shares) public view returns (uint256) {
-        return convertToAssets(shares);
-    }
-
-    function maxDeposit(address _owner) public view returns (uint256) {
-        return IBaseStrategy(address(this)).availableDepositLimit(_owner);
-    }
-
-    function maxMint(address _owner) public view returns (uint256 _maxMint) {
-        _maxMint = IBaseStrategy(address(this)).availableDepositLimit(_owner);
-        if (_maxMint != type(uint256).max) {
-            _maxMint = convertToShares(_maxMint);
-        }
-    }
-
-    function maxWithdraw(address _owner) public view returns (uint256) {
-        return
-            Math.min(
-                convertToAssets(balanceOf(_owner)),
-                IBaseStrategy(address(this)).availableWithdrawLimit(_owner)
-            );
-    }
-
-    function maxRedeem(
-        address _owner
-    ) public view returns (uint256 _maxRedeem) {
-        _maxRedeem = IBaseStrategy(address(this)).availableWithdrawLimit(
-            _owner
+        // Always get the actual amount invested for higher accuracy
+        // We double check the diff agianst toInvest to never underflow
+        uint256 invested = Math.min(
+            before - _asset.balanceOf(address(this)),
+            toInvest
         );
-        if (_maxRedeem == type(uint256).max) {
-            _maxRedeem = balanceOf(_owner);
+
+        // adjust total Assets
+        S.totalDebt += invested;
+        // check if we invested all the loose asset
+        S.totalIdle = toInvest - invested;
+    }
+
+    // TODO: Make this better
+    //      This should return the actual amount freed so it can accept losses
+    function _withdrawFunds(uint256 _amount) private {
+        BaseStrategyData storage S = _baseStrategyStorgage();
+        ERC20 _asset = S.asset;
+
+        uint256 idle = S.totalIdle;
+
+        if (idle >= _amount) {
+            // We dont need to withdraw anything
+            S.totalIdle -= _amount;
         } else {
-            _maxRedeem = Math.min(_maxRedeem, balanceOf(_owner));
+            // withdraw if we dont have enough idle
+            uint256 before = _asset.balanceOf(address(this));
+            // free what we need - what we have
+            IBaseStrategy(address(this)).freeFunds(_amount - idle);
+
+            // get the exact amount to account for loss or errors
+            uint256 withdrawn = _asset.balanceOf(address(this)) - before;
+            // TODO: should account for errors here to not overflow or over withdraw
+            S.totalDebt -= withdrawn;
+
+            // we are giving the full amount of our idle funds
+            S.totalIdle = 0;
         }
     }
 
