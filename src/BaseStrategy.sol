@@ -6,7 +6,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 
 // Custom Base Strategy interfacies
 import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
-import {BaseLibrary} from "./libraries/BaseLibrary.sol";
+import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
 
 import "forge-std/console.sol";
 
@@ -31,11 +31,28 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               CONSTANTS
+                        CONSTANTS /IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
     // NOTE: This will be set to internal constants once the library has actually been deployed
-    address public baseLibraryAddress;
+    address public baseLibraryAddress =
+        0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
+
+    /**
+     * This can be used to retrieve storage data within the implementation
+     * contract as if it were a linked library.
+     *
+     *       i.e. uint256 totalAssets = BaseLibrary.totalAssets()
+     *
+     * We use this so that there does not have to be a library actually linked
+     * to the strategy when deployed that would rarely be used and only for
+     * reading storage. It also standardizies all Base Library interaction.
+     *
+     * Using address(this) will mean any calls using this variable will lead
+     * to a static call to itself. Which will hit the fallback function and
+     * delegateCall that to the actual BaseLibrary.
+     */
+    IBaseLibrary public immutable BaseLibrary = IBaseLibrary(address(this));
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
@@ -45,7 +62,8 @@ abstract contract BaseStrategy is IBaseStrategy {
     address public asset;
 
     // The decimals of the underlying asset we will use.
-    // Keep this private with a getter function so it can be easily accessed by strategists but not updated
+    // Keep this private with a getter function so it can be easily
+    // accessed by strategists but not updated.
     uint8 private _decimals;
 
     constructor(address _asset, string memory _name, string memory _symbol) {
@@ -76,7 +94,7 @@ abstract contract BaseStrategy is IBaseStrategy {
         _decimals = IERC20Metadata(_asset).decimals();
 
         // initilize the strategies storage variables
-        BaseLibrary.init(_asset, _name, _symbol, _management);
+        _init(_asset, _name, _symbol, _management);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -108,7 +126,7 @@ abstract contract BaseStrategy is IBaseStrategy {
      * @notice Will attempt to free the '_amount' of 'asset'.
      * @dev Callback for the library to call during a withdraw or redeem to free the needed funds to service the withdraw.
      *
-     *This can only be called after a 'withdraw' or 'redeem' delegateCall to the library so msg.sender == address(this).
+     * This can only be called after a 'withdraw' or 'redeem' delegateCall to the library so msg.sender == address(this).
      *
      * @param _amount The amount of 'asset' that the strategy should attemppt to free up.
      */
@@ -218,25 +236,19 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     // NOTE: these functions are kept in the Base to give strategists
-    //      the ability to override them for illiquid strategies.
-    // Made public to allow for the override function to use super.function() for min check
+    // the ability to override them to limit deposit or withdraws for
+    // andy strategies that want to implement deposit limts, whitelists, illiquid strategies etc.
 
-    function maxDeposit(
+    function availableDepositLimit(
         address /*_owner*/
-    ) public view virtual returns (uint256) {
+    ) external view virtual returns (uint256) {
         return type(uint256).max;
     }
 
-    function maxMint(address /*_owner*/) public view virtual returns (uint256) {
+    function availableWithdrawLimit(
+        address /*_owner*/
+    ) external view virtual returns (uint256) {
         return type(uint256).max;
-    }
-
-    function maxWithdraw(address _owner) public view virtual returns (uint256) {
-        return BaseLibrary.convertToAssets(BaseLibrary.balanceOf(_owner));
-    }
-
-    function maxRedeem(address _owner) public view virtual returns (uint256) {
-        return BaseLibrary.balanceOf(_owner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -250,6 +262,28 @@ abstract contract BaseStrategy is IBaseStrategy {
      */
     function decimals() public view returns (uint8) {
         return _decimals;
+    }
+
+    // NOTE: We cannot use the `BaseLibrary` call since this contract is not deployed fully yet
+    // So we need to manually delegateCall the library.
+    // This is the only time an internal delegateCall should not be for a view function
+    function _init(
+        address _asset,
+        string memory _name,
+        string memory _symbol,
+        address _management
+    ) private {
+        (bool success, ) = baseLibraryAddress.delegatecall(
+            abi.encodeWithSignature(
+                "init(address,string,string,address)",
+                _asset,
+                _name,
+                _symbol,
+                _management
+            )
+        );
+
+        require(success, "init failed");
     }
 
     // exeute a function on the baseLibrary and return any value.

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.14;
 
 import "forge-std/console.sol";
-import {Setup, IStrategy} from "./utils/Setup.sol";
+import {Setup, BaseLibrary} from "./utils/Setup.sol";
 
 import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 
@@ -79,7 +79,7 @@ contract AccesssControlTest is Setup {
         address _management = strategy.management();
 
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.setManagement(address(69));
 
         assertEq(strategy.management(), _management);
@@ -91,7 +91,7 @@ contract AccesssControlTest is Setup {
         address _keeper = strategy.keeper();
 
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.setKeeper(address(69));
 
         assertEq(strategy.keeper(), _keeper);
@@ -107,7 +107,7 @@ contract AccesssControlTest is Setup {
         uint256 _performanceFee = strategy.performanceFee();
 
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.setPerformanceFee(_amount);
 
         assertEq(strategy.performanceFee(), _performanceFee);
@@ -125,7 +125,7 @@ contract AccesssControlTest is Setup {
         address _performanceFeeRecipient = strategy.performanceFeeRecipient();
 
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.setPerformanceFeeRecipient(address(69));
 
         assertEq(strategy.performanceFeeRecipient(), _performanceFeeRecipient);
@@ -141,7 +141,7 @@ contract AccesssControlTest is Setup {
         uint256 profitMaxUnlockTime = strategy.profitMaxUnlockTime();
 
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.setProfitMaxUnlockTime(_amount);
 
         assertEq(strategy.profitMaxUnlockTime(), profitMaxUnlockTime);
@@ -189,11 +189,11 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.invest(_amount, _reported);
 
         vm.prank(management);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.invest(_amount, _reported);
 
         assertEq(asset.balanceOf(address(yieldSource)), 0);
@@ -221,13 +221,13 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.freeFunds(_amount);
         (_amount);
 
         // doesnt work from management either
         vm.prank(management);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.freeFunds(_amount);
 
         assertEq(asset.balanceOf(address(strategy)), 0);
@@ -255,12 +255,12 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.totalInvested();
 
         // doesnt work from management either
         vm.prank(management);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.totalInvested();
 
         vm.prank(address(strategy));
@@ -278,7 +278,7 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.tendThis(_amount);
 
         vm.prank(address(strategy));
@@ -293,7 +293,7 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(IStrategy.Unauthorized.selector);
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
         strategy.tend();
 
         vm.prank(keeper);

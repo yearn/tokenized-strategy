@@ -2,11 +2,9 @@
 pragma solidity ^0.8.14;
 
 import "forge-std/console.sol";
-import {Setup} from "./utils/Setup.sol";
+import {Setup, BaseLibrary} from "./utils/Setup.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-
-import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 
 contract ProfitLockingTest is Setup {
     function setUp() public override {

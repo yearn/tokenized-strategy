@@ -62,13 +62,13 @@ interface IBaseStrategy {
         address _management
     ) external;
 
-    function maxDeposit(address _owner) external view returns (uint256);
+    function availableDepositLimit(
+        address _owner
+    ) external view returns (uint256);
 
-    function maxMint(address _owner) external view returns (uint256);
-
-    function maxWithdraw(address _owner) external view returns (uint256);
-
-    function maxRedeem(address _owner) external view returns (uint256);
+    function availableWithdrawLimit(
+        address _owner
+    ) external view returns (uint256);
 
     function invest(uint256 _assets, bool _reported) external;
 

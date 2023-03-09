@@ -2,7 +2,7 @@
 pragma solidity ^0.8.14;
 
 import "forge-std/console.sol";
-import {Setup, IStrategy, BaseLibrary} from "./utils/Setup.sol";
+import {Setup, IMockStrategy, BaseLibrary} from "./utils/Setup.sol";
 
 contract AccountingTest is Setup {
     function setUp() public override {
@@ -313,7 +313,7 @@ contract AccountingTest is Setup {
         _profitFactor = bound(_profitFactor, 1, MAX_BPS);
 
         // Use the illiquid mock strategy so it doesnt deposit all funds
-        strategy = IStrategy(setUpIlliquidStrategy());
+        strategy = IMockStrategy(setUpIlliquidStrategy());
 
         setFees(0, 0);
         // nothing has happened pps should be 1

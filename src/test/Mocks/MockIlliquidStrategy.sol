@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.14;
 
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {MockYieldSource} from "./MockYieldSource.sol";
-import {BaseStrategy, BaseLibrary} from "../../BaseStrategy.sol";
+import {BaseStrategy} from "../../BaseStrategy.sol";
 
 contract MockIlliquidStrategy is BaseStrategy {
     address public yieldSource;
@@ -39,17 +38,9 @@ contract MockIlliquidStrategy is BaseStrategy {
         }
     }
 
-    function maxWithdraw(
+    function availableWithdrawLimit(
         address _owner
     ) public view override returns (uint256) {
-        return Math.min(BaseLibrary.totalIdle(), super.maxWithdraw(_owner));
-    }
-
-    function maxRedeem(address _owner) public view override returns (uint256) {
-        return
-            Math.min(
-                BaseLibrary.convertToShares(BaseLibrary.totalIdle()),
-                super.maxWithdraw(_owner)
-            );
+        return BaseLibrary.totalIdle();
     }
 }
