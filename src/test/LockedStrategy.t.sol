@@ -51,4 +51,11 @@ contract LockedStrategyTest is Setup {
         assertEq(strategy.totalSupply(), 0);
         assertEq(strategy.pricePerShare(), wad);
     }
+
+    // TODO:
+    // withdraw full amount when locked
+    // strategy that withdraws more than it should
+    // strategy that deposits less than it should
+    // exploiter strategy that reenters
+    // View only reentrancy
 }

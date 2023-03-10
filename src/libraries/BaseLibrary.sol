@@ -27,7 +27,7 @@ import "forge-std/console.sol";
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
 //      Add reentrancy gaurds?
-//      can get around whitelist by setting reciever to an allowed address
+//      unsafe math library for easy unchecked
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -308,17 +308,10 @@ library BaseLibrary {
                         ERC4626 FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
-    // TODO: should maxDeposit/mint be checked with the msg.sender so it can be whitelisted
     function deposit(
         uint256 assets,
         address receiver
     ) public returns (uint256 shares) {
-        require(receiver != address(this), "ERC4626: mint to self");
-        require(
-            assets <= maxDeposit(receiver),
-            "ERC4626: deposit more than max"
-        );
-
         // Check for rounding error since we round down in previewDeposit.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
@@ -329,9 +322,6 @@ library BaseLibrary {
         uint256 shares,
         address receiver
     ) public returns (uint256 assets) {
-        require(receiver != address(this), "ERC4626: mint to self");
-        require(shares <= maxMint(receiver), "ERC4626: mint more than max");
-
         // No need to check for rounding error, previewMint rounds up.
         assets = previewMint(shares);
 
@@ -343,16 +333,8 @@ library BaseLibrary {
         address receiver,
         address owner
     ) public returns (uint256 shares) {
-        require(
-            assets <= maxWithdraw(owner),
-            "ERC4626: withdraw more than max"
-        );
-
-        shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
-
-        if (msg.sender != owner) {
-            _spendAllowance(owner, msg.sender, shares);
-        }
+        // No need to check for rounding error, previewWithdraw rounds up.
+        shares = previewWithdraw(assets);
 
         _withdraw(receiver, owner, assets, shares);
     }
@@ -362,12 +344,6 @@ library BaseLibrary {
         address receiver,
         address owner
     ) public returns (uint256 assets) {
-        require(shares <= maxRedeem(owner), "ERC4626: redeem more than max");
-
-        if (msg.sender != owner) {
-            _spendAllowance(owner, msg.sender, shares);
-        }
-
         // Check for rounding error since we round down in previewRedeem.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
@@ -429,12 +405,21 @@ library BaseLibrary {
         }
     }
 
-    function maxWithdraw(address _owner) public view returns (uint256) {
-        return
-            Math.min(
+    function maxWithdraw(
+        address _owner
+    ) public view returns (uint256 _maxWithdraw) {
+        _maxWithdraw = IBaseStrategy(address(this)).availableWithdrawLimit(
+            _owner
+        );
+        if (_maxWithdraw == type(uint256).max) {
+            // Saves a min check if there is no withdrawal limit.
+            _maxWithdraw = convertToAssets(balanceOf(_owner));
+        } else {
+            _maxWithdraw = Math.min(
                 convertToAssets(balanceOf(_owner)),
-                IBaseStrategy(address(this)).availableWithdrawLimit(_owner)
+                _maxWithdraw
             );
+        }
     }
 
     function maxRedeem(
@@ -481,6 +466,12 @@ library BaseLibrary {
         uint256 assets,
         uint256 shares
     ) private {
+        require(receiver != address(this), "ERC4626: mint to self");
+        require(
+            assets <= maxDeposit(msg.sender),
+            "ERC4626: deposit more than max"
+        );
+
         // Cache storage variables used more than once.
         BaseStrategyData storage S = _baseStrategyStorgage();
         ERC20 _asset = S.asset;
@@ -528,13 +519,18 @@ library BaseLibrary {
      * If we are not able to withdraw the full amount needed, it will
      * be counted as a loss and passed on to the user.
      */
-    // TODO: How to deal with overwithdrawing?
     function _withdraw(
         address receiver,
         address owner,
         uint256 assets,
         uint256 shares
     ) private {
+        require(shares <= maxRedeem(owner), "ERC4626: withdraw more than max");
+
+        if (msg.sender != owner) {
+            _spendAllowance(owner, msg.sender, shares);
+        }
+
         BaseStrategyData storage S = _baseStrategyStorgage();
         // Expected beharvior is to withdraw so we cache `_asset`.
         ERC20 _asset = S.asset;
@@ -547,9 +543,14 @@ library BaseLibrary {
             // Cache before balance for diff checks.
             uint256 before = _asset.balanceOf(address(this));
             // Tell implementation to free what we need.
-            IBaseStrategy(address(this)).freeFunds(assets - idle);
-            // Return the actual amount withdrawn.
-            uint256 withdrawn = _asset.balanceOf(address(this)) - before;
+            unchecked {
+                IBaseStrategy(address(this)).freeFunds(assets - idle);
+            }
+            // Return the actual amount withdrawn. Adjust for potential overwithdraws.
+            uint256 withdrawn = Math.min(
+                _asset.balanceOf(address(this)) - before,
+                S.totalDebt
+            );
 
             unchecked {
                 idle += withdrawn;
@@ -558,12 +559,13 @@ library BaseLibrary {
             uint256 loss;
             // If we didn't get enough out then we have a loss
             if (idle < assets) {
-                loss = assets - idle;
+                unchecked {
+                    loss = assets - idle;
+                }
                 assets = idle;
             }
 
             // Update debt storage.
-            // This needs a min against totalDebt?
             S.totalDebt -= (withdrawn + loss);
         }
 
@@ -575,31 +577,6 @@ library BaseLibrary {
         _asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    }
-
-    // post deposit/report hook to deposit any loose funds
-    function _depositFunds(uint256 newA, bool _reported) private {
-        BaseStrategyData storage S = _baseStrategyStorgage();
-        ERC20 _asset = S.asset;
-
-        // We will deposit up to current idle plus the new amount added
-        uint256 toInvest = S.totalIdle + newA;
-
-        // invest loose funds if applicable.
-        uint256 beforeBalance = _asset.balanceOf(address(this));
-        IBaseStrategy(address(this)).invest(toInvest, _reported);
-
-        // Always get the actual amount invested for higher accuracy
-        // We double check the diff agianst toInvest to never underflow
-        uint256 invested = Math.min(
-            beforeBalance - _asset.balanceOf(address(this)),
-            toInvest
-        );
-
-        // adjust total Assets
-        S.totalDebt += invested;
-        // check if we invested all the loose asset
-        S.totalIdle = toInvest - invested;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -742,15 +719,10 @@ library BaseLibrary {
             }
         }
 
-        // Update storage variables
-        uint256 newIdle = S.asset.balanceOf(address(this));
-        // Set totalIdle to the actual amount we have loose
-        S.totalIdle = newIdle;
-        // the new debt should only be what is not loose
-        S.totalDebt = _invested - newIdle;
+        // Update last report before external calls
         S.lastReport = block.timestamp;
 
-        // emit event with info
+        // Emit event with info
         emit Reported(
             profit,
             loss,
@@ -758,8 +730,20 @@ library BaseLibrary {
             totalFees - performanceFees // Protocol fees
         );
 
+        // We need to update storage here for view reentrancy during
+        // the external {invest} call so pps is not distorted.
+        // NOTE: We could save an extra SSTORE here by only updating S.totalDebt = S.totalDebt + profit - loss. But reentrancy withdraws could break?
+        uint256 newIdle = S.asset.balanceOf(address(this));
+        S.totalIdle = newIdle;
+        S.totalDebt += _invested - newIdle;
+
         // invest any idle funds, tell strategy it is during a report call
-        _depositFunds(0, true);
+        IBaseStrategy(address(this)).invest(newIdle, true);
+
+        // Update storage based on actual amounts
+        newIdle = S.asset.balanceOf(address(this));
+        S.totalIdle = newIdle;
+        S.totalDebt = _invested - newIdle;
     }
 
     function _assessProtocolFees(
@@ -788,7 +772,7 @@ library BaseLibrary {
                 (uint256(protocolFeeBps) *
                     _oldTotalAssets *
                     secondsSinceLastReport) /
-                // TODO: make this on number for less runtime calculations
+                // TODO: make this one number for less runtime calculations
                 24 /
                 365 /
                 3600 /
