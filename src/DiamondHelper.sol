@@ -17,7 +17,10 @@ contract DiamondHelper {
     constructor(bytes4[] memory _selectors) {
         selectors = _selectors;
     }
-    
+
+    /**
+    * @notice Get the api version for this helper.
+     */
     function apiVersion() external view returns (string memory) {
         return IBaseLibrary(baseLibrary).apiVersion();
     }
