@@ -26,7 +26,7 @@ import "forge-std/console.sol";
 //      add cloning
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
-//      Add reentrancy gaurds? 
+//      Add reentrancy gaurds?
 //      can get around whitelist by setting reciever to an allowed address
 
 library BaseLibrary {
@@ -314,7 +314,10 @@ library BaseLibrary {
         address receiver
     ) public returns (uint256 shares) {
         require(receiver != address(this), "ERC4626: mint to self");
-        require(assets <= maxDeposit(receiver), "ERC4626: deposit more than max");
+        require(
+            assets <= maxDeposit(receiver),
+            "ERC4626: deposit more than max"
+        );
 
         // Check for rounding error since we round down in previewDeposit.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
@@ -444,7 +447,10 @@ library BaseLibrary {
         if (_maxRedeem == type(uint256).max) {
             _maxRedeem = balanceOf(_owner);
         } else {
-            _maxRedeem = Math.min(convertToShares(_maxRedeem), balanceOf(_owner));
+            _maxRedeem = Math.min(
+                convertToShares(_maxRedeem),
+                balanceOf(_owner)
+            );
         }
     }
 
@@ -462,13 +468,13 @@ library BaseLibrary {
     }
 
     /**
-    * @dev Function to be called during {deposit} and {mint} after 
-    * all neccesary checks have been completed.
-    *
-    * This function handles all logic including transfers, minting and accounting.
-    *
-    * We do all external calls before updating any internal values to prevent 
-    * re-entrancy from the token transfers or the _invest() calls.
+     * @dev Function to be called during {deposit} and {mint} after
+     * all neccesary checks have been completed.
+     *
+     * This function handles all logic including transfers, minting and accounting.
+     *
+     * We do all external calls before updating any internal values to prevent
+     * re-entrancy from the token transfers or the _invest() calls.
      */
     function _deposit(
         address receiver,
@@ -480,11 +486,7 @@ library BaseLibrary {
         ERC20 _asset = S.asset;
 
         // Need to transfer before minting or ERC777s could reenter.
-        _asset.safeTransferFrom(
-            msg.sender,
-            address(this),
-            assets
-        );
+        _asset.safeTransferFrom(msg.sender, address(this), assets);
 
         // We will deposit up to current idle plus the new amount added
         uint256 toInvest = S.totalIdle + assets;
@@ -517,16 +519,16 @@ library BaseLibrary {
     }
 
     /**
-    * @dev To be called after all neccesary checks have been done in 
-    * {redeem} and {withdraw}.
-    *
-    * This will handle all logic, transfers and accounting in order to
-    * service the withdraw request.
-    *
-    * If we are not able to withdraw the full amount needed, it will
-    * be counted as a loss and passed on to the user.
+     * @dev To be called after all neccesary checks have been done in
+     * {redeem} and {withdraw}.
+     *
+     * This will handle all logic, transfers and accounting in order to
+     * service the withdraw request.
+     *
+     * If we are not able to withdraw the full amount needed, it will
+     * be counted as a loss and passed on to the user.
      */
-     // TODO: How to deal with overwithdrawing?
+    // TODO: How to deal with overwithdrawing?
     function _withdraw(
         address receiver,
         address owner,
@@ -538,10 +540,10 @@ library BaseLibrary {
         ERC20 _asset = S.asset;
 
         uint256 idle = S.totalIdle;
-        
+
         if (idle < assets) {
             // We need to withdraw funds
-            
+
             // Cache before balance for diff checks.
             uint256 before = _asset.balanceOf(address(this));
             // Tell implementation to free what we need.
@@ -719,7 +721,7 @@ library BaseLibrary {
                 uint256 previouslyLockedShares = totalLockedShares -
                     sharesToLock;
 
-                // new_profit_locking_period is a weighted average between the remaining 
+                // new_profit_locking_period is a weighted average between the remaining
                 // time of the previously locked shares and the PROFIT_MAX_UNLOCK_TIME
                 uint256 newProfitLockingPeriod = (previouslyLockedShares *
                     remainingTime +
@@ -734,7 +736,7 @@ library BaseLibrary {
                     block.timestamp +
                     newProfitLockingPeriod;
             } else {
-                // NOTE: only setting this to 0 will turn in the desired effect, 
+                // NOTE: only setting this to 0 will turn in the desired effect,
                 // no need to update fullProfitUnlockDate
                 S.profitUnlockingRate = 0;
             }
@@ -882,7 +884,7 @@ library BaseLibrary {
     // External view function to pull public variables from storage
 
     /**
-    * @notice Get the api version for this Library.
+     * @notice Get the api version for this Library.
      */
     function apiVersion() external pure returns (string memory) {
         return API_VERSION;

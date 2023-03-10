@@ -11,7 +11,6 @@ contract LockedStrategyTest is Setup {
         super.setUp();
     }
 
-
     function test_gas() public {
         uint256 amount = 10e18;
 
@@ -28,15 +27,12 @@ contract LockedStrategyTest is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _lossFactor = bound(_lossFactor, 10, MAX_BPS);
-        vm.assume(
-            _address != address(0) &&
-                _address != address(strategy)
-        );
-        
+        vm.assume(_address != address(0) && _address != address(strategy));
+
         setFees(0, 0);
         mintAndDepositIntoStrategy(_address, _amount);
 
-        uint256 toLoose = _amount * _lossFactor / MAX_BPS;
+        uint256 toLoose = (_amount * _lossFactor) / MAX_BPS;
         // Simulate a loss.
         vm.prank(address(yieldSource));
         asset.transfer(address(69), toLoose);

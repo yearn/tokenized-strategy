@@ -19,7 +19,7 @@ contract DiamondHelper {
     }
 
     /**
-    * @notice Get the api version for this helper.
+     * @notice Get the api version for this helper.
      */
     function apiVersion() external view returns (string memory) {
         return IBaseLibrary(baseLibrary).apiVersion();
@@ -67,7 +67,7 @@ contract DiamondHelper {
         external
         view
         returns (IDiamondLoupe.Facet[] memory facets_)
-    {   
+    {
         facets_ = new IDiamondLoupe.Facet[](1);
         // we forward all calls to the base library
         facets_[0] = IDiamondLoupe.Facet(baseLibrary, selectors);
@@ -94,7 +94,7 @@ contract DiamondHelper {
         external
         view
         returns (address[] memory facetAddresses_)
-    {   
+    {
         facetAddresses_ = new address[](1);
         // we only use one facet
         facetAddresses_[0] = baseLibrary;

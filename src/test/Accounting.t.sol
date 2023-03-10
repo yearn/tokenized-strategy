@@ -33,7 +33,7 @@ contract AccountingTest is Setup {
         assertEq(strategy.pricePerShare(), pricePerShare);
 
         // aidrop to strategy
-        uint256 toAirdrop = _amount * _profitFactor / MAX_BPS;
+        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
 
         // nothing should change
@@ -75,7 +75,7 @@ contract AccountingTest is Setup {
         assertEq(strategy.pricePerShare(), pricePerShare);
 
         // aidrop to strategy
-        uint256 toAirdrop = _amount * _profitFactor / MAX_BPS;
+        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
 
         // nothing should change
@@ -109,7 +109,7 @@ contract AccountingTest is Setup {
         // we should get a % return equal to our profit factor
         assertRelApproxEq(
             strategy.pricePerShare(),
-            wad + (wad * _profitFactor / MAX_BPS),
+            wad + ((wad * _profitFactor) / MAX_BPS),
             MAX_BPS
         );
         assertEq(strategy.totalDebt(), _amount + toAirdrop);
@@ -152,7 +152,7 @@ contract AccountingTest is Setup {
         assertEq(strategy.pricePerShare(), pricePerShare);
 
         // aidrop to strategy
-        uint256 toAirdrop = _amount * _profitFactor / MAX_BPS;
+        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(yieldSource), toAirdrop);
 
         // nothing should change
@@ -195,7 +195,7 @@ contract AccountingTest is Setup {
         assertEq(strategy.pricePerShare(), pricePerShare);
 
         // aidrop to strategy
-        uint256 toAirdrop = _amount * _profitFactor / MAX_BPS;
+        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(yieldSource), toAirdrop);
         assertEq(asset.balanceOf(address(yieldSource)), _amount + toAirdrop);
         // nothing should change
@@ -229,7 +229,7 @@ contract AccountingTest is Setup {
         // we should get a % return equal to our profit factor
         assertRelApproxEq(
             strategy.pricePerShare(),
-            wad + (wad * _profitFactor / MAX_BPS),
+            wad + ((wad * _profitFactor) / MAX_BPS),
             MAX_BPS
         );
         assertEq(strategy.totalDebt(), _amount + toAirdrop);

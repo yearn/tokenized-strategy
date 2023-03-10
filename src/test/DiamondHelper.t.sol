@@ -11,12 +11,15 @@ contract DiamondHelperTest is Setup {
     function setUp() public override {
         super.setUp();
     }
-    
+
     // Make sure two arrays are identical
-    function checkSelectors(bytes4[] memory selectors, bytes4[] memory _selectors) public {
+    function checkSelectors(
+        bytes4[] memory selectors,
+        bytes4[] memory _selectors
+    ) public {
         assertEq(selectors.length, _selectors.length);
 
-        for (uint256 i; i < _selectors.length; ++ i) {
+        for (uint256 i; i < _selectors.length; ++i) {
             assertEq(selectors[i], _selectors[i]);
         }
     }
@@ -24,8 +27,8 @@ contract DiamondHelperTest is Setup {
     function isASelector(bytes4 _selector) public returns (bool) {
         bytes4[] memory _selectors = getSelectors();
 
-        for (uint256 i; i < _selectors.length; ++ i) {
-            if(_selectors[i] == _selector) {
+        for (uint256 i; i < _selectors.length; ++i) {
+            if (_selectors[i] == _selector) {
                 return true;
             }
         }
@@ -68,11 +71,16 @@ contract DiamondHelperTest is Setup {
         assertEq(facetAddresses_[0], address(BaseLibrary));
 
         // Check facet function selectors for valid facet
-        bytes4[] memory facetFunctionSelectors_ = diamondHelper.facetFunctionSelectors(address(BaseLibrary));
+        bytes4[] memory facetFunctionSelectors_ = diamondHelper
+            .facetFunctionSelectors(address(BaseLibrary));
         checkSelectors(facetFunctionSelectors_, getSelectors());
-        facetFunctionSelectors_ = BaseLibrary.facetFunctionSelectors(address(BaseLibrary));
+        facetFunctionSelectors_ = BaseLibrary.facetFunctionSelectors(
+            address(BaseLibrary)
+        );
         checkSelectors(facetFunctionSelectors_, getSelectors());
-        facetFunctionSelectors_ = strategy.facetFunctionSelectors(address(BaseLibrary));
+        facetFunctionSelectors_ = strategy.facetFunctionSelectors(
+            address(BaseLibrary)
+        );
         checkSelectors(facetFunctionSelectors_, getSelectors());
 
         // Check the facet address for valid selectors
@@ -85,18 +93,24 @@ contract DiamondHelperTest is Setup {
     }
 
     // Whether we use the library or the helper we can use the helper interface
-    function checkHelperSetup(address _toCall, address _address, bytes4 _selector) public {
-        DiamondHelper Helper = DiamondHelper(_toCall); 
-        bytes4[] memory facetFunctionSelectors_ = Helper.facetFunctionSelectors(_address);
+    function checkHelperSetup(
+        address _toCall,
+        address _address,
+        bytes4 _selector
+    ) public {
+        DiamondHelper Helper = DiamondHelper(_toCall);
+        bytes4[] memory facetFunctionSelectors_ = Helper.facetFunctionSelectors(
+            _address
+        );
         address facetAddress_ = Helper.facetAddress(_selector);
 
-        if(_address == address(BaseLibrary)) {
+        if (_address == address(BaseLibrary)) {
             checkSelectors(facetFunctionSelectors_, getSelectors());
         } else {
             assertEq(facetFunctionSelectors_.length, 0);
         }
 
-        if(isASelector(_selector)) {
+        if (isASelector(_selector)) {
             assertEq(facetAddress_, address(BaseLibrary));
         } else {
             assertEq(facetAddress_, address(0));
@@ -111,7 +125,12 @@ contract DiamondHelperTest is Setup {
     }
 
     function test_initEmitsDiamondEvent() public {
-        ERC20Mock mockToken = new ERC20Mock("Test asset", "tTKN", address(this), 0);
+        ERC20Mock mockToken = new ERC20Mock(
+            "Test asset",
+            "tTKN",
+            address(this),
+            0
+        );
 
         // Get what should be emitted in the event
         IDiamond.FacetCut[] memory diamondCuts = new IDiamond.FacetCut[](1);
@@ -130,7 +149,6 @@ contract DiamondHelperTest is Setup {
         vm.expectEmit(true, true, true, true);
         emit BaseLibrary.DiamondCut(diamondCuts, address(0), new bytes(0));
         new MockIlliquidStrategy(address(mockToken), address(yieldSource));
-    
     }
 
     function test_setLibraryTwice_reverts() public {

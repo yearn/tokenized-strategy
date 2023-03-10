@@ -33,7 +33,7 @@ contract Setup is ExtendedTest {
     address public performanceFeeRecipient = address(3);
     address public keeper = address(4);
     address public user = address(10);
-    
+
     // Integer variables that will be used repeatedly.
     // Fuzz from $0.01 of 1e6 stable coins up to 1 trillion of a 1e18 coin
     uint256 public minFuzzAmount = 10_000;
