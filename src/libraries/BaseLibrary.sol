@@ -183,7 +183,7 @@ library BaseLibrary {
     }
 
     modifier onlyKeepers() {
-        isKeeper();
+        isKeeperOrManagement();
         _;
     }
 
@@ -194,7 +194,7 @@ library BaseLibrary {
             revert Unauthorized();
     }
 
-    function isKeeper() public view {
+    function isKeeperOrManagement() public view {
         BaseStrategyData storage S = _baseStrategyStorgage();
         if (msg.sender != S.management && msg.sender != S.keeper)
             revert Unauthorized();

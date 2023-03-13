@@ -168,7 +168,7 @@ contract AccesssControlTest is Setup {
 
         vm.prank(management);
         vm.expectRevert("!init");
-        strategy.initialize(address(asset), name_, symbol_, _address);
+        strategy.initialize(address(asset), name_, _address);
 
         assertEq(strategy.name(), _name);
         assertEq(strategy.symbol(), _symbol);

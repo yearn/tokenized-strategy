@@ -13,6 +13,12 @@ import {MockFactory} from "../Mocks/MockFactory.sol";
 import {DiamondHelper} from "../../DiamondHelper.sol";
 import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 
+interface ERC {
+    function symbol() external returns (string memory);
+
+    function name() external returns (string memory);
+}
+
 contract Setup is ExtendedTest {
     ERC20Mock public asset;
     IMockStrategy public strategy;
@@ -65,14 +71,13 @@ contract Setup is ExtendedTest {
         vm.label(address(asset), "asset");
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");
-        vm.label(address(diamondHelper), "selector heleper");
+        vm.label(address(diamondHelper), "selector helper");
         vm.label(address(yieldSource), "Mock Yield Source");
         vm.label(address(mockFactory), "mock Factory");
     }
 
     function mintAndDepositIntoStrategy(address _user, uint256 _amount) public {
         asset.mint(_user, _amount);
-
         vm.prank(_user);
         asset.approve(address(strategy), _amount);
 
