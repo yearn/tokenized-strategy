@@ -10,7 +10,6 @@ interface IMockStrategy is IBaseLibrary {
     function initialize(
         address _asset,
         string memory name_,
-        string memory symbol_,
         address _management
     ) external;
 

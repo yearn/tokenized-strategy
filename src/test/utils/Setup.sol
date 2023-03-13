@@ -15,6 +15,7 @@ import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 
 interface ERC {
     function symbol() external returns (string memory);
+
     function name() external returns (string memory);
 }
 

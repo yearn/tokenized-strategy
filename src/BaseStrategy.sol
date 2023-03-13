@@ -107,7 +107,7 @@ abstract contract BaseStrategy is IBaseStrategy {
         _decimals = a.decimals();
 
         string memory _symbol = string(abi.encodePacked("ys", a.symbol()));
-        
+
         // initilize the strategies storage variables
         _init(_asset, _name, _symbol, _management);
     }
