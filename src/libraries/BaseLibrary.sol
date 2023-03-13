@@ -547,6 +547,7 @@ library BaseLibrary {
                 IBaseStrategy(address(this)).freeFunds(assets - idle);
             }
             // Return the actual amount withdrawn. Adjust for potential overwithdraws.
+            // TODO: Add an if check here so were only pulling from storage if neccesary?
             uint256 withdrawn = Math.min(
                 _asset.balanceOf(address(this)) - before,
                 S.totalDebt
