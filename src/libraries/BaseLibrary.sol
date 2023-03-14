@@ -532,7 +532,7 @@ library BaseLibrary {
         }
 
         BaseStrategyData storage S = _baseStrategyStorgage();
-        // Expected beharvior is to withdraw so we cache `_asset`.
+        // Expected beharvior is to need to free funds so we cache `_asset`.
         ERC20 _asset = S.asset;
 
         uint256 idle = S.totalIdle;
@@ -605,6 +605,7 @@ library BaseLibrary {
      * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
      * @return loss The notional amount of loss since the last report in terms of "asset" if any.
      */
+    //TODO: Need to add reentrancy gaurd to this function
     function report()
         external
         onlyKeepers
@@ -731,12 +732,12 @@ library BaseLibrary {
             totalFees - performanceFees // Protocol fees
         );
 
-        // We need to update storage here for view reentrancy during
+        // We need to update storage here for potential view reentrancy during
         // the external {invest} call so pps is not distorted.
         // NOTE: We could save an extra SSTORE here by only updating S.totalDebt = S.totalDebt + profit - loss. But reentrancy withdraws could break?
         uint256 newIdle = S.asset.balanceOf(address(this));
         S.totalIdle = newIdle;
-        S.totalDebt += _invested - newIdle;
+        S.totalDebt = _invested - newIdle;
 
         // invest any idle funds, tell strategy it is during a report call
         IBaseStrategy(address(this)).invest(newIdle, true);
