@@ -20,13 +20,12 @@ interface IFactory {
 import "forge-std/console.sol";
 
 /// TODO:
-//       Bump sol version
-//      Does base strategy need to hold errors and events?
+//      Bump sol version
+//      Does base strategy need to hold events?
 //      add unchecked {} where applicable
 //      add cloning
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
-//      Add reentrancy gaurds?
 //      unsafe math library for easy unchecked
 
 library BaseLibrary {
@@ -300,9 +299,6 @@ library BaseLibrary {
         // Set the inital domain seperator for permit functions
         S.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
 
-        // set the default management address
-        S.management = _management;
-
         // default to a 10 day profit unlock period
         S.profitMaxUnlockTime = 10 days;
         // default to mangement as the treasury TODO: allow this to be customized
@@ -312,9 +308,13 @@ library BaseLibrary {
         // set last report to this block
         S.lastReport = block.timestamp;
 
+        // set the default management address
+        S.management = _management;
+
         // emit the standard DiamondCut event with the values from our helper contract
         emit DiamondCut(
-            // struct containing the address of the library, the add enum and array of all function selectors
+            // struct containing the address of the library, 
+            // the add enum and array of all function selectors
             DiamondHelper(diamondHelper).diamondCut(),
             // init address to call if applicable
             address(0),
@@ -606,22 +606,30 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Function for keepers to call to harvest and record all profits accrued.
-     * @dev This should only ever be called through protected relays as swaps will likely occur.
+     * @notice Function for keepers to call to harvest and record all 
+     * profits accrued.
      *
-     * This will account for any gains/losses since the last report and charge fees accordingly.
+     * @dev This should only ever be called through protected relays as 
+     * swaps will likely occur.
      *
-     * Any profit over the totalFees charged will be immediatly locked so there is no change in PricePerShare.
-     * Then slowly unlocked over the 'maxProfitUnlockTime' each second based on the calculated 'profitUnlockingRate'.
+     * This will account for any gains/losses since the last report and 
+     * charge fees accordingly.
      *
-     * Any 'loss' or fees greater than 'profit' will attempted to be offset with any remaining locked shares from the last
-     * report in order to reduce any negative impact to PPS.
+     * Any profit over the totalFees charged will be immediatly locked so 
+     * there is no change in PricePerShare. Then slowly unlocked over the 
+     * `maxProfitUnlockTime` each second based on the calculated `profitUnlockingRate`.
      *
-     * Will then recalculate the new time to unlock profits over and the rate based on a weighted average of any remaining time from the last
+     * Any 'loss' or fees greater than 'profit' will attempted to be offset 
+     * with any remaining locked shares from the last report in order to reduce 
+     * any negative impact to PPS.
+     *
+     * Will then recalculate the new time to unlock profits over and the
+     * rate based on a weighted average of any remaining time from the last
      * report and the new amount of shares to be locked.
      *
-     * Finally will tell the strategy to _invest all idle funds which should include both the totalIdle before the call as well
-     * any amount of 'asset' freed up during the totalInvested() call.
+     * Finally will tell the strategy to _invest all idle funds which 
+     * should include both the totalIdle before the call as well any 
+     * amount of 'asset' freed up during the totalInvested() call.
      *
      * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
      * @return loss The notional amount of loss since the last report in terms of "asset" if any.
@@ -651,8 +659,9 @@ library BaseLibrary {
         _burnUnlockedShares();
 
         // Tell the strategy to report the real total assets it has.
-        // It should account for invested and loose 'asset' so we can accuratly update the totalIdle to account
-        // for sold but non-reinvested funds during reward harvesting.
+        // It should account for invested and loose 'asset' so we can 
+        // accuratly update the totalIdle to account for sold but 
+        // non-reinvested funds during reward harvesting.
         uint256 _invested = IBaseStrategy(address(this)).totalInvested();
 
         uint256 performanceFees;
@@ -786,7 +795,8 @@ library BaseLibrary {
         if (protocolFeeBps > 0) {
             protocolFeesRecipient = _protocolFeesRecipient;
             // NOTE: charge fees since last report OR last fee change
-            // (this will mean less fees are charged after a change in protocol_fees, but fees should not change frequently)
+            // (this will mean less fees are charged after a change 
+            // in protocol_fees, but fees should not change frequently)
             uint256 secondsSinceLastReport = Math.min(
                 block.timestamp - _baseStrategyStorgage().lastReport,
                 block.timestamp - uint256(protocolFeeLastChange)
@@ -837,18 +847,24 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice For a 'keeper' to 'tend' the strategy if a custom tendTrigger() is implemented.
-     * @dev Both 'tendTrigger' and '_tend' will need to be overridden for this to be used.
+     * @notice For a 'keeper' to 'tend' the strategy if a custom 
+     * tendTrigger() is implemented.
+     * 
+     * @dev Both 'tendTrigger' and '_tend' will need to be overridden 
+     * for this to be used.
      *
-     * This will callback the internal '_tend' call in the BaseStrategy with the total current
-     * amount available to the strategy to invest.
+     * This will callback the internal '_tend' call in the BaseStrategy 
+     * with the total current amount available to the strategy to invest.
      *
-     * Keepers are expected to use protected relays in tend calls so this can be used for illiquid
-     * or manipulatable strategies to compound rewards, perform maintence or invest/withdraw funds.
+     * Keepers are expected to use protected relays in tend calls so this 
+     * can be used for illiquid or manipulatable strategies to compound 
+     * rewards, perform maintence or invest/withdraw funds.
      *
-     * All accounting for totalDebt and totalIdle updates will be done here post '_tend'.
+     * All accounting for totalDebt and totalIdle updates will be done 
+     * here post '_tend'.
      *
-     * This should never cause an increase in PPS. Total assets should be the same before and after
+     * This should never cause an increase in PPS. Total assets should 
+     * be the same before and after
      *
      * A report() call will be needed to record the profit.
      */
@@ -1037,7 +1053,7 @@ library BaseLibrary {
     }
 
     /**
-     * @notice Returns the symbol of the token, usually a shorter version of the name.
+     * @notice Returns the symbol of the token.
      * @dev Should be some iteration of 'ys + asset symbol'
      * @return . The symbol the strategy is using for its tokens.
      */
@@ -1047,8 +1063,8 @@ library BaseLibrary {
 
     /**
      * @notice Returns the current balance for a given '_account'.
-     * @dev If the '_account is the strategy then this will subtract the amount of
-     * shares that have been unlocked since the last profit first.
+     * @dev If the '_account` is the strategy then this will subtract 
+     * the amount of shares that have been unlocked since the last profit first.
      * @param account the address to return the balance for.
      * @return . The current balance in y shares of the '_account'.
      */

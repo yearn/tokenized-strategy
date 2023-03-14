@@ -122,16 +122,22 @@ abstract contract BaseStrategy is IBaseStrategy {
 
     /**
      * @notice Should invest up to '_amount' of 'asset'.
-     * @dev Callback for the library to call during a deposit, mint or report to tell the strategy it can invest funds.
+     * @dev Callback for the library to call during a deposit, mint 
+     * or report to tell the strategy it can invest funds.
      *
-     * This can only be called after a 'deposit', 'mint' or 'report' delegateCall to the library so msg.sender == address(this).
+     * This can only be called after a 'deposit', 'mint' or 'report' 
+     * delegateCall to the library so msg.sender == address(this).
      *
-     * Both permisionless deposits and permissioned reports will lead to this function being called with all currently idle funds sent as '_assets'.
-     * The '_reported' bool is how to differeniate between the two. If true this means it was called at the end of a report with the expectation of coming
-     * through a trusted relay and therefore safe to perform otherwise manipulatable transactions.
+     * Both permisionless deposits and permissioned reports will lead 
+     * to this function being called with all currently idle funds sent 
+     * as '_assets'. The '_reported' bool is how to differeniate between 
+     * the two. If true this means it was called at the end of a report 
+     * with the expectation of coming through a trusted relay and therefore 
+     * safe to perform otherwise manipulatable transactions.
      *
-     * @param _amount The amount of 'asset' that the strategy should attemppt to deposit in the yield source.
-     * @param _reported Bool repersenting if this is part of a permissined 'report'.
+     * @param _amount The amount of 'asset' that the strategy should 
+     * attemppt to deposit in the yield source.
+     * @param _reported Bool repersenting if this is part of a `report`.
      */
     function invest(uint256 _amount, bool _reported) external onlySelf {
         _invest(_amount, _reported);
@@ -139,9 +145,11 @@ abstract contract BaseStrategy is IBaseStrategy {
 
     /**
      * @notice Will attempt to free the '_amount' of 'asset'.
-     * @dev Callback for the library to call during a withdraw or redeem to free the needed funds to service the withdraw.
+     * @dev Callback for the library to call during a withdraw or redeem 
+     * to free the needed funds to service the withdraw.
      *
-     * This can only be called after a 'withdraw' or 'redeem' delegateCall to the library so msg.sender == address(this).
+     * This can only be called after a 'withdraw' or 'redeem' delegateCall 
+     * to the library so msg.sender == address(this).
      *
      * @param _amount The amount of 'asset' that the strategy should attemppt to free up.
      */
@@ -150,12 +158,16 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     /**
-     * @notice Returns the accurate amount of all funds currently held by the Strategy.
-     * @dev Callback for the library to call during a report to get an accurate accounting of assets the strategy controls.
+     * @notice Returns the accurate amount of all funds currently 
+     * held by the Strategy.
+     * @dev Callback for the library to call during a report to 
+     * get an accurate accounting of assets the strategy controls.
      *
-     * This can only be called after a report() delegateCall to the library so msg.sender == address(this).
+     * This can only be called after a report() delegateCall to the
+     * library so msg.sender == address(this).
      *
-     * @return _invested A trusted and accurate account for the total amount of 'asset' the strategy currently holds.
+     * @return _invested A trusted and accurate account for the total 
+     * amount of 'asset' the strategy currently holds.
      */
     function totalInvested() external onlySelf returns (uint256 _invested) {
         return _totalInvested();
@@ -164,8 +176,15 @@ abstract contract BaseStrategy is IBaseStrategy {
     /**
      * @notice Will call the internal '_tend' when a keeper tends the strategy.
      * @dev Callback for the library to initiate a _tend call in the strategy.
-     * This can only be called after a tend() delegateCall to the library so msg.sender == address(this).
-     * @param _totalIdle The amount of current idle funds that can be invested during the tend
+     *
+     * This can only be called after a tend() delegateCall to the library 
+     * so msg.sender == address(this).
+     *
+     * We name the function `tendThis` so that `tend` calls are forwarded to 
+     * the library so it can do the neccesary accounting.
+
+     * @param _totalIdle The amount of current idle funds that can be 
+     * invested during the tend
      */
     function tendThis(uint256 _totalIdle) external onlySelf {
         _tend(_totalIdle);
@@ -176,43 +195,59 @@ abstract contract BaseStrategy is IBaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Should invest up to '_amount' of 'asset'.
-     * @dev Should do any needed parameter checks. 0 may be passed in as '_amount'.
+     * @dev Should invest up to '_amount' of 'asset'.
      *
-     * Both permisionless deposits and permissioned reports will lead to this function being called with all currently idle funds sent as '_amount'.
-     * The '_reported' bool is how to differeniate between the two. If true this means it was called at the end of a report with the potential of coming
-     * through a trusted relay and therefore safe to perform otherwise manipulatable transactions.
+     * Should do any needed parameter checks. 0 may be passed in as '_amount'.
      *
-     * @param _amount The amount of 'asset' that the strategy should attemppt to deposit in the yield source.
+     * Both permisionless deposits and permissioned reports will lead to 
+     * this function being called with all currently idle funds sent as 
+     * '_amount'. The '_reported' bool is how to differeniate between the two. 
+     * If true this means it was called at the end of a report with the 
+     * potential of coming through a trusted relay and therefore safe to 
+     * perform otherwise manipulatable transactions.
+     *
+     * @param _amount The amount of 'asset' that the strategy should attemppt 
+     * to deposit in the yield source.
      * @param _reported Bool repersenting if this is part of a permissined 'report'.
      */
     function _invest(uint256 _amount, bool _reported) internal virtual;
 
     /**
-     * @notice Will attempt to free the '_amount' of 'asset'.
-     * @dev The amount of 'asset' that is already loose has already been accounted for.
+     * @dev Will attempt to free the '_amount' of 'asset'.
      *
-     * Should do any needed parameter checks, '_amount' may be more than is actually available.
+     * The amount of 'asset' that is already loose has already 
+     * been accounted for.
      *
-     * Should not rely on asset.balanceOf(address(this)) calls other than for diff accounting puroposes.
+     * Should do any needed parameter checks, '_amount' may be more than 
+     * is actually available.
+     *
+     * Should not rely on asset.balanceOf(address(this)) calls other than 
+     * for diff accounting puroposes.
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
     function _freeFunds(uint256 _amount) internal virtual;
 
     /**
-     * @notice Internal non-view function to return the accurate amount of funds currently held by the Strategy
-     * @dev This should do any needed harvesting, rewards selling, accrual etc. to get the most accurate view of current assets.
+     * @dev Internal non-view function to return the accurate amount 
+     * of funds currently held by the Strategy
      *
-     * This can leave any or all assets uninvested if desired as there will always be a _invest() call at the end of the report
-     * with '_reported' set as true to differentiate between a normal deposit.
+     * This should do any needed harvesting, rewards selling, accrual
+     * etc. to get the most accurate view of current assets.
      *
-     * Care should be taken when relying on oracles or swap values rather than actual amounts as all Strategy profit/loss accounting
-     * will be done based on this returned value.
+     * This can leave any or all assets uninvested if desired as there 
+     * will always be a _invest() call at the end of the report with 
+     * '_reported' set as true to differentiate between a normal deposit.
      *
-     * All applicable assets including loose assets should be accounted for in this function.
+     * Care should be taken when relying on oracles or swap values rather 
+     * than actual amounts as all Strategy profit/loss accounting will
+     * be done based on this returned value.
      *
-     * @return _invested A trusted and accurate account for the total amount of 'asset' the strategy currently holds.
+     * All applicable assets including loose assets should be accounted
+     * for in this function.
+     *
+     * @return _invested A trusted and accurate account for the total
+     * amount of 'asset' the strategy currently holds.
      */
     function _totalInvested() internal virtual returns (uint256 _invested);
 
@@ -221,19 +256,25 @@ abstract contract BaseStrategy is IBaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Optional function for strategist to override that can be called in between reports.
-     * @dev If '_tend' is used tendTrigger() will also need to be overridden.
+     * @dev Optional function for strategist to override that can
+     *  be called in between reports.
      *
-     * This call can only be called by a persionned role so may be through protected relays.
+     * If '_tend' is used tendTrigger() will also need to be overridden.
      *
-     * This can be used to harvest and compound rewards, deposit idle funds, perform needed
-     * poisition maintence or anything else that doesn't need a full report for.
+     * This call can only be called by a persionned role so may be 
+     * through protected relays.
      *
-     *   EX: A strategy that can not deposit funds without getting sandwhiched
-     *   can use the tend when a certain threshold of idle to totalAssets has been reached.
+     * This can be used to harvest and compound rewards, deposit idle funds, 
+     * perform needed poisition maintence or anything else that doesn't need
+     * a full report for.
      *
-     * The library will do all needed debt and idle updates after this has finished
-     * and will have no effect on PPS of the strategy till report() is called.
+     *   EX: A strategy that can not deposit funds without getting 
+     *       sandwhiched can use the tend when a certain threshold 
+     *       of idle to totalAssets has been reached.
+     *
+     * The library will do all needed debt and idle updates after this 
+     * has finished and will have no effect on PPS of the strategy till
+     * report() is called.
      *
      * @param _totalIdle The current amount of idle funds that are available to invest.
      */
