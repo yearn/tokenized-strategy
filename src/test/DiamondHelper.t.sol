@@ -90,6 +90,11 @@ contract DiamondHelperTest is Setup {
         assertEq(facetAddress_, address(BaseLibrary));
         facetAddress_ = strategy.facetAddress(_selectors[2]);
         assertEq(facetAddress_, address(BaseLibrary));
+
+        string memory apiVersion = "3.1.0";
+        assertEq(diamondHelper.apiVersion(), apiVersion);
+        assertEq(strategy.apiVersion(), apiVersion);
+        assertEq(BaseLibrary.apiVersion(), apiVersion);
     }
 
     // Whether we use the library or the helper we can use the helper interface

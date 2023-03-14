@@ -10,4 +10,7 @@ contract e2eTest is Setup {
     function setUp() public override {
         super.setUp();
     }
+
+    // TODO: multiple deposits/mints/redeem/withdraw and reports
+    //      Multiple strategies added to the same library, deposits/storage check
 }

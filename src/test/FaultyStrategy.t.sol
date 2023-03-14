@@ -6,7 +6,7 @@ import {Setup, DiamondHelper, MockFactory, ERC20Mock, MockYieldSource, IMockStra
 
 import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 
-contract ReentrancyTest is Setup {
+contract FaultyStrategy is Setup {
     // Full reentrancy variables
     bool public reenter;
     bool public reentered;
@@ -387,6 +387,6 @@ contract ReentrancyTest is Setup {
     ) public {
         addr = _address;
         amount = _amount;
-        expectedShares = strategy.convertToShares(amount);
+        expectedShares = strategy.convertToShares(_amount);
     }
 }
