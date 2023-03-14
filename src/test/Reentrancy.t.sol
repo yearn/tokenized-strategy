@@ -295,6 +295,7 @@ contract ReentrancyTest is Setup {
 
         checkStrategyTotals(expectedAmount, expectedAmount, 0);
     }
+
     /*
     function test_reportReentrancy(
         address _address,

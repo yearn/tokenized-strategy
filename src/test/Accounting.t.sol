@@ -413,5 +413,4 @@ contract AccountingTest is Setup {
         assertEq(strategy.totalSupply(), 0);
         assertEq(strategy.pricePerShare(), wad);
     }
-
 }
