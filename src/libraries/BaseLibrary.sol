@@ -5,6 +5,7 @@ pragma solidity 0.8.14;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import {DiamondHelper, IDiamond, IDiamondLoupe} from "../DiamondHelper.sol";
 
@@ -168,6 +169,7 @@ library BaseLibrary {
         uint256 lastReport; // The last time a {report} was called.
         uint16 performanceFee; // The percent in Basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
+        bool reporting; // Bool to prevent reentrancy during report calls
         
 
         // Access management addressess for permisssioned functions.
@@ -178,6 +180,11 @@ library BaseLibrary {
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
+
+    modifier notReporting() {
+        isNotReporting();
+        _;
+    }
 
     modifier onlyManagement() {
         isManagement();
@@ -190,6 +197,10 @@ library BaseLibrary {
     }
 
     // These are left public to allow for the strategy to use them as well
+
+    function isNotReporting() public view {
+        require(!_baseStrategyStorgage().reporting, "!reporting");
+    }
 
     function isManagement() public view {
         if (msg.sender != _baseStrategyStorgage().management)
@@ -311,7 +322,7 @@ library BaseLibrary {
     function deposit(
         uint256 assets,
         address receiver
-    ) public returns (uint256 shares) {
+    ) public notReporting returns (uint256 shares) {
         // Check for rounding error since we round down in previewDeposit.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
@@ -321,7 +332,7 @@ library BaseLibrary {
     function mint(
         uint256 shares,
         address receiver
-    ) public returns (uint256 assets) {
+    ) public notReporting returns (uint256 assets) {
         // No need to check for rounding error, previewMint rounds up.
         assets = previewMint(shares);
 
@@ -332,7 +343,7 @@ library BaseLibrary {
         uint256 assets,
         address receiver,
         address owner
-    ) public returns (uint256 shares) {
+    ) public notReporting returns (uint256 shares) {
         // No need to check for rounding error, previewWithdraw rounds up.
         shares = previewWithdraw(assets);
 
@@ -343,7 +354,7 @@ library BaseLibrary {
         uint256 shares,
         address receiver,
         address owner
-    ) public returns (uint256 assets) {
+    ) public notReporting returns (uint256 assets) {
         // Check for rounding error since we round down in previewRedeem.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
@@ -605,14 +616,17 @@ library BaseLibrary {
      * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
      * @return loss The notional amount of loss since the last report in terms of "asset" if any.
      */
-    //TODO: Need to add reentrancy gaurd to this function
     function report()
         external
+        notReporting
         onlyKeepers
         returns (uint256 profit, uint256 loss)
     {
         // Cache storage pointer since its used again at the end
         BaseStrategyData storage S = _baseStrategyStorgage();
+        // set reporting = True for reentrancy
+        S.reporting = true;
+
         uint256 oldTotalAssets;
         unchecked {
             // Manuaully calculate totalAssets to save an SLOAD
@@ -746,6 +760,8 @@ library BaseLibrary {
         newIdle = S.asset.balanceOf(address(this));
         S.totalIdle = newIdle;
         S.totalDebt = _invested - newIdle;
+        // Reset reporting bool
+        S.reporting = false;
     }
 
     function _assessProtocolFees(
@@ -833,7 +849,7 @@ library BaseLibrary {
      *
      * A report() call will be needed to record the profit.
      */
-    function tend() external onlyKeepers {
+    function tend() external notReporting onlyKeepers {
         BaseStrategyData storage S = _baseStrategyStorgage();
         // Expected Behavior is this will get used twice so we cache it
         uint256 _totalIdle = S.totalIdle;

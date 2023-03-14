@@ -296,7 +296,7 @@ contract ReentrancyTest is Setup {
         checkStrategyTotals(expectedAmount, expectedAmount, 0);
     }
 
-    /*
+    // Reentrancy cant be allowed during a report call/
     function test_reportReentrancy(
         address _address,
         uint256 _amount,
@@ -315,20 +315,17 @@ contract ReentrancyTest is Setup {
         mintAndDepositIntoStrategy(_address, _amount);
 
         configureFaultyStrategy(0, true);
+        storeReentrancyVariables(_address, _amount);
         reenter = true;
 
-        storeReentrancyVariables(_address, _amount);
+        asset.mint(address(strategy), profit);
 
-        createAndCheckProfit(profit, 0, 0);
+        vm.expectRevert("!reporting");
+        vm.prank(keeper);
+        strategy.report();
 
-        increaseTimeAndCheckBuffer(10 days, 0);
-
-        reentered = false;
-        //With a loss equal to profit we expecte pps = wad
-        expectedShares = _amount;
-        createAndCheckLoss(profit, 0, 0);
+        checkStrategyTotals(_amount, _amount, 0, _amount);
     }
-    */
 
     function test_tendReentrancy(
         address _address,
