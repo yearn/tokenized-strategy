@@ -28,13 +28,13 @@ contract DiamondHelper {
     /**
      * @notice Set the address of the BaseLibrary and store the
      *  FacetCut for events
-     * @dev This contract needs to be deployed first since the 
+     * @dev This contract needs to be deployed first since the
      * address must be hardcoded in the library.
      *
-     * This can only be set up once and then the contract can 
+     * This can only be set up once and then the contract can
      * never be adjusted.
      *
-     * @param _library, The address of the BaseLibrary for the 
+     * @param _library, The address of the BaseLibrary for the
      * strategies to forward calls to.
      */
     function setLibrary(address _library) external {
@@ -48,10 +48,10 @@ contract DiamondHelper {
     }
 
     /**
-     * @notice Returns the Struct to emit in the needed DiamondCut 
+     * @notice Returns the Struct to emit in the needed DiamondCut
      * event on initilization of a new strategy.
      *
-     * Contatins the address of the library, the enum singaling we 
+     * Contatins the address of the library, the enum singaling we
      * are adding and the array of all its external function selectors.
      */
     function diamondCut() external view returns (IDiamond.FacetCut[] memory) {
