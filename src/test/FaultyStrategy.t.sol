@@ -9,10 +9,9 @@ import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 contract FaultyStrategy is Setup {
     // Full reentrancy variables
     bool public reenter;
-    bool public reentered;
     address public addr;
     uint256 public amount;
-    uint256 public expectedShares;
+
     // View reentrancy variables
     uint256 public pps;
     uint256 public convertAmountToShares;
@@ -42,15 +41,18 @@ contract FaultyStrategy is Setup {
 
         // These should all be right even though the amount invested was actually more
         checkStrategyTotals(_amount, _amount, 0, _amount);
+
         assertEq(asset.balanceOf(address(yieldSource)), _amount + _faultAmount);
 
         uint256 before = asset.balanceOf(_address);
+
         vm.prank(_address);
         strategy.withdraw(_amount, _address, _address);
 
         // We should have just withdrawn '_amount' and
         // not accounted for the _faultAmount but will be in the strategy now
         checkStrategyTotals(0, 0, 0, 0);
+
         assertEq(asset.balanceOf(_address) - before, _amount);
         assertEq(asset.balanceOf(address(strategy)), _faultAmount);
     }
@@ -67,6 +69,7 @@ contract FaultyStrategy is Setup {
         strategy = IMockStrategy(setUpFaultyStrategy());
 
         mintAndDepositIntoStrategy(_address, _amount);
+
         checkStrategyTotals(_amount, _amount, 0, _amount);
 
         configureFaultyStrategy(_faultAmount, false);
@@ -75,12 +78,14 @@ contract FaultyStrategy is Setup {
         asset.mint(address(yieldSource), _faultAmount);
 
         uint256 before = asset.balanceOf(_address);
+
         vm.prank(_address);
         strategy.withdraw(_amount, _address, _address);
 
         // We should have just withdrawn '_amount' and
         // not accounted for the _faultAmount but will be in the strategy now
         checkStrategyTotals(0, 0, 0, 0);
+
         assertEq(asset.balanceOf(_address) - before, _amount);
         assertEq(asset.balanceOf(address(strategy)), _faultAmount);
     }
@@ -99,6 +104,7 @@ contract FaultyStrategy is Setup {
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
         setFees(0, 0);
+
         configureFaultyStrategy(0, true);
 
         // Save current values for view reentrancy checks
@@ -108,13 +114,16 @@ contract FaultyStrategy is Setup {
         mintAndDepositIntoStrategy(_address, _amount);
 
         configureFaultyStrategy(0, false);
+
         createAndCheckProfit(profit, 0, 0);
 
         increaseTimeAndCheckBuffer(5 days, profit / 2);
 
         // Check again while there is profit unlocking
         configureFaultyStrategy(0, true);
+
         storeCallBackVariables(_amount);
+
         mintAndDepositIntoStrategy(_address, _amount);
     }
 
@@ -138,18 +147,23 @@ contract FaultyStrategy is Setup {
         increaseTimeAndCheckBuffer(5 days, 0);
 
         configureFaultyStrategy(0, true);
+
         storeCallBackVariables(_amount / 2);
+
         vm.prank(_address);
         strategy.withdraw(_amount / 2, _address, _address);
 
         configureFaultyStrategy(0, false);
+
         createAndCheckProfit(profit, 0, 0);
 
         increaseTimeAndCheckBuffer(5 days, profit / 2);
 
         // Check again while there is profit unlocking
         configureFaultyStrategy(0, true);
+
         storeCallBackVariables(_amount / 2);
+
         vm.prank(_address);
         strategy.withdraw(_amount / 2, _address, _address);
     }
@@ -175,7 +189,9 @@ contract FaultyStrategy is Setup {
         uint256 assets = _amount + profit;
 
         configureFaultyStrategy(0, true);
+
         storeCallBackVariables(assets);
+
         createAndCheckProfit(profit, 0, 0);
 
         increaseTimeAndCheckBuffer(10 days, 0);
@@ -184,19 +200,13 @@ contract FaultyStrategy is Setup {
         pps = wad;
         convertAmountToShares = _amount;
         convertAmountToAssets = _amount;
+
         createAndCheckLoss(profit, 0, 0);
     }
 
-    function test_tendViewReentrancy(
-        address _address,
-        uint256 _amount,
-        uint256 _profitFactor
-    ) public {
+    function test_tendViewReentrancy(address _address, uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
-
-        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
@@ -207,62 +217,56 @@ contract FaultyStrategy is Setup {
         configureFaultyStrategy(0, true);
         // Tend with some idle
         storeCallBackVariables(strategy.totalIdle());
+
         vm.prank(keeper);
         strategy.tend();
     }
 
-    function test_investReentrancy(
+    function test_investReentrancy_reverts(
         address _address,
-        uint256 _amount,
-        uint256 _profitFactor
+        uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
-        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-
         setFees(0, 0);
+
         configureFaultyStrategy(0, true);
+
         reenter = true;
 
         // Save current values for view reentrancy checks
         storeReentrancyVariables(_address, _amount);
 
-        uint256 expectedAmount = _amount * 2;
-        // The deposit should trigger a second deposit within it
-        mintAndDepositIntoStrategy(_address, _amount);
-        checkStrategyTotals(expectedAmount, expectedAmount, 0, expectedAmount);
+        asset.mint(_address, _amount);
 
-        configureFaultyStrategy(0, false);
-        createAndCheckProfit(profit, 0, 0);
+        vm.prank(_address);
+        asset.approve(address(strategy), _amount);
 
-        increaseTimeAndCheckBuffer(5 days, profit / 2);
+        // The deposit should try to trigger a second deposit within it
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        vm.prank(_address);
+        strategy.deposit(_amount, _address);
 
-        // Check again while there is profit unlocking
-        configureFaultyStrategy(0, true);
-        // reset reentrancy
-        reentered = false;
-        expectedAmount = expectedAmount * 2 + profit;
-        storeReentrancyVariables(_address, _amount);
-        mintAndDepositIntoStrategy(_address, _amount);
-        checkStrategyTotals(expectedAmount, expectedAmount, 0);
+        checkStrategyTotals(0, 0, 0, 0);
+
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        vm.prank(_address);
+        strategy.mint(_amount, _address);
+
+        checkStrategyTotals(0, 0, 0, 0);
     }
 
-    function test_freeFundsReentrancy(
+    function test_freeFundsReentrancy_reverts(
         address _address,
-        uint256 _amount,
-        uint256 _profitFactor
+        uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
 
         strategy = IMockStrategy(setUpFaultyStrategy());
-
-        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
         setFees(0, 0);
 
@@ -273,31 +277,24 @@ contract FaultyStrategy is Setup {
         configureFaultyStrategy(0, true);
         reenter = true;
 
-        uint256 expectedAmount = _amount * 2 - (_amount / 2);
-        // Save current values for view reentrancy checks
+        // Save current values for reentrancy
         storeReentrancyVariables(_address, _amount);
+
+        vm.expectRevert("ReentrancyGuard: reentrant call");
         vm.prank(_address);
-        strategy.withdraw(_amount / 2, _address, _address);
-        checkStrategyTotals(expectedAmount, expectedAmount, 0, expectedAmount);
+        strategy.withdraw(_amount, _address, _address);
 
-        configureFaultyStrategy(0, false);
-        createAndCheckProfit(profit, 0, 0);
+        checkStrategyTotals(_amount, _amount, 0, _amount);
 
-        increaseTimeAndCheckBuffer(5 days, profit / 2);
-
-        // Check again while there is profit unlocking
-        configureFaultyStrategy(0, true);
-        reentered = false;
-        expectedAmount = (_amount * 3) + profit - ((_amount / 2) * 2);
-        storeReentrancyVariables(_address, _amount);
+        vm.expectRevert("ReentrancyGuard: reentrant call");
         vm.prank(_address);
-        strategy.withdraw(_amount / 2, _address, _address);
+        strategy.redeem(_amount, _address, _address);
 
-        checkStrategyTotals(expectedAmount, expectedAmount, 0);
+        checkStrategyTotals(_amount, _amount, 0, _amount);
     }
 
     // Reentrancy cant be allowed during a report call/
-    function test_reportReentrancy(
+    function test_reportReentrancy_reverts(
         address _address,
         uint256 _amount,
         uint256 _profitFactor
@@ -315,28 +312,26 @@ contract FaultyStrategy is Setup {
         mintAndDepositIntoStrategy(_address, _amount);
 
         configureFaultyStrategy(0, true);
+
         storeReentrancyVariables(_address, _amount);
+
         reenter = true;
 
         asset.mint(address(strategy), profit);
 
-        vm.expectRevert("!reporting");
+        vm.expectRevert("ReentrancyGuard: reentrant call");
         vm.prank(keeper);
         strategy.report();
 
         checkStrategyTotals(_amount, _amount, 0, _amount);
     }
 
-    function test_tendReentrancy(
+    function test_tendReentrancy_reverts(
         address _address,
-        uint256 _amount,
-        uint256 _profitFactor
+        uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
-
-        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
@@ -345,9 +340,12 @@ contract FaultyStrategy is Setup {
         mintAndDepositIntoStrategy(_address, _amount);
 
         configureFaultyStrategy(0, true);
+
         reenter = true;
+
         storeReentrancyVariables(_address, _amount);
 
+        vm.expectRevert("ReentrancyGuard: reentrant call");
         vm.prank(keeper);
         strategy.tend();
     }
@@ -359,15 +357,10 @@ contract FaultyStrategy is Setup {
         uint256 _convertAmountToShares,
         uint256 _convertAmountToAssets
     ) public {
-        // If 'reenter' we will actually deposit/withdraw if not just check values for views
+        // If 'reenter' we will actually try to deposit if not just check values for views
         if (reenter) {
-            // Only actually reenter if it the first one
-            if (reentered) return;
-            // set true so we dont infinitely loop
-            reentered = true;
-            uint256 before = strategy.balanceOf(addr);
+            // Try and deposit back into the strategy within the original call
             mintAndDepositIntoStrategy(addr, amount);
-            assertEq(strategy.balanceOf(addr) - before, expectedShares);
         } else {
             assertEq(_pps, pps);
             assertEq(_convertAmountToShares, convertAmountToShares);
@@ -387,6 +380,5 @@ contract FaultyStrategy is Setup {
     ) public {
         addr = _address;
         amount = _amount;
-        expectedShares = strategy.convertToShares(_amount);
     }
 }

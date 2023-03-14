@@ -5,7 +5,6 @@ pragma solidity 0.8.14;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import {DiamondHelper, IDiamond, IDiamondLoupe} from "../DiamondHelper.sol";
 
@@ -169,22 +168,17 @@ library BaseLibrary {
         uint256 lastReport; // The last time a {report} was called.
         uint16 performanceFee; // The percent in Basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
-        bool reporting; // Bool to prevent reentrancy during report calls
         
 
         // Access management addressess for permisssioned functions.
         address management; // Main address that can set all configurable variables.
         address keeper; // Address given permission to call {report} and {tend}.
+        bool entered; // Bool to prevent reentrancy.
     }
 
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
-
-    modifier notReporting() {
-        isNotReporting();
-        _;
-    }
 
     modifier onlyManagement() {
         isManagement();
@@ -196,11 +190,25 @@ library BaseLibrary {
         _;
     }
 
-    // These are left public to allow for the strategy to use them as well
+    /**
+     * @dev Prevents a contract from calling itself, directly or indirectly.
+     *  Placed over all state changing function for increased safety.
+     */
+    modifier nonReentrant() {
+        BaseStrategyData storage S = _baseStrategyStorgage();
+        // On the first call to nonReentrant, `entered` will be false
+        require(!S.entered, "ReentrancyGuard: reentrant call");
 
-    function isNotReporting() public view {
-        require(!_baseStrategyStorgage().reporting, "!reporting");
+        // Any calls to nonReentrant after this point will fail
+        S.entered = true;
+
+        _;
+
+        // Reset to false once call has finished
+        S.entered = false;
     }
+
+    // These are left public to allow for the strategy to use them as well.
 
     function isManagement() public view {
         if (msg.sender != _baseStrategyStorgage().management)
@@ -322,7 +330,7 @@ library BaseLibrary {
     function deposit(
         uint256 assets,
         address receiver
-    ) public notReporting returns (uint256 shares) {
+    ) public nonReentrant returns (uint256 shares) {
         // Check for rounding error since we round down in previewDeposit.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
@@ -332,7 +340,7 @@ library BaseLibrary {
     function mint(
         uint256 shares,
         address receiver
-    ) public notReporting returns (uint256 assets) {
+    ) public nonReentrant returns (uint256 assets) {
         // No need to check for rounding error, previewMint rounds up.
         assets = previewMint(shares);
 
@@ -343,7 +351,7 @@ library BaseLibrary {
         uint256 assets,
         address receiver,
         address owner
-    ) public notReporting returns (uint256 shares) {
+    ) public nonReentrant returns (uint256 shares) {
         // No need to check for rounding error, previewWithdraw rounds up.
         shares = previewWithdraw(assets);
 
@@ -354,7 +362,7 @@ library BaseLibrary {
         uint256 shares,
         address receiver,
         address owner
-    ) public notReporting returns (uint256 assets) {
+    ) public nonReentrant returns (uint256 assets) {
         // Check for rounding error since we round down in previewRedeem.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
@@ -456,7 +464,9 @@ library BaseLibrary {
 
     function totalAssets() public view returns (uint256) {
         BaseStrategyData storage S = _baseStrategyStorgage();
-        return S.totalIdle + S.totalDebt;
+        unchecked {
+            return S.totalIdle + S.totalDebt;
+        }
     }
 
     function totalSupply() public view returns (uint256) {
@@ -618,14 +628,12 @@ library BaseLibrary {
      */
     function report()
         external
-        notReporting
+        nonReentrant
         onlyKeepers
         returns (uint256 profit, uint256 loss)
     {
         // Cache storage pointer since its used again at the end
         BaseStrategyData storage S = _baseStrategyStorgage();
-        // set reporting = True for reentrancy
-        S.reporting = true;
 
         uint256 oldTotalAssets;
         unchecked {
@@ -633,7 +641,7 @@ library BaseLibrary {
             oldTotalAssets = S.totalIdle + S.totalDebt;
         }
 
-        // Calculate protocol fees before we burn shares and update lastReport
+        // Calculate protocol fees before we burn shares and potentially update lastReport
         (
             uint256 totalFees,
             address protocolFeesRecipient
@@ -760,8 +768,6 @@ library BaseLibrary {
         newIdle = S.asset.balanceOf(address(this));
         S.totalIdle = newIdle;
         S.totalDebt = _invested - newIdle;
-        // Reset reporting bool
-        S.reporting = false;
     }
 
     function _assessProtocolFees(
@@ -787,13 +793,10 @@ library BaseLibrary {
             );
 
             protocolFees =
-                (uint256(protocolFeeBps) *
-                    _oldTotalAssets *
+                (_oldTotalAssets *
+                    uint256(protocolFeeBps) *
                     secondsSinceLastReport) /
-                // TODO: make this one number for less runtime calculations
-                24 /
-                365 /
-                3600 /
+                31_556_952 /
                 MAX_BPS;
         }
     }
@@ -849,7 +852,7 @@ library BaseLibrary {
      *
      * A report() call will be needed to record the profit.
      */
-    function tend() external notReporting onlyKeepers {
+    function tend() external nonReentrant onlyKeepers {
         BaseStrategyData storage S = _baseStrategyStorgage();
         // Expected Behavior is this will get used twice so we cache it
         uint256 _totalIdle = S.totalIdle;

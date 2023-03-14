@@ -19,7 +19,7 @@ contract ProfitLockingTest is Setup {
             block.timestamp - strategy.lastReport(),
             block.timestamp - mockFactory.lastChange()
         );
-        return (_amount * _fee * timePassed) / MAX_BPS / 31536000;
+        return (_amount * _fee * timePassed) / MAX_BPS / 31_556_952;
     }
 
     function test_gain_NoFeesNoBuffer(
