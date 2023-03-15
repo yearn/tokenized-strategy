@@ -3,7 +3,6 @@ pragma solidity 0.8.14;
 
 // Generic OpenZeppelin Dependencies
 
-
 // Custom Base Strategy interfacies
 import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
@@ -101,13 +100,7 @@ abstract contract BaseStrategy is IBaseStrategy {
         asset = _asset;
 
         // initilize the strategies storage variables
-        _init(
-            _asset,
-            _name,
-            _management,
-            _performanceFeeRecipient,
-            _keeper
-        );
+        _init(_asset, _name, _management, _performanceFeeRecipient, _keeper);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -302,16 +295,16 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     /**
-    * @dev Funciton used on initilization to delegate call the
-    * library to setup the default storage for the strategy.
-    *
-    * We cannot use the `BaseLibrary` variable call since this 
-    * contract is not deployed fully yet. So we need to manually 
-    * delegateCall the library.
-    * 
-    * This is the only time an internal delegateCall should not 
-    * be for a view function
-    */
+     * @dev Funciton used on initilization to delegate call the
+     * library to setup the default storage for the strategy.
+     *
+     * We cannot use the `BaseLibrary` variable call since this
+     * contract is not deployed fully yet. So we need to manually
+     * delegateCall the library.
+     *
+     * This is the only time an internal delegateCall should not
+     * be for a view function
+     */
     function _init(
         address _asset,
         string memory _name,

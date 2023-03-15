@@ -12,7 +12,7 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
     // errors
     error Unauthorized();
 
-      function init(
+    function init(
         address _asset,
         string memory _name,
         address _management,
