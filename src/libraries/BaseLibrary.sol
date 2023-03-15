@@ -5,6 +5,7 @@ pragma solidity 0.8.14;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import {DiamondHelper, IDiamond, IDiamondLoupe} from "../DiamondHelper.sol";
 
@@ -110,6 +111,8 @@ library BaseLibrary {
         bytes _calldata
     );
 
+    event Cloned(address indexed clone);
+
     /*//////////////////////////////////////////////////////////////
                                 Errors
     //////////////////////////////////////////////////////////////*/
@@ -145,6 +148,7 @@ library BaseLibrary {
 
         // These are the corresponding ERC20 variables needed for the
         // token that is issued and burned on each deposit or withdraw.
+        uint8 decimals; // The amount of decimals the asset and strategy use
         string name; // The name of the token for the strategy.
         string symbol; // The symbol of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued
@@ -281,19 +285,23 @@ library BaseLibrary {
     function init(
         address _asset,
         string memory _name,
-        string memory _symbol,
-        address _management
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
     ) external {
         // cache storage pointer
         BaseStrategyData storage S = _baseStrategyStorgage();
 
-        // make sure we aren't initiliazed
-        require(address(S.asset) == address(0), "!init");
+        // make sure we aren't initiliazed.
+        require(address(S.asset) == address(0));
         // set the strategys underlying asset
         S.asset = ERC20(_asset);
         // Set the Tokens name and symbol
         S.name = _name;
-        S.symbol = _symbol;
+        // Set the symbol and decimals based off the `asset`.
+        IERC20Metadata a = IERC20Metadata(_asset);
+        S.symbol = string(abi.encodePacked("ys", a.symbol()));
+        S.decimals = a.decimals();
         // Set initial chain id for permit replay protection
         S.INITIAL_CHAIN_ID = block.chainid;
         // Set the inital domain seperator for permit functions
@@ -301,15 +309,19 @@ library BaseLibrary {
 
         // default to a 10 day profit unlock period
         S.profitMaxUnlockTime = 10 days;
-        // default to mangement as the treasury TODO: allow this to be customized
-        S.performanceFeeRecipient = _management;
+        // Set address to receive performance fees.
+        // Can't be address(0) or we will be burning fees.
+        require(_performanceFeeRecipient != address(0));
+        S.performanceFeeRecipient = _performanceFeeRecipient;
         // default to a 10% performance fee?
         S.performanceFee = 1_000;
         // set last report to this block
         S.lastReport = block.timestamp;
 
-        // set the default management address
+        // Set the default management address
         S.management = _management;
+        // Set the keeper address
+        S.keeper = _keeper;
 
         // emit the standard DiamondCut event with the values from our helper contract
         emit DiamondCut(
@@ -952,7 +964,7 @@ library BaseLibrary {
     }
 
     function pricePerShare() external view returns (uint256) {
-        return convertToAssets(10 ** IBaseStrategy(address(this)).decimals());
+        return convertToAssets(10 ** _baseStrategyStorgage().decimals);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1059,6 +1071,15 @@ library BaseLibrary {
      */
     function symbol() public view returns (string memory) {
         return _baseStrategyStorgage().symbol;
+    }
+
+    /**
+     * @dev Returns the number of decimals used to get its user representation.
+     * For example, if `decimals` equals `2`, a balance of `505` tokens should
+     * be displayed to a user as `5.05` (`505 / 10 ** 2`).
+     */
+    function decimals() public view returns (uint8) {
+        return _baseStrategyStorgage().decimals;
     }
 
     /**
@@ -1474,5 +1495,46 @@ library BaseLibrary {
                     address(this)
                 )
             );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            CLONING
+    //////////////////////////////////////////////////////////////*/
+
+    function clone(
+        address _asset,
+        string memory _name,
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
+    ) external returns (address newStrategy) {
+        require(IBaseStrategy(address(this)).isOriginal(), "!clone");
+        // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
+        bytes20 addressBytes = bytes20(address(this));
+
+        assembly {
+            // EIP-1167 bytecode
+            let clone_code := mload(0x40)
+            mstore(
+                clone_code,
+                0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000
+            )
+            mstore(add(clone_code, 0x14), addressBytes)
+            mstore(
+                add(clone_code, 0x28),
+                0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000
+            )
+            newStrategy := create(0, clone_code, 0x37)
+        }
+
+        IBaseStrategy(newStrategy).initialize(
+            _asset,
+            _name,
+            _management,
+            _performanceFeeRecipient,
+            _keeper
+        );
+
+        emit Cloned(newStrategy);
     }
 }

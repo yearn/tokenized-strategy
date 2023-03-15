@@ -172,50 +172,15 @@ contract Setup is ExtendedTest {
         );
     }
 
+    // prettier-ignore
     function getSelectors() public pure returns (bytes4[] memory selectors) {
-        string[42] memory _selectors = [
-            "dd62ed3e",
-            "095ea7b3",
-            "70a08231",
-            "07a2d13a",
-            "c6e6f592",
-            "a457c2d7",
-            "6e553f65",
-            "39509351",
-            "534021b0",
-            "94bf804d",
-            "ef8b30f7",
-            "b3d7f6b9",
-            "4cdad506",
-            "0a28a477",
-            "ba087652",
-            "969b1cdb",
-            "01e1d114",
-            "18160ddd",
-            "a9059cbb",
-            "23b872dd",
-            "b460af94",
-            "dd62ed3e",
-            "095ea7b3",
-            "70a08231",
-            "07a2d13a",
-            "c6e6f592",
-            "a457c2d7",
-            "6e553f65",
-            "39509351",
-            "534021b0",
-            "94bf804d",
-            "ef8b30f7",
-            "b3d7f6b9",
-            "4cdad506",
-            "0a28a477",
-            "ba087652",
-            "969b1cdb",
-            "01e1d114",
-            "18160ddd",
-            "a9059cbb",
-            "23b872dd",
-            "b460af94"
+        string[48] memory _selectors = [
+            "dd62ed3e","095ea7b3","70a08231","07a2d13a","c6e6f592","a457c2d7","6e553f65","39509351",
+            "534021b0","94bf804d","ef8b30f7","b3d7f6b9","4cdad506","0a28a477","ba087652","969b1cdb",
+            "01e1d114","18160ddd","a9059cbb","23b872dd","b460af94","dd62ed3e","095ea7b3","70a08231",
+            "07a2d13a","c6e6f592","a457c2d7","6e553f65","39509351","534021b0","94bf804d","ef8b30f7",
+            "b3d7f6b9","4cdad506","0a28a477","ba087652","969b1cdb","01e1d114","18160ddd","a9059cbb",
+            "23b872dd","b460af94","70a08231","07a2d13a","c6e6f592","a457c2d7","6e553f65","39509351"
         ];
         selectors = new bytes4[](_selectors.length);
         for (uint256 i; i < _selectors.length; ++i) {

@@ -55,10 +55,14 @@ interface IBaseStrategy {
                             IMMUTABLE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function isOriginal() external view returns (bool);
+
     function initialize(
         address _asset,
         string memory name_,
-        address _management
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
     ) external;
 
     function availableDepositLimit(
@@ -76,12 +80,4 @@ interface IBaseStrategy {
     function totalInvested() external returns (uint256);
 
     function tendThis(uint256 _totalIdle) external;
-
-    /**
-     * @dev Returns the number of decimals used to get its user representation.
-     * For example, if `decimals` equals `2`, a balance of `505` tokens should
-     * be displayed to a user as `5.05` (`505 / 10 ** 2`).
-     * This is based off of the decimals of the underlying asset
-     */
-    function decimals() external view returns (uint8);
 }

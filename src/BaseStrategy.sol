@@ -2,7 +2,7 @@
 pragma solidity 0.8.14;
 
 // Generic OpenZeppelin Dependencies
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
 
 // Custom Base Strategy interfacies
 import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
@@ -49,10 +49,12 @@ abstract contract BaseStrategy is IBaseStrategy {
      * and always be checked before any integration with the implementation.
      */
     // NOTE: This will be set to internal constants once the library has actually been deployed
-    address public baseLibraryAddress =
+    address public constant baseLibraryAddress =
         0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
 
     /**
+     * This variable is set to address(this) during initialization of each strategy.
+     *
      * This can be used to retrieve storage data within the implementation
      * contract as if it were a linked library.
      *
@@ -66,128 +68,46 @@ abstract contract BaseStrategy is IBaseStrategy {
      * to a static call to itself. Which will hit the fallback function and
      * delegateCall that to the actual BaseLibrary.
      */
-    IBaseLibrary internal immutable BaseLibrary = IBaseLibrary(address(this));
+    IBaseLibrary internal BaseLibrary;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    // Underlying asset the Strategy is earning yield on
+    // Bool for cloning that will only be true for non-clones.
+    bool public isOriginal = true;
+
+    // Underlying asset the Strategy is earning yield on.
     address public asset;
 
-    // The decimals of the underlying asset we will use.
-    // Keep this private with a getter function so it can be easily
-    // accessed by strategists but not updated.
-    uint8 private _decimals;
-
     constructor(address _asset, string memory _name) {
-        _initialize(_asset, _name, msg.sender);
+        initialize(_asset, _name, msg.sender, msg.sender, msg.sender);
     }
 
     function initialize(
         address _asset,
         string memory _name,
-        address _management
-    ) external {
-        _initialize(_asset, _name, _management);
-    }
-
-    // TODO: ADD additional variables for keeper performance fee etc?
-    function _initialize(
-        address _asset,
-        string memory _name,
-        address _management
-    ) internal {
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
+    ) public {
         // make sure we have not been initialized
         require(asset == address(0), "!init");
 
-        // set ERC20 variables
-        asset = _asset;
-        IERC20Metadata a = IERC20Metadata(_asset);
-        _decimals = a.decimals();
+        // Set instance of the library for internal use.
+        BaseLibrary = IBaseLibrary(address(this));
 
-        string memory _symbol = string(abi.encodePacked("ys", a.symbol()));
+        // Set the asset we are using.
+        asset = _asset;
 
         // initilize the strategies storage variables
-        _init(_asset, _name, _symbol, _management);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        BASELIBRARY HOOKS
-    //////////////////////////////////////////////////////////////*/
-
-    // These function are left external so they can be called by the BaseLibrary during a delegateCall.     \\
-    // If the library calls an external function of another contract the msg.sender will be the original    \\
-    // contract that delegate called the library. Therefore msg.sender will be the strategy itself.         \\
-
-    /**
-     * @notice Should invest up to '_amount' of 'asset'.
-     * @dev Callback for the library to call during a deposit, mint
-     * or report to tell the strategy it can invest funds.
-     *
-     * This can only be called after a 'deposit', 'mint' or 'report'
-     * delegateCall to the library so msg.sender == address(this).
-     *
-     * Both permisionless deposits and permissioned reports will lead
-     * to this function being called with all currently idle funds sent
-     * as '_assets'. The '_reported' bool is how to differeniate between
-     * the two. If true this means it was called at the end of a report
-     * with the expectation of coming through a trusted relay and therefore
-     * safe to perform otherwise manipulatable transactions.
-     *
-     * @param _amount The amount of 'asset' that the strategy should
-     * attemppt to deposit in the yield source.
-     * @param _reported Bool repersenting if this is part of a `report`.
-     */
-    function invest(uint256 _amount, bool _reported) external onlySelf {
-        _invest(_amount, _reported);
-    }
-
-    /**
-     * @notice Will attempt to free the '_amount' of 'asset'.
-     * @dev Callback for the library to call during a withdraw or redeem
-     * to free the needed funds to service the withdraw.
-     *
-     * This can only be called after a 'withdraw' or 'redeem' delegateCall
-     * to the library so msg.sender == address(this).
-     *
-     * @param _amount The amount of 'asset' that the strategy should attemppt to free up.
-     */
-    function freeFunds(uint256 _amount) external onlySelf {
-        _freeFunds(_amount);
-    }
-
-    /**
-     * @notice Returns the accurate amount of all funds currently
-     * held by the Strategy.
-     * @dev Callback for the library to call during a report to
-     * get an accurate accounting of assets the strategy controls.
-     *
-     * This can only be called after a report() delegateCall to the
-     * library so msg.sender == address(this).
-     *
-     * @return _invested A trusted and accurate account for the total
-     * amount of 'asset' the strategy currently holds.
-     */
-    function totalInvested() external onlySelf returns (uint256 _invested) {
-        return _totalInvested();
-    }
-
-    /**
-     * @notice Will call the internal '_tend' when a keeper tends the strategy.
-     * @dev Callback for the library to initiate a _tend call in the strategy.
-     *
-     * This can only be called after a tend() delegateCall to the library 
-     * so msg.sender == address(this).
-     *
-     * We name the function `tendThis` so that `tend` calls are forwarded to 
-     * the library so it can do the neccesary accounting.
-
-     * @param _totalIdle The amount of current idle funds that can be 
-     * invested during the tend
-     */
-    function tendThis(uint256 _totalIdle) external onlySelf {
-        _tend(_totalIdle);
+        _init(
+            _asset,
+            _name,
+            _management,
+            _performanceFeeRecipient,
+            _keeper
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -308,34 +228,105 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        ERC20 FUNCTIONS
+                        BASELIBRARY HOOKS
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Returns the number of decimals used to get its user representation.
-     * For example, if `decimals` equals `2`, a balance of `505` tokens should
-     * be displayed to a user as `5.05` (`505 / 10 ** 2`).
+     * @notice Should invest up to '_amount' of 'asset'.
+     * @dev Callback for the library to call during a deposit, mint
+     * or report to tell the strategy it can invest funds.
+     *
+     * This can only be called after a 'deposit', 'mint' or 'report'
+     * delegateCall to the library so msg.sender == address(this).
+     *
+     * Both permisionless deposits and permissioned reports will lead
+     * to this function being called with all currently idle funds sent
+     * as '_assets'. The '_reported' bool is how to differeniate between
+     * the two. If true this means it was called at the end of a report
+     * with the expectation of coming through a trusted relay and therefore
+     * safe to perform otherwise manipulatable transactions.
+     *
+     * @param _amount The amount of 'asset' that the strategy should
+     * attemppt to deposit in the yield source.
+     * @param _reported Bool repersenting if this is part of a `report`.
      */
-    function decimals() public view returns (uint8) {
-        return _decimals;
+    function invest(uint256 _amount, bool _reported) external onlySelf {
+        _invest(_amount, _reported);
     }
 
-    // NOTE: We cannot use the `BaseLibrary` call since this contract is not deployed fully yet
-    // So we need to manually delegateCall the library.
-    // This is the only time an internal delegateCall should not be for a view function
+    /**
+     * @notice Will attempt to free the '_amount' of 'asset'.
+     * @dev Callback for the library to call during a withdraw or redeem
+     * to free the needed funds to service the withdraw.
+     *
+     * This can only be called after a 'withdraw' or 'redeem' delegateCall
+     * to the library so msg.sender == address(this).
+     *
+     * @param _amount The amount of 'asset' that the strategy should attemppt to free up.
+     */
+    function freeFunds(uint256 _amount) external onlySelf {
+        _freeFunds(_amount);
+    }
+
+    /**
+     * @notice Returns the accurate amount of all funds currently
+     * held by the Strategy.
+     * @dev Callback for the library to call during a report to
+     * get an accurate accounting of assets the strategy controls.
+     *
+     * This can only be called after a report() delegateCall to the
+     * library so msg.sender == address(this).
+     *
+     * @return _invested A trusted and accurate account for the total
+     * amount of 'asset' the strategy currently holds.
+     */
+    function totalInvested() external onlySelf returns (uint256 _invested) {
+        return _totalInvested();
+    }
+
+    /**
+     * @notice Will call the internal '_tend' when a keeper tends the strategy.
+     * @dev Callback for the library to initiate a _tend call in the strategy.
+     *
+     * This can only be called after a tend() delegateCall to the library 
+     * so msg.sender == address(this).
+     *
+     * We name the function `tendThis` so that `tend` calls are forwarded to 
+     * the library so it can do the neccesary accounting.
+
+     * @param _totalIdle The amount of current idle funds that can be 
+     * invested during the tend
+     */
+    function tendThis(uint256 _totalIdle) external onlySelf {
+        _tend(_totalIdle);
+    }
+
+    /**
+    * @dev Funciton used on initilization to delegate call the
+    * library to setup the default storage for the strategy.
+    *
+    * We cannot use the `BaseLibrary` variable call since this 
+    * contract is not deployed fully yet. So we need to manually 
+    * delegateCall the library.
+    * 
+    * This is the only time an internal delegateCall should not 
+    * be for a view function
+    */
     function _init(
         address _asset,
         string memory _name,
-        string memory _symbol,
-        address _management
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
     ) private {
         (bool success, ) = baseLibraryAddress.delegatecall(
             abi.encodeWithSignature(
-                "init(address,string,string,address)",
+                "init(address,string,address,address,address)",
                 _asset,
                 _name,
-                _symbol,
-                _management
+                _management,
+                _performanceFeeRecipient,
+                _keeper
             )
         );
 

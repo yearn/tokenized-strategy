@@ -12,6 +12,14 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
     // errors
     error Unauthorized();
 
+      function init(
+        address _asset,
+        string memory _name,
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
+    ) external;
+
     function isKeeperOrManagement() external;
 
     function isManagement() external;
@@ -71,4 +79,13 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
         address spender,
         uint256 addedValue
     ) external returns (bool);
+
+    // Cloning
+    function clone(
+        address _asset,
+        string memory _name,
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
+    ) external returns (address newStrategy);
 }
