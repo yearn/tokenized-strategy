@@ -24,10 +24,10 @@ import "forge-std/console.sol";
 //      Bump sol version
 //      Does base strategy need to hold events?
 //      add unchecked {} where applicable
-//      add cloning
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
 //      unsafe math library for easy unchecked
+//      Check rounding for all convertTo internal uses
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -621,30 +621,33 @@ library BaseLibrary {
      * @notice Function for keepers to call to harvest and record all
      * profits accrued.
      *
-     * @dev This should only ever be called through protected relays as
-     * swaps will likely occur.
+     * @dev This should only ever be called through protected relays 
+     * as swaps will likely occur.
      *
-     * This will account for any gains/losses since the last report and
-     * charge fees accordingly.
+     * This will account for any gains/losses since the last report 
+     * and charge fees accordingly.
      *
-     * Any profit over the totalFees charged will be immediatly locked so
-     * there is no change in PricePerShare. Then slowly unlocked over the
-     * `maxProfitUnlockTime` each second based on the calculated `profitUnlockingRate`.
+     * Any profit over the totalFees charged will be immediatly locked
+     * so there is no change in PricePerShare. Then slowly unlocked 
+     * over the `maxProfitUnlockTime` each second based on the 
+     * calculated `profitUnlockingRate`.
      *
-     * Any 'loss' or fees greater than 'profit' will attempted to be offset
-     * with any remaining locked shares from the last report in order to reduce
-     * any negative impact to PPS.
+     * Any 'loss' or fees greater than 'profit' will attempted to be 
+     * offset with any remaining locked shares from the last report 
+     * in order to reduce any negative impact to PPS.
      *
      * Will then recalculate the new time to unlock profits over and the
-     * rate based on a weighted average of any remaining time from the last
-     * report and the new amount of shares to be locked.
+     * rate based on a weighted average of any remaining time from the 
+     * last report and the new amount of shares to be locked.
      *
      * Finally will tell the strategy to _invest all idle funds which
      * should include both the totalIdle before the call as well any
      * amount of 'asset' freed up during the totalInvested() call.
      *
-     * @return profit The notional amount of gain since the last report in terms of 'asset' if any.
-     * @return loss The notional amount of loss since the last report in terms of "asset" if any.
+     * @return profit The notional amount of gain if any since the last 
+     * report in terms of `asset`.
+     * @return loss The notional amount of loss if any since the last 
+     * report in terms of `asset`.
      */
     function report()
         external
@@ -728,18 +731,19 @@ library BaseLibrary {
             }
         }
 
+        // Update unlocking rate and time to fully unlocked
         {
             // Scoped to avoid stack to deep errors
-            uint256 remainingTime;
-            uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
-            if (_fullProfitUnlockDate > block.timestamp) {
-                remainingTime = _fullProfitUnlockDate - block.timestamp;
-            }
-
-            // Update unlocking rate and time to fully unlocked
             uint256 totalLockedShares = balanceOf(address(this));
             uint256 _profitMaxUnlockTime = S.profitMaxUnlockTime;
             if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
+
+                uint256 remainingTime;
+                uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+                if (_fullProfitUnlockDate > block.timestamp) {
+                    remainingTime = _fullProfitUnlockDate - block.timestamp;
+                }
+
                 uint256 previouslyLockedShares = totalLockedShares -
                     sharesToLock;
 
@@ -758,7 +762,7 @@ library BaseLibrary {
                     block.timestamp +
                     newProfitLockingPeriod;
             } else {
-                // NOTE: only setting this to 0 will turn in the desired effect,
+                // Only setting this to 0 will turn in the desired effect,
                 // no need to update fullProfitUnlockDate
                 S.profitUnlockingRate = 0;
             }
@@ -818,7 +822,7 @@ library BaseLibrary {
                 (_oldTotalAssets *
                     uint256(protocolFeeBps) *
                     secondsSinceLastReport) /
-                31_556_952 /
+                31_556_952 / // Seconds per year
                 MAX_BPS;
         }
     }
@@ -1074,9 +1078,8 @@ library BaseLibrary {
     }
 
     /**
-     * @dev Returns the number of decimals used to get its user representation.
-     * For example, if `decimals` equals `2`, a balance of `505` tokens should
-     * be displayed to a user as `5.05` (`505 / 10 ** 2`).
+     * @notice Returns the number of decimals used to get its user representation.
+     * @return . The decimals used for the strategy and `asset`.
      */
     function decimals() public view returns (uint8) {
         return _baseStrategyStorgage().decimals;
@@ -1501,6 +1504,27 @@ library BaseLibrary {
                             CLONING
     //////////////////////////////////////////////////////////////*/
 
+    /**
+    * @notice Used to create a new clone of the calling stategy.
+    * @dev This can be called through a normal delegate call directly
+    * to the library however that will leave all implementation
+    * sepcific setup uncompleted.
+    *
+    * The recommended use for strategies that wish to utilize cloning
+    * is to declare a implemtation specific {clone} that will then call
+    * `BaseLibrary.clone(data)` so it can implement its own initiliaztion.
+    *
+    * This can't be called through a strategy that is a clone. All
+    * cloning must come through the original contract that can be
+    * viewed by the `isOriginal` variable in all strategies.
+    *
+    * @param _asset Address of the underlying asset.
+    * @param _name Name the strategy will use.
+    * @param _management Address to set as the strategies `management`.
+    * @param _performanceFeeRecipient Address to receive performance fees.
+    * @param _keeper Address to set as strategies `keeper`.
+    * @return newStrategy The address of the new clone.
+     */
     function clone(
         address _asset,
         string memory _name,
