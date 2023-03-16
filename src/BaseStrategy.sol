@@ -355,11 +355,11 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     /**
-    * We are forced to have a receive function do to
-    * implementing a fallback function.
-    *
-    * NOTE: ETH should not be sent to the strategy unless
-    * designed for within the implementation
-    */ 
+     * We are forced to have a receive function do to
+     * implementing a fallback function.
+     *
+     * NOTE: ETH should not be sent to the strategy unless
+     * designed for within the implementation
+     */
     receive() external payable {}
 }

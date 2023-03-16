@@ -622,32 +622,32 @@ library BaseLibrary {
      * @notice Function for keepers to call to harvest and record all
      * profits accrued.
      *
-     * @dev This should only ever be called through protected relays 
+     * @dev This should only ever be called through protected relays
      * as swaps will likely occur.
      *
-     * This will account for any gains/losses since the last report 
+     * This will account for any gains/losses since the last report
      * and charge fees accordingly.
      *
      * Any profit over the totalFees charged will be immediatly locked
-     * so there is no change in PricePerShare. Then slowly unlocked 
-     * over the `maxProfitUnlockTime` each second based on the 
+     * so there is no change in PricePerShare. Then slowly unlocked
+     * over the `maxProfitUnlockTime` each second based on the
      * calculated `profitUnlockingRate`.
      *
-     * Any 'loss' or fees greater than 'profit' will attempted to be 
-     * offset with any remaining locked shares from the last report 
+     * Any 'loss' or fees greater than 'profit' will attempted to be
+     * offset with any remaining locked shares from the last report
      * in order to reduce any negative impact to PPS.
      *
      * Will then recalculate the new time to unlock profits over and the
-     * rate based on a weighted average of any remaining time from the 
+     * rate based on a weighted average of any remaining time from the
      * last report and the new amount of shares to be locked.
      *
      * Finally will tell the strategy to _invest all idle funds which
      * should include both the totalIdle before the call as well any
      * amount of 'asset' freed up during the totalInvested() call.
      *
-     * @return profit The notional amount of gain if any since the last 
+     * @return profit The notional amount of gain if any since the last
      * report in terms of `asset`.
-     * @return loss The notional amount of loss if any since the last 
+     * @return loss The notional amount of loss if any since the last
      * report in terms of `asset`.
      */
     function report()
@@ -738,7 +738,6 @@ library BaseLibrary {
             uint256 totalLockedShares = balanceOf(address(this));
             uint256 _profitMaxUnlockTime = S.profitMaxUnlockTime;
             if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
-
                 uint256 remainingTime;
                 uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
                 if (_fullProfitUnlockDate > block.timestamp) {
@@ -1506,25 +1505,25 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-    * @notice Used to create a new clone of the calling stategy.
-    * @dev This can be called through a normal delegate call directly
-    * to the library however that will leave all implementation
-    * sepcific setup uncompleted.
-    *
-    * The recommended use for strategies that wish to utilize cloning
-    * is to declare a implemtation specific {clone} that will then call
-    * `BaseLibrary.clone(data)` so it can implement its own initiliaztion.
-    *
-    * This can't be called through a strategy that is a clone. All
-    * cloning must come through the original contract that can be
-    * viewed by the `isOriginal` variable in all strategies.
-    *
-    * @param _asset Address of the underlying asset.
-    * @param _name Name the strategy will use.
-    * @param _management Address to set as the strategies `management`.
-    * @param _performanceFeeRecipient Address to receive performance fees.
-    * @param _keeper Address to set as strategies `keeper`.
-    * @return newStrategy The address of the new clone.
+     * @notice Used to create a new clone of the calling stategy.
+     * @dev This can be called through a normal delegate call directly
+     * to the library however that will leave all implementation
+     * sepcific setup uncompleted.
+     *
+     * The recommended use for strategies that wish to utilize cloning
+     * is to declare a implemtation specific {clone} that will then call
+     * `BaseLibrary.clone(data)` so it can implement its own initiliaztion.
+     *
+     * This can't be called through a strategy that is a clone. All
+     * cloning must come through the original contract that can be
+     * viewed by the `isOriginal` variable in all strategies.
+     *
+     * @param _asset Address of the underlying asset.
+     * @param _name Name the strategy will use.
+     * @param _management Address to set as the strategies `management`.
+     * @param _performanceFeeRecipient Address to receive performance fees.
+     * @param _keeper Address to set as strategies `keeper`.
+     * @return newStrategy The address of the new clone.
      */
     function clone(
         address _asset,
