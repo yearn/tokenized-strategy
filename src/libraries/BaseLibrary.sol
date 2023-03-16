@@ -296,7 +296,7 @@ library BaseLibrary {
         require(address(S.asset) == address(0));
         // set the strategys underlying asset
         S.asset = ERC20(_asset);
-        // Set the Tokens name and symbol
+        // Set the Tokens name.
         S.name = _name;
         // Set the symbol and decimals based off the `asset`.
         IERC20Metadata a = IERC20Metadata(_asset);
@@ -318,7 +318,8 @@ library BaseLibrary {
         // set last report to this block
         S.lastReport = block.timestamp;
 
-        // Set the default management address
+        // Set the default management address. Can't be 0.
+        require(_management != address(0));
         S.management = _management;
         // Set the keeper address
         S.keeper = _keeper;

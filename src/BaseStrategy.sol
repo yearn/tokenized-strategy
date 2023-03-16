@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.14;
 
-// Generic OpenZeppelin Dependencies
-
 // Custom Base Strategy interfacies
 import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
@@ -330,11 +328,11 @@ abstract contract BaseStrategy is IBaseStrategy {
     fallback() external payable {
         // load our target address
         address _baseLibraryAddress = baseLibraryAddress;
-        // Execute external function from facet using delegatecall and return any value.
+        // Execute external function using delegatecall and return any value.
         assembly {
-            // copy function selector and any arguments
+            // Copy function selector and any arguments.
             calldatacopy(0, 0, calldatasize())
-            // execute function call using the facet
+            // Execute function delegatecall.
             let result := delegatecall(
                 gas(),
                 _baseLibraryAddress,
@@ -343,9 +341,9 @@ abstract contract BaseStrategy is IBaseStrategy {
                 0,
                 0
             )
-            // get any return value
+            // Get any return value
             returndatacopy(0, 0, returndatasize())
-            // return any return value or error back to the caller
+            // Return any return value or error back to the caller
             switch result
             case 0 {
                 revert(0, returndatasize())
@@ -356,5 +354,12 @@ abstract contract BaseStrategy is IBaseStrategy {
         }
     }
 
+    /**
+    * We are forced to have a receive function do to
+    * implementing a fallback function.
+    *
+    * NOTE: ETH should not be sent to the strategy unless
+    * designed for within the implementation
+    */ 
     receive() external payable {}
 }
