@@ -26,7 +26,6 @@ import "forge-std/console.sol";
 //      add unchecked {} where applicable
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
-//      unsafe math library for easy unchecked
 //      Check rounding for all convertTo internal uses
 
 library BaseLibrary {
@@ -292,7 +291,7 @@ library BaseLibrary {
         // cache storage pointer
         BaseStrategyData storage S = _baseStrategyStorgage();
 
-        // make sure we aren't initiliazed.
+        // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
         // set the strategys underlying asset
         S.asset = ERC20(_asset);
@@ -514,7 +513,10 @@ library BaseLibrary {
         _asset.safeTransferFrom(msg.sender, address(this), assets);
 
         // We will deposit up to current idle plus the new amount added
-        uint256 toInvest = S.totalIdle + assets;
+        uint256 toInvest;
+        unchecked {
+            toInvest = S.totalIdle + assets;
+        }
 
         // Cache for post {invest} checks.
         uint256 beforeBalance = _asset.balanceOf(address(this));
@@ -681,18 +683,19 @@ library BaseLibrary {
         uint256 _invested = IBaseStrategy(address(this)).totalInvested();
 
         uint256 performanceFees;
+        unchecked {
+            // Calculate profit/loss
+            if (_invested > oldTotalAssets) {
+                // We have a profit
+                profit = _invested - oldTotalAssets;
 
-        // Calculate profit/loss
-        if (_invested > oldTotalAssets) {
-            // We have a profit
-            profit = _invested - oldTotalAssets;
-
-            // Asses performance fees
-            performanceFees = (profit * S.performanceFee) / MAX_BPS;
-            totalFees += performanceFees;
-        } else {
-            // We have a loss
-            loss = oldTotalAssets - _invested;
+                // Asses performance fees
+                performanceFees = (profit * S.performanceFee) / MAX_BPS;
+                totalFees += performanceFees;
+            } else {
+                // We have a loss
+                loss = oldTotalAssets - _invested;
+            }
         }
 
         // We need to get the shares for fees to issue at current PPS before any minting or burning
@@ -741,7 +744,9 @@ library BaseLibrary {
                 uint256 remainingTime;
                 uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
                 if (_fullProfitUnlockDate > block.timestamp) {
-                    remainingTime = _fullProfitUnlockDate - block.timestamp;
+                    unchecked {
+                        remainingTime = _fullProfitUnlockDate - block.timestamp;
+                    }
                 }
 
                 uint256 previouslyLockedShares = totalLockedShares -
@@ -901,16 +906,22 @@ library BaseLibrary {
                 beforeBalance - afterBalance,
                 _totalIdle
             );
-            S.totalIdle -= invested;
-            S.totalDebt += invested;
+
+            unchecked {
+                S.totalIdle -= invested;
+                S.totalDebt += invested;
+            }
         } else if (afterBalance > beforeBalance) {
             // We default to use any funds freed as idle for cheaper withdraw/redeems.
             uint256 harvested = Math.min(
                 afterBalance - beforeBalance,
                 S.totalDebt
             );
-            S.totalIdle += harvested;
-            S.totalDebt -= harvested;
+
+            unchecked {
+                S.totalIdle += harvested;
+                S.totalDebt -= harvested;
+            }
         }
     }
 
