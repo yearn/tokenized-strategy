@@ -6,6 +6,11 @@ import {Setup, DiamondHelper, MockFactory, ERC20Mock, MockYieldSource, IMockStra
 
 import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 
-contract LockedStrategyTest is Setup {
-    function setUp() public override {}
+contract e2eTest is Setup {
+    function setUp() public override {
+        super.setUp();
+    }
+
+    // TODO: multiple deposits/mints/redeem/withdraw and reports
+    //      Multiple strategies added to the same library, deposits/storage check
 }

@@ -18,6 +18,10 @@ contract ERC20BaseTest is Setup {
 
     function invariant_metadata() public {
         assertEq(strategy.name(), "Test Strategy");
+        assertEq(
+            strategy.symbol(),
+            string(abi.encodePacked("ys", asset.symbol()))
+        );
         assertEq(strategy.decimals(), 18);
     }
 

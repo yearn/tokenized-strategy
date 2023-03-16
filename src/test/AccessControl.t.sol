@@ -168,14 +168,18 @@ contract AccesssControlTest is Setup {
 
         vm.prank(management);
         vm.expectRevert("!init");
-        strategy.initialize(address(asset), name_, _address);
+        strategy.initialize(
+            address(asset),
+            name_,
+            _address,
+            _address,
+            _address
+        );
 
         assertEq(strategy.name(), _name);
         assertEq(strategy.symbol(), _symbol);
         assertEq(strategy.management(), _management);
     }
-
-    // TODO: add test to re init on the library
 
     function test_accessControl_invest(
         address _address,

@@ -3,15 +3,32 @@
 pragma solidity 0.8.14;
 
 import {IBaseLibrary} from "../../interfaces/IBaseLibrary.sol";
-import {IBaseStrategy} from "../../interfaces/IBaseStrategy.sol";
 
 // Interface to use during testing that implements the 4626 standard the Library functions and the Strategies immutable functions
 interface IMockStrategy is IBaseLibrary {
     function initialize(
         address _asset,
         string memory name_,
-        address _management
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
     ) external;
+
+    function clone(
+        address _asset,
+        address _yieldSource
+    ) external returns (address clone);
+
+    function _clone(
+        address _asset,
+        string memory _name,
+        address _management,
+        address _pfr,
+        address _keeper,
+        address _yieldSource
+    ) external returns (address clone);
+
+    function isOriginal() external view returns (bool);
 
     function availableDepositLimit(
         address _owner
