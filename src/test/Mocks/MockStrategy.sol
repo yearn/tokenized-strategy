@@ -8,6 +8,9 @@ import {BaseStrategy} from "../../BaseStrategy.sol";
 
 contract MockStrategy is BaseStrategy {
     address public yieldSource;
+    bool public trigger;
+    bool public managed;
+    bool public kept;
 
     constructor(
         address _asset,
@@ -43,10 +46,18 @@ contract MockStrategy is BaseStrategy {
         }
     }
 
+    function tendTrigger() external view override returns (bool) {
+        return trigger;
+    }
+
+    function setTrigger(bool _trigger) external {
+        trigger = _trigger;
+    }
+
     function clone(
         address _asset,
         address _yieldSource
-    ) external returns (address clone) {
+    ) external returns (address) {
         return
             _clone(
                 _asset,
@@ -68,5 +79,13 @@ contract MockStrategy is BaseStrategy {
     ) public returns (address clone) {
         clone = BaseLibrary.clone(_asset, _name, _management, _pfr, _keeper);
         MockStrategy(payable(clone)).initialize(_asset, _yieldSource);
+    }
+
+    function onlyLetManagers() public onlyManagement {
+        managed = true;
+    }
+
+    function onlyLetKeepersIn() public onlyKeepers {
+        kept = true;
     }
 }

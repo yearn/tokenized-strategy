@@ -20,9 +20,9 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
         address _keeper
     ) external;
 
-    function isKeeperOrManagement() external;
+    function isKeeperOrManagement(address _sender) external;
 
-    function isManagement() external;
+    function isManagement(address _sender) external;
 
     function tend() external;
 

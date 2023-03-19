@@ -13,25 +13,77 @@ contract CutsomImplementationsTest is Setup {
 
     function test_customWithdrawLimit(
         address _address,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
         vm.assume(_address != address(0) && _address != address(strategy));
+
+        uint256 profit = _amount * _profitFactor / MAX_BPS;
 
         strategy = IMockStrategy(setUpIlliquidStrategy());
 
+        setFees(0, 0);
+
         mintAndDepositIntoStrategy(_address, _amount);
+
+        uint256 idle = strategy.totalIdle();
+        assertGt(idle, 0);
 
         // Assure we have a withdraw limit
         assertEq(
             strategy.availableWithdrawLimit(_address),
-            strategy.totalIdle()
+            idle
         );
-        assertGt(strategy.totalAssets(), strategy.totalIdle());
+        assertGt(strategy.totalAssets(), idle);
 
+        // Make sure max withdraw and redeem return the correct amounts
+        assertEq(strategy.maxWithdraw(_address), idle);
+        assertEq(strategy.maxRedeem(_address), strategy.convertToShares(idle));
+    
         vm.expectRevert("ERC4626: withdraw more than max");
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
+
+        createAndCheckProfit(profit, 0, 0);
+
+        increaseTimeAndCheckBuffer(5 days, profit / 2);
+
+        idle = strategy.totalIdle();
+        assertGt(idle, 0);
+
+        // Assure we have a withdraw limit
+        assertEq(
+            strategy.availableWithdrawLimit(_address),
+            idle
+        );
+        assertGt(strategy.totalAssets(), idle);
+
+        // Make sure max withdraw and redeem return the correct amounts
+        assertEq(strategy.maxWithdraw(_address), idle);
+        assertEq(strategy.maxRedeem(_address), strategy.previewWithdraw(idle));
+    
+        vm.expectRevert("ERC4626: withdraw more than max");
+        vm.prank(_address);
+        strategy.redeem(_amount, _address, _address);
+
+        uint256 before = asset.balanceOf(_address);
+        uint256 redeem = strategy.previewWithdraw(idle);
+
+        vm.prank(_address);
+        strategy.redeem(redeem, _address, _address);
+
+        // We need to give a i wei rounding buffer
+        assertApproxEq(asset.balanceOf(_address) - before, idle, 1);
+        assertApproxEq(strategy.totalIdle(), 0, 1);
+        assertApproxEq(
+            strategy.availableWithdrawLimit(_address),
+            0,
+            1
+        );
+        assertApproxEq(strategy.maxWithdraw(_address), 0, 1);
+        assertApproxEq(strategy.maxRedeem(_address), 0, 1);
     }
 
     function test_customDepositLimit(
@@ -53,6 +105,11 @@ contract CutsomImplementationsTest is Setup {
 
         setupWhitelist(_allowed);
 
+        assertEq(strategy.maxDeposit(_allowed), type(uint256).max);
+        assertEq(strategy.maxMint(_allowed), type(uint256).max);
+        assertEq(strategy.maxDeposit(_notAllowed), 0);
+        assertEq(strategy.maxMint(_notAllowed), 0);
+
         // Deposit should work fine for normal
         mintAndDepositIntoStrategy(_allowed, _amount);
 
@@ -68,8 +125,66 @@ contract CutsomImplementationsTest is Setup {
         strategy.deposit(_amount, _notAllowed);
     }
 
-    // TODO:
-    //      Tend trigger
-    //       Modifiers
-    //         MAx mint/redeem
+    function test_tendTrigger(address _address, uint256 _amount) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        vm.assume(_address != address(0) && _address != address(strategy));
+
+        // Should be false
+        assertTrue(!strategy.tendTrigger());
+
+        mintAndDepositIntoStrategy(_address, _amount);
+
+        // Should still be false
+        assertTrue(!strategy.tendTrigger());
+
+        strategy.setTrigger(true);
+
+        // Make sure it overrides correctly
+        assertTrue(strategy.tendTrigger());
+    }
+
+    function test_onlyManagementModifier(address _address) public {
+        vm.assume(_address != management && _address != address(strategy)); 
+
+        assertTrue(!strategy.managed());
+
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.prank(_address);
+        strategy.onlyLetManagers();
+
+        assertTrue(!strategy.managed());
+
+        vm.prank(management);
+        strategy.onlyLetManagers();
+
+        assertTrue(strategy.managed());
+    }
+
+    function test_onlyKeepersModifier(address _address) public {
+        vm.assume(_address != keeper && _address != management && _address != address(strategy));
+
+        assertTrue(!strategy.kept());
+
+        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.prank(_address);
+        strategy.onlyLetKeepersIn();
+
+        assertTrue(!strategy.kept());
+
+        vm.prank(keeper);
+        strategy.onlyLetKeepersIn();
+
+        assertTrue(strategy.kept());
+
+        // Reset the slot holding the bools all to false.
+        vm.store(address(strategy), bytes32(uint256(2)), bytes32(0));
+
+        assertTrue(!strategy.kept());
+
+        // Make sure management works as well
+        vm.prank(management);
+        strategy.onlyLetKeepersIn();
+
+        assertTrue(strategy.kept());
+    }
 }

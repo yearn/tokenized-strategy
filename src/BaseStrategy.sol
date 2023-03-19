@@ -17,12 +17,12 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     modifier onlyManagement() {
-        BaseLibrary.isManagement();
+        BaseLibrary.isManagement(msg.sender);
         _;
     }
 
     modifier onlyKeepers() {
-        BaseLibrary.isKeeperOrManagement();
+        BaseLibrary.isKeeperOrManagement(msg.sender);
         _;
     }
 

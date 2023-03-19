@@ -24,7 +24,7 @@ contract DiamondHelperTest is Setup {
         }
     }
 
-    function isASelector(bytes4 _selector) public returns (bool) {
+    function isASelector(bytes4 _selector) public pure returns (bool) {
         bytes4[] memory _selectors = getSelectors();
 
         for (uint256 i; i < _selectors.length; ++i) {

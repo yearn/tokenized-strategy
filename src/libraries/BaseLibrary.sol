@@ -23,10 +23,8 @@ import "forge-std/console.sol";
 /// TODO:
 //      Bump sol version
 //      Does base strategy need to hold events?
-//      add unchecked {} where applicable
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
-//      Check rounding for all convertTo internal uses
 
 library BaseLibrary {
     using SafeERC20 for ERC20;
@@ -183,12 +181,12 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyManagement() {
-        isManagement();
+        isManagement(msg.sender);
         _;
     }
 
     modifier onlyKeepers() {
-        isKeeperOrManagement();
+        isKeeperOrManagement(msg.sender);
         _;
     }
 
@@ -212,14 +210,14 @@ library BaseLibrary {
 
     // These are left public to allow for the strategy to use them as well.
 
-    function isManagement() public view {
-        if (msg.sender != _baseStrategyStorgage().management)
+    function isManagement(address _sender) public view {
+        if (_sender != _baseStrategyStorgage().management)
             revert Unauthorized();
     }
 
-    function isKeeperOrManagement() public view {
+    function isKeeperOrManagement(address _sender) public view {
         BaseStrategyData storage S = _baseStrategyStorgage();
-        if (msg.sender != S.management && msg.sender != S.keeper)
+        if (_sender != S.management && _sender != S.keeper)
             revert Unauthorized();
     }
 
@@ -464,7 +462,8 @@ library BaseLibrary {
             _maxRedeem = balanceOf(_owner);
         } else {
             _maxRedeem = Math.min(
-                convertToShares(_maxRedeem),
+                // Use preview withdraw to round up
+                previewWithdraw(_maxRedeem),
                 balanceOf(_owner)
             );
         }
