@@ -20,7 +20,7 @@ contract CutsomImplementationsTest is Setup {
         _profitFactor = bound(_profitFactor, 10, MAX_BPS);
         vm.assume(_address != address(0) && _address != address(strategy));
 
-        uint256 profit = _amount * _profitFactor / MAX_BPS;
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
         strategy = IMockStrategy(setUpIlliquidStrategy());
 
@@ -32,16 +32,13 @@ contract CutsomImplementationsTest is Setup {
         assertGt(idle, 0);
 
         // Assure we have a withdraw limit
-        assertEq(
-            strategy.availableWithdrawLimit(_address),
-            idle
-        );
+        assertEq(strategy.availableWithdrawLimit(_address), idle);
         assertGt(strategy.totalAssets(), idle);
 
         // Make sure max withdraw and redeem return the correct amounts
         assertEq(strategy.maxWithdraw(_address), idle);
         assertEq(strategy.maxRedeem(_address), strategy.convertToShares(idle));
-    
+
         vm.expectRevert("ERC4626: withdraw more than max");
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
@@ -54,16 +51,13 @@ contract CutsomImplementationsTest is Setup {
         assertGt(idle, 0);
 
         // Assure we have a withdraw limit
-        assertEq(
-            strategy.availableWithdrawLimit(_address),
-            idle
-        );
+        assertEq(strategy.availableWithdrawLimit(_address), idle);
         assertGt(strategy.totalAssets(), idle);
 
         // Make sure max withdraw and redeem return the correct amounts
         assertEq(strategy.maxWithdraw(_address), idle);
         assertEq(strategy.maxRedeem(_address), strategy.previewWithdraw(idle));
-    
+
         vm.expectRevert("ERC4626: withdraw more than max");
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
@@ -77,11 +71,7 @@ contract CutsomImplementationsTest is Setup {
         // We need to give a i wei rounding buffer
         assertApproxEq(asset.balanceOf(_address) - before, idle, 1);
         assertApproxEq(strategy.totalIdle(), 0, 1);
-        assertApproxEq(
-            strategy.availableWithdrawLimit(_address),
-            0,
-            1
-        );
+        assertApproxEq(strategy.availableWithdrawLimit(_address), 0, 1);
         assertApproxEq(strategy.maxWithdraw(_address), 0, 1);
         assertApproxEq(strategy.maxRedeem(_address), 0, 1);
     }
@@ -144,7 +134,7 @@ contract CutsomImplementationsTest is Setup {
     }
 
     function test_onlyManagementModifier(address _address) public {
-        vm.assume(_address != management && _address != address(strategy)); 
+        vm.assume(_address != management && _address != address(strategy));
 
         assertTrue(!strategy.managed());
 
@@ -161,7 +151,11 @@ contract CutsomImplementationsTest is Setup {
     }
 
     function test_onlyKeepersModifier(address _address) public {
-        vm.assume(_address != keeper && _address != management && _address != address(strategy));
+        vm.assume(
+            _address != keeper &&
+                _address != management &&
+                _address != address(strategy)
+        );
 
         assertTrue(!strategy.kept());
 
