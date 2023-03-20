@@ -252,7 +252,6 @@ contract e2eTest is Setup {
 
             mintAndDepositIntoStrategy(newStrategy, _address, toDeposit);
 
-
             checkStrategyTotals(
                 newStrategy,
                 toDeposit,

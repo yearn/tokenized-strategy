@@ -1306,4 +1306,4 @@ contract ProfitLockingTest is Setup {
 }
 
 // TODO:
-//      read the unlocking rate and time 
+//      read the unlocking rate and time

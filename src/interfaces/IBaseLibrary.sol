@@ -11,13 +11,10 @@ import {IDiamondLoupe} from "./IDiamondLoupe.sol";
 
 // Interface to use during testing that implements the 4626 standard the Library functions and the Strategies immutable functions
 interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
-    
     struct BaseStrategyData {
         // The ERC20 compliant underlying asset that will be
         // used by the implementation contract.
         ERC20 asset;
-        
-
         // These are the corresponding ERC20 variables needed for the
         // token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals the asset and strategy use
@@ -29,13 +26,9 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
-        
-
         // Assets data to track totals the strategy holds.
         uint256 totalIdle; // The total amount of loose `asset` the strategy holds.
         uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy
-        
-
         // Variables for profit reporting and locking
         uint256 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
@@ -43,8 +36,6 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
         uint256 lastReport; // The last time a {report} was called.
         uint16 performanceFee; // The percent in Basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
-        
-
         // Access management addressess for permisssioned functions.
         address management; // Main address that can set all configurable variables.
         address keeper; // Address given permission to call {report} and {tend}.

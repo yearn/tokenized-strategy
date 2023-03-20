@@ -26,7 +26,7 @@ interface IFactory {
 library BaseLibrary {
     using Math for uint256;
     using SafeERC20 for ERC20;
-    
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -166,7 +166,6 @@ library BaseLibrary {
         address keeper; // Address given permission to call {report} and {tend}.
         bool entered; // Bool to prevent reentrancy.
     }
-
 
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
@@ -774,9 +773,9 @@ library BaseLibrary {
                     (totalLockedShares * MAX_BPS_EXTENDED) /
                     newProfitLockingPeriod;
 
-                S.fullProfitUnlockDate =
-                    uint128(block.timestamp +
-                    newProfitLockingPeriod);
+                S.fullProfitUnlockDate = uint128(
+                    block.timestamp + newProfitLockingPeriod
+                );
             } else {
                 // Only setting this to 0 will turn in the desired effect,
                 // no need to update fullProfitUnlockDate
@@ -1032,7 +1031,9 @@ library BaseLibrary {
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
         require(_profitMaxUnlockTime <= 31_556_952, "to long");
-        _baseStrategyStorgage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
+        _baseStrategyStorgage().profitMaxUnlockTime = uint32(
+            _profitMaxUnlockTime
+        );
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
