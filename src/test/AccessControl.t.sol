@@ -79,7 +79,7 @@ contract AccesssControlTest is Setup {
         address _management = strategy.management();
 
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.setManagement(address(69));
 
         assertEq(strategy.management(), _management);
@@ -91,7 +91,7 @@ contract AccesssControlTest is Setup {
         address _keeper = strategy.keeper();
 
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.setKeeper(address(69));
 
         assertEq(strategy.keeper(), _keeper);
@@ -107,7 +107,7 @@ contract AccesssControlTest is Setup {
         uint256 _performanceFee = strategy.performanceFee();
 
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.setPerformanceFee(_amount);
 
         assertEq(strategy.performanceFee(), _performanceFee);
@@ -125,7 +125,7 @@ contract AccesssControlTest is Setup {
         address _performanceFeeRecipient = strategy.performanceFeeRecipient();
 
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.setPerformanceFeeRecipient(address(69));
 
         assertEq(strategy.performanceFeeRecipient(), _performanceFeeRecipient);
@@ -141,7 +141,7 @@ contract AccesssControlTest is Setup {
         uint256 profitMaxUnlockTime = strategy.profitMaxUnlockTime();
 
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.setProfitMaxUnlockTime(_amount);
 
         assertEq(strategy.profitMaxUnlockTime(), profitMaxUnlockTime);
@@ -193,11 +193,11 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.invest(_amount, _reported);
 
         vm.prank(management);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.invest(_amount, _reported);
 
         assertEq(asset.balanceOf(address(yieldSource)), 0);
@@ -217,7 +217,7 @@ contract AccesssControlTest is Setup {
         vm.assume(_address != address(strategy));
 
         // deposit into the vault and should invest funds
-        mintAndDepositIntoStrategy(user, _amount);
+        mintAndDepositIntoStrategy(strategy, user, _amount);
 
         // assure the deposit worked correctly
         assertEq(asset.balanceOf(address(yieldSource)), _amount);
@@ -225,13 +225,13 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.freeFunds(_amount);
         (_amount);
 
         // doesnt work from management either
         vm.prank(management);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.freeFunds(_amount);
 
         assertEq(asset.balanceOf(address(strategy)), 0);
@@ -251,7 +251,7 @@ contract AccesssControlTest is Setup {
         vm.assume(_address != address(strategy));
 
         // deposit into the vault and should invest funds
-        mintAndDepositIntoStrategy(user, _amount);
+        mintAndDepositIntoStrategy(strategy, user, _amount);
 
         // assure the deposit worked correctly
         assertEq(asset.balanceOf(address(yieldSource)), _amount);
@@ -259,12 +259,12 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.totalInvested();
 
         // doesnt work from management either
         vm.prank(management);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.totalInvested();
 
         vm.prank(address(strategy));
@@ -282,7 +282,7 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.tendThis(_amount);
 
         vm.prank(address(strategy));
@@ -297,7 +297,7 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         strategy.tend();
 
         vm.prank(keeper);

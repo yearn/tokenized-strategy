@@ -20,7 +20,11 @@ contract MockFactory {
         lastChange = uint32(block.timestamp);
     }
 
-    function protocol_fee_config() external returns (uint16, uint32, address) {
+    function protocol_fee_config()
+        external
+        view
+        returns (uint16, uint32, address)
+    {
         return (feeBps, lastChange, recipient);
     }
 }

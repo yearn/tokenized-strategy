@@ -2,7 +2,7 @@
 pragma solidity ^0.8.14;
 
 import "forge-std/console.sol";
-import {Setup, DiamondHelper, MockFactory, ERC20Mock, MockYieldSource, IMockStrategy} from "./utils/Setup.sol";
+import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
 import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 
@@ -14,10 +14,10 @@ contract CutsomImplementationsTest is Setup {
     function test_customWithdrawLimit(
         address _address,
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(_address != address(0) && _address != address(strategy));
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
@@ -26,7 +26,7 @@ contract CutsomImplementationsTest is Setup {
 
         setFees(0, 0);
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         uint256 idle = strategy.totalIdle();
         assertGt(idle, 0);
@@ -43,9 +43,9 @@ contract CutsomImplementationsTest is Setup {
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
 
-        createAndCheckProfit(profit, 0, 0);
+        createAndCheckProfit(strategy, profit, 0, 0);
 
-        increaseTimeAndCheckBuffer(5 days, profit / 2);
+        increaseTimeAndCheckBuffer(strategy, 5 days, profit / 2);
 
         idle = strategy.totalIdle();
         assertGt(idle, 0);
@@ -101,7 +101,7 @@ contract CutsomImplementationsTest is Setup {
         assertEq(strategy.maxMint(_notAllowed), 0);
 
         // Deposit should work fine for normal
-        mintAndDepositIntoStrategy(_allowed, _amount);
+        mintAndDepositIntoStrategy(strategy, _allowed, _amount);
 
         // Assure we deposit correctly
         assertEq(strategy.totalAssets(), _amount);
@@ -122,7 +122,7 @@ contract CutsomImplementationsTest is Setup {
         // Should be false
         assertTrue(!strategy.tendTrigger());
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         // Should still be false
         assertTrue(!strategy.tendTrigger());
@@ -138,7 +138,7 @@ contract CutsomImplementationsTest is Setup {
 
         assertTrue(!strategy.managed());
 
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         vm.prank(_address);
         strategy.onlyLetManagers();
 
@@ -159,7 +159,7 @@ contract CutsomImplementationsTest is Setup {
 
         assertTrue(!strategy.kept());
 
-        vm.expectRevert(BaseLibrary.Unauthorized.selector);
+        vm.expectRevert("!Authorized");
         vm.prank(_address);
         strategy.onlyLetKeepersIn();
 

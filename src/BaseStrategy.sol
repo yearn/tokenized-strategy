@@ -7,7 +7,7 @@ import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
 
 import "forge-std/console.sol";
 
-abstract contract BaseStrategy is IBaseStrategy {
+abstract contract BaseStrategy {
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
@@ -27,7 +27,7 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     function _onlySelf() internal view {
-        if (msg.sender != address(this)) revert Unauthorized();
+        require(msg.sender == address(this), "!Authorized");
     }
 
     /*//////////////////////////////////////////////////////////////

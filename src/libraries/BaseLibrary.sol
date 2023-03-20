@@ -111,12 +111,6 @@ library BaseLibrary {
     event Cloned(address indexed clone);
 
     /*//////////////////////////////////////////////////////////////
-                                Errors
-    //////////////////////////////////////////////////////////////*/
-
-    error Unauthorized();
-
-    /*//////////////////////////////////////////////////////////////
                         STORAGE STRUCT
     //////////////////////////////////////////////////////////////*/
 
@@ -192,7 +186,7 @@ library BaseLibrary {
 
     /**
      * @dev Prevents a contract from calling itself, directly or indirectly.
-     *  Placed over all state changing function for increased safety.
+     *  Placed over all state changing functions for increased safety.
      */
     modifier nonReentrant() {
         BaseStrategyData storage S = _baseStrategyStorgage();
@@ -208,17 +202,28 @@ library BaseLibrary {
         S.entered = false;
     }
 
-    // These are left public to allow for the strategy to use them as well.
-
+    /**
+     * @notice To check if a sender is the management for a specific strategy.
+     * @dev Is left public so that it can be used by the implementation.
+     *
+     * When the implementations calls this the msg.sender would be the
+     * address of the strategy so we need to specify the sender.
+     */
     function isManagement(address _sender) public view {
-        if (_sender != _baseStrategyStorgage().management)
-            revert Unauthorized();
+        require(_sender == _baseStrategyStorgage().management, "!Authorized");
     }
 
+    /**
+     * @notice To check if a sender is the keeper or management
+     * for a specific strategy.
+     * @dev Is left public so that it can be used by the implementation.
+     *
+     * When the implementations calls this the msg.sender would be the
+     * address of the strategy so we need to specify the sender.
+     */
     function isKeeperOrManagement(address _sender) public view {
         BaseStrategyData storage S = _baseStrategyStorgage();
-        if (_sender != S.management && _sender != S.keeper)
-            revert Unauthorized();
+        require(_sender == S.keeper || _sender == S.management, "!Authorized");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -262,6 +267,14 @@ library BaseLibrary {
                     STORAGE GETTER FUNCTION
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev will return the actaul storage slot where the strategy
+     * sepcific `BaseStrategyData` struct is stored for both read
+     * add write operations.
+     *
+     * This loads just the slot location, not the full struct
+     * so it can be used in a gas effecient manner.
+     */
     function _baseStrategyStorgage()
         private
         pure
@@ -485,13 +498,14 @@ library BaseLibrary {
     }
 
     /**
-     * @dev Function to be called during {deposit} and {mint} after
-     * all neccesary checks have been completed.
+     * @dev Function to be called during {deposit} and {mint}.
      *
-     * This function handles all logic including transfers, minting and accounting.
+     * This function handles all logic including transfers,
+     * minting and accounting.
      *
-     * We do all external calls before updating any internal values to prevent
-     * re-entrancy from the token transfers or the _invest() calls.
+     * We do all external calls before updating any internal
+     * values to prevent view re-entrancy issues from the token
+     * transfers or the _invest() calls.
      */
     function _deposit(
         address receiver,
@@ -545,11 +559,10 @@ library BaseLibrary {
     }
 
     /**
-     * @dev To be called after all neccesary checks have been done in
-     * {redeem} and {withdraw}.
+     * @dev To be called during {redeem} and {withdraw}.
      *
-     * This will handle all logic, transfers and accounting in order to
-     * service the withdraw request.
+     * This will handle all logic, transfers and accounting
+     * in order to service the withdraw request.
      *
      * If we are not able to withdraw the full amount needed, it will
      * be counted as a loss and passed on to the user.
@@ -598,6 +611,7 @@ library BaseLibrary {
                 unchecked {
                     loss = assets - idle;
                 }
+                // Lower the amount to be sent
                 assets = idle;
             }
 
@@ -814,7 +828,7 @@ library BaseLibrary {
 
         if (protocolFeeBps > 0) {
             protocolFeesRecipient = _protocolFeesRecipient;
-            // NOTE: charge fees since last report OR last fee change
+            // Charge fees since last report OR last fee change
             // (this will mean less fees are charged after a change
             // in protocol_fees, but fees should not change frequently)
             uint256 secondsSinceLastReport = Math.min(
@@ -851,9 +865,11 @@ library BaseLibrary {
         uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         uint256 unlockedShares;
         if (_fullProfitUnlockDate > block.timestamp) {
-            unlockedShares =
-                (S.profitUnlockingRate * (block.timestamp - S.lastReport)) /
-                MAX_BPS_EXTENDED;
+            unchecked {
+                unlockedShares =
+                    (S.profitUnlockingRate * (block.timestamp - S.lastReport)) /
+                    MAX_BPS_EXTENDED;
+            }
         } else if (_fullProfitUnlockDate != 0) {
             // All shares have been unlocked
             unlockedShares = S.balances[address(this)];
@@ -927,8 +943,6 @@ library BaseLibrary {
     /*//////////////////////////////////////////////////////////////
                         Getter FUNCIONS
     //////////////////////////////////////////////////////////////*/
-
-    // External view function to pull public variables from storage
 
     /**
      * @notice Get the api version for this Library.

@@ -15,12 +15,12 @@ contract MockYieldSource {
     }
 
     function withdraw(uint256 _amount) public {
-        uint256 balance = ERC20(asset).balanceOf(address(this));
-        _amount = _amount > balance ? balance : _amount;
+        uint256 _balance = ERC20(asset).balanceOf(address(this));
+        _amount = _amount > _balance ? _balance : _amount;
         ERC20(asset).transfer(msg.sender, _amount);
     }
 
-    function balance() public returns (uint256) {
+    function balance() public view returns (uint256) {
         return ERC20(asset).balanceOf(address(this));
     }
 

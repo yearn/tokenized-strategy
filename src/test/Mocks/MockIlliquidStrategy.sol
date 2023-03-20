@@ -19,7 +19,7 @@ contract MockIlliquidStrategy is BaseStrategy {
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
     }
 
-    function _invest(uint256 _amount, bool _reported) internal override {
+    function _invest(uint256 _amount, bool /*_reported*/) internal override {
         MockYieldSource(yieldSource).deposit(_amount / 2);
     }
 
@@ -33,7 +33,7 @@ contract MockIlliquidStrategy is BaseStrategy {
             ERC20(asset).balanceOf(address(this));
     }
 
-    function _tend(uint256 _idle) internal override {
+    function _tend(uint256 /*_idle*/) internal override {
         uint256 balance = MockYieldSource(yieldSource).balance();
         if (balance > 0) {
             MockYieldSource(yieldSource).withdraw(balance);
@@ -51,7 +51,7 @@ contract MockIlliquidStrategy is BaseStrategy {
     }
 
     function availableWithdrawLimit(
-        address _owner
+        address /*_owner*/
     ) public view override returns (uint256) {
         return BaseLibrary.totalIdle();
     }

@@ -25,7 +25,7 @@ contract MockStrategy is BaseStrategy {
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
     }
 
-    function _invest(uint256 _amount, bool _reported) internal override {
+    function _invest(uint256 _amount, bool /* _reported*/) internal override {
         MockYieldSource(yieldSource).deposit(_amount);
     }
 
@@ -76,9 +76,9 @@ contract MockStrategy is BaseStrategy {
         address _pfr,
         address _keeper,
         address _yieldSource
-    ) public returns (address clone) {
-        clone = BaseLibrary.clone(_asset, _name, _management, _pfr, _keeper);
-        MockStrategy(payable(clone)).initialize(_asset, _yieldSource);
+    ) public returns (address clone_) {
+        clone_ = BaseLibrary.clone(_asset, _name, _management, _pfr, _keeper);
+        MockStrategy(payable(clone_)).initialize(_asset, _yieldSource);
     }
 
     function onlyLetManagers() public onlyManagement {

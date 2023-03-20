@@ -78,94 +78,106 @@ contract Setup is ExtendedTest {
         vm.label(address(mockFactory), "mock Factory");
     }
 
-    function mintAndDepositIntoStrategy(address _user, uint256 _amount) public {
+    function mintAndDepositIntoStrategy(
+        IMockStrategy _strategy,
+        address _user,
+        uint256 _amount
+    ) public {
         asset.mint(_user, _amount);
         vm.prank(_user);
-        asset.approve(address(strategy), _amount);
+        asset.approve(address(_strategy), _amount);
 
         vm.prank(_user);
-        strategy.deposit(_amount, _user);
+        _strategy.deposit(_amount, _user);
     }
 
     function checkStrategyTotals(
+        IMockStrategy _strategy,
         uint256 _totalAssets,
         uint256 _totalDebt,
         uint256 _totalIdle,
         uint256 _totalSupply
     ) public {
-        assertEq(strategy.totalAssets(), _totalAssets, "!totalAssets");
-        assertEq(strategy.totalDebt(), _totalDebt, "!totalDebt");
-        assertEq(strategy.totalIdle(), _totalIdle, "!totalIdle");
+        assertEq(_strategy.totalAssets(), _totalAssets, "!totalAssets");
+        assertEq(_strategy.totalDebt(), _totalDebt, "!totalDebt");
+        assertEq(_strategy.totalIdle(), _totalIdle, "!totalIdle");
         assertEq(_totalAssets, _totalDebt + _totalIdle, "!Added");
         // We give supply a buffer or 1 wei for rounding
-        assertApproxEq(strategy.totalSupply(), _totalSupply, 1, "!supply");
+        assertApproxEq(_strategy.totalSupply(), _totalSupply, 1, "!supply");
     }
 
     // For checks without totalSupply while profit is unlocking
     function checkStrategyTotals(
+        IMockStrategy _strategy,
         uint256 _totalAssets,
         uint256 _totalDebt,
         uint256 _totalIdle
     ) public {
-        assertEq(strategy.totalAssets(), _totalAssets, "!totalAssets");
-        assertEq(strategy.totalDebt(), _totalDebt, "!totalDebt");
-        assertEq(strategy.totalIdle(), _totalIdle, "!totalIdle");
+        assertEq(_strategy.totalAssets(), _totalAssets, "!totalAssets");
+        assertEq(_strategy.totalDebt(), _totalDebt, "!totalDebt");
+        assertEq(_strategy.totalIdle(), _totalIdle, "!totalIdle");
         assertEq(_totalAssets, _totalDebt + _totalIdle, "!Added");
     }
 
     function createAndCheckProfit(
+        IMockStrategy _strategy,
         uint256 profit,
         uint256 _protocolFees,
         uint256 _performanceFees
     ) public {
-        uint256 startingAssets = strategy.totalAssets();
-        asset.mint(address(strategy), profit);
+        uint256 startingAssets = _strategy.totalAssets();
+        asset.mint(address(_strategy), profit);
 
         // Check the event matches the expected values
-        vm.expectEmit(true, true, true, true, address(strategy));
+        vm.expectEmit(true, true, true, true, address(_strategy));
         emit BaseLibrary.Reported(profit, 0, _performanceFees, _protocolFees);
 
         vm.prank(keeper);
-        (uint256 _profit, uint256 _loss) = strategy.report();
+        (uint256 _profit, uint256 _loss) = _strategy.report();
 
         assertEq(profit, _profit, "profit reported wrong");
         assertEq(_loss, 0, "Reported loss");
         assertEq(
-            strategy.totalAssets(),
+            _strategy.totalAssets(),
             startingAssets + profit,
             "total assets wrong"
         );
     }
 
     function createAndCheckLoss(
+        IMockStrategy _strategy,
         uint256 loss,
         uint256 _protocolFees,
         uint256 _performanceFees
     ) public {
-        uint256 startingAssets = strategy.totalAssets();
+        uint256 startingAssets = _strategy.totalAssets();
 
         yieldSource.simulateLoss(loss);
         // Check the event matches the expected values
-        vm.expectEmit(true, true, false, true, address(strategy));
+        vm.expectEmit(true, true, false, true, address(_strategy));
         emit BaseLibrary.Reported(0, loss, _performanceFees, _protocolFees);
 
         vm.prank(keeper);
-        (uint256 _profit, uint256 _loss) = strategy.report();
+        (uint256 _profit, uint256 _loss) = _strategy.report();
 
         assertEq(0, _profit, "profit reported wrong");
         assertEq(_loss, loss, "Reported loss");
         assertEq(
-            strategy.totalAssets(),
+            _strategy.totalAssets(),
             startingAssets - loss,
             "total assets wrong"
         );
     }
 
-    function increaseTimeAndCheckBuffer(uint256 _time, uint256 _buffer) public {
+    function increaseTimeAndCheckBuffer(
+        IMockStrategy _strategy,
+        uint256 _time,
+        uint256 _buffer
+    ) public {
         skip(_time);
         // We give a buffer or 1 wei for rounding
         assertApproxEq(
-            strategy.balanceOf(address(strategy)),
+            _strategy.balanceOf(address(_strategy)),
             _buffer,
             1,
             "!Buffer"

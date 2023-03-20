@@ -12,10 +12,10 @@ contract AccountingTest is Setup {
     function test_airdropDoesNotIncreasePPS(
         address _address,
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(_address != address(0) && _address != address(strategy));
 
         // set fees to 0 for calculations simplicity
@@ -27,7 +27,7 @@ contract AccountingTest is Setup {
         assertEq(pricePerShare, wad);
 
         // deposit into the vault
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
@@ -55,10 +55,10 @@ contract AccountingTest is Setup {
     function test_airdropDoesNotIncreasePPS_reportRecordsIt(
         address _address,
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(_address != address(0) && _address != address(strategy));
 
         // set fees to 0 for calculations simplicity
@@ -69,7 +69,7 @@ contract AccountingTest is Setup {
         assertEq(pricePerShare, wad);
 
         // deposit into the vault
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
@@ -132,10 +132,10 @@ contract AccountingTest is Setup {
     function test_earningYieldDoesNotIncreasePPS(
         address _address,
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(_address != address(0) && _address != address(strategy));
 
         // set fees to 0 for calculations simplicity
@@ -146,7 +146,7 @@ contract AccountingTest is Setup {
         assertEq(pricePerShare, wad);
 
         // deposit into the strategy
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
@@ -174,10 +174,10 @@ contract AccountingTest is Setup {
     function test_earningYieldDoesNotIncreasePPS_reportRecodsIt(
         address _address,
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(_address != address(0) && _address != address(strategy));
 
         // set fees to 0 for calculations simplicity
@@ -189,7 +189,7 @@ contract AccountingTest is Setup {
         assertEq(pricePerShare, wad);
 
         // deposit into the vault
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
@@ -251,10 +251,10 @@ contract AccountingTest is Setup {
 
     function test_tend_noIdle_harvestProfit(
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _profitFactor = bound(_profitFactor, 1, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 1, MAX_BPS));
 
         setFees(0, 0);
         // nothing has happened pps should be 1
@@ -262,7 +262,7 @@ contract AccountingTest is Setup {
         assertEq(pricePerShare, wad);
 
         // deposit into the vault
-        mintAndDepositIntoStrategy(user, _amount);
+        mintAndDepositIntoStrategy(strategy, user, _amount);
 
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
@@ -311,10 +311,10 @@ contract AccountingTest is Setup {
 
     function test_tend_idleFunds_harvestProfit(
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _profitFactor = bound(_profitFactor, 1, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 1, MAX_BPS));
 
         // Use the illiquid mock strategy so it doesnt deposit all funds
         strategy = IMockStrategy(setUpIlliquidStrategy());
@@ -325,7 +325,7 @@ contract AccountingTest is Setup {
         assertEq(pricePerShare, wad);
 
         // deposit into the vault
-        mintAndDepositIntoStrategy(user, _amount);
+        mintAndDepositIntoStrategy(strategy, user, _amount);
 
         uint256 expectedDeposit = _amount / 2;
         assertEq(strategy.totalAssets(), _amount, "!assets");
@@ -385,14 +385,14 @@ contract AccountingTest is Setup {
     function test_withdrawWithUnrealizedLoss(
         address _address,
         uint256 _amount,
-        uint256 _lossFactor
+        uint16 _lossFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _lossFactor = bound(_lossFactor, 10, MAX_BPS);
+        _lossFactor = uint16(bound(uint256(_lossFactor), 10, MAX_BPS));
         vm.assume(_address != address(0) && _address != address(strategy));
 
         setFees(0, 0);
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         uint256 toLoose = (_amount * _lossFactor) / MAX_BPS;
         // Simulate a loss.

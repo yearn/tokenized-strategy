@@ -32,6 +32,8 @@ contract DiamondHelperTest is Setup {
                 return true;
             }
         }
+
+        return false;
     }
 
     // Check each one through the helper the base library and through the strategy

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.14;
 
 import "forge-std/console.sol";
-import {Setup, DiamondHelper, MockFactory, ERC20Mock, MockYieldSource, IMockStrategy} from "./utils/Setup.sol";
+import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
 import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 
@@ -28,9 +28,9 @@ contract CloningTest is Setup {
         assertEq(clonedStrategy.performanceFeeRecipient(), address(this));
 
         // Deposit into the original and make sure it only changes that one
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        checkStrategyTotals(_amount, _amount, 0, _amount);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         assertEq(clonedStrategy.totalAssets(), 0);
         assertEq(clonedStrategy.totalSupply(), 0);
@@ -46,7 +46,7 @@ contract CloningTest is Setup {
         clonedStrategy.deposit(clonedAmount, _address);
 
         // Nothing changes with OG
-        checkStrategyTotals(_amount, _amount, 0, _amount);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         // Deposit worked correctly in clone
         assertEq(clonedStrategy.totalAssets(), clonedAmount);
@@ -89,9 +89,9 @@ contract CloningTest is Setup {
         assertEq(clonedStrategy.keeper(), _keeper);
 
         // Deposit into the original and make sure it only changes that one
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        checkStrategyTotals(_amount, _amount, 0, _amount);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         assertEq(clonedStrategy.totalAssets(), 0);
         assertEq(clonedStrategy.totalSupply(), 0);
@@ -107,7 +107,7 @@ contract CloningTest is Setup {
         clonedStrategy.deposit(clonedAmount, _address);
 
         // Nothing changes with OG
-        checkStrategyTotals(_amount, _amount, 0, _amount);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         // Deposit worked correctly in clone
         assertEq(clonedStrategy.totalAssets(), clonedAmount);
@@ -164,7 +164,7 @@ contract CloningTest is Setup {
         );
 
         // Otherwise would work fine
-        address clone = strategy._clone(
+        strategy._clone(
             address(asset),
             "Test Namez",
             _mangement,
