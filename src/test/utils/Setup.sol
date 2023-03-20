@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 import "forge-std/console.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {IMockStrategy} from "../Mocks/IMockStrategy.sol";
 import {MockStrategy, MockYieldSource} from "../Mocks/MockStrategy.sol";
@@ -20,8 +21,6 @@ interface ERC {
     function name() external returns (string memory);
 }
 
-// TODO: add check strategy totals() to every function
-
 contract Setup is ExtendedTest {
     // Contract instancees that we will use repeatedly.
     ERC20Mock public asset;
@@ -31,20 +30,19 @@ contract Setup is ExtendedTest {
     DiamondHelper public diamondHelper;
 
     // Addresses for different roles we will use repeatedly.
+    address public user = address(10);
+    address public keeper = address(4);
     address public management = address(1);
     address public protocolFeeRecipient = address(2);
     address public performanceFeeRecipient = address(3);
-    address public keeper = address(4);
-    address public user = address(10);
 
     // Integer variables that will be used repeatedly.
-    // Fuzz from $0.01 of 1e6 stable coins up to 1 trillion of a 1e18 coin
-    uint256 public minFuzzAmount = 10_000;
-    uint256 public maxFuzzAmount = 1e30;
-    uint256 public MAX_BPS = 10_000;
-    // TODO: make these adjustable
     uint256 public decimals = 18;
+    uint256 public MAX_BPS = 10_000;
     uint256 public wad = 10 ** decimals;
+    // Fuzz from $0.01 of 1e6 stable coins up to 1 trillion of a 1e18 coin
+    uint256 public maxFuzzAmount = 1e30;
+    uint256 public minFuzzAmount = 10_000;
     uint256 public profitMaxUnlockTime = 10 days;
 
     function setUp() public virtual {
@@ -55,10 +53,12 @@ contract Setup is ExtendedTest {
         // deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
 
+        // Set the address of the library in the diamond Helper
         diamondHelper.setLibrary(address(BaseLibrary));
 
         // create asset we will be using as the underlying asset
         asset = new ERC20Mock();
+
         // create a mock yield source to deposit into
         yieldSource = new MockYieldSource(address(asset));
 
@@ -66,16 +66,66 @@ contract Setup is ExtendedTest {
         strategy = IMockStrategy(setUpStrategy());
 
         // label all the used addresses for traces
-        vm.label(management, "management");
         vm.label(keeper, "keeper");
-        vm.label(protocolFeeRecipient, "protocolFeeRecipient");
-        vm.label(performanceFeeRecipient, "performanceFeeRecipient");
         vm.label(address(asset), "asset");
+        vm.label(management, "management");
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");
+        vm.label(address(mockFactory), "mock Factory");
         vm.label(address(diamondHelper), "Diamond heleper");
         vm.label(address(yieldSource), "Mock Yield Source");
-        vm.label(address(mockFactory), "mock Factory");
+        vm.label(protocolFeeRecipient, "protocolFeeRecipient");
+        vm.label(performanceFeeRecipient, "performanceFeeRecipient");
+    }
+
+    function setUpStrategy() public returns (address) {
+        // we save the mock base strategy as a IMockStrategy to give it the needed interface
+        IMockStrategy _strategy = IMockStrategy(
+            address(new MockStrategy(address(asset), address(yieldSource)))
+        );
+
+        // set keeper
+        _strategy.setKeeper(keeper);
+        // set treasury
+        _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+        // set management of the strategy
+        _strategy.setManagement(management);
+
+        return address(_strategy);
+    }
+
+    function setUpIlliquidStrategy() public returns (address) {
+        IMockStrategy _strategy = IMockStrategy(
+            address(
+                new MockIlliquidStrategy(address(asset), address(yieldSource))
+            )
+        );
+
+        // set keeper
+        _strategy.setKeeper(keeper);
+        // set treasury
+        _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+        // set management of the strategy
+        _strategy.setManagement(management);
+
+        return address(_strategy);
+    }
+
+    function setUpFaultyStrategy() public returns (address) {
+        IMockStrategy _strategy = IMockStrategy(
+            address(
+                new MockFaultyStrategy(address(asset), address(yieldSource))
+            )
+        );
+
+        // set keeper
+        _strategy.setKeeper(keeper);
+        // set treasury
+        _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+        // set management of the strategy
+        _strategy.setManagement(management);
+
+        return address(_strategy);
     }
 
     function mintAndDepositIntoStrategy(
@@ -184,6 +234,17 @@ contract Setup is ExtendedTest {
         );
     }
 
+    function getExpectedProtocolFee(
+        uint256 _amount,
+        uint16 _fee
+    ) public view returns (uint256) {
+        uint256 timePassed = Math.min(
+            block.timestamp - strategy.lastReport(),
+            block.timestamp - mockFactory.lastChange()
+        );
+        return (_amount * _fee * timePassed) / MAX_BPS / 31_556_952;
+    }
+
     // prettier-ignore
     function getSelectors() public pure returns (bytes4[] memory selectors) {
         string[48] memory _selectors = [
@@ -205,56 +266,6 @@ contract Setup is ExtendedTest {
         vm.prank(management);
 
         strategy.setPerformanceFee(_performanceFee);
-    }
-
-    function setUpStrategy() public returns (address) {
-        // we save the mock base strategy as a IBaseLibrary to give it the needed interface
-        IMockStrategy _strategy = IMockStrategy(
-            address(new MockStrategy(address(asset), address(yieldSource)))
-        );
-
-        // set keeper
-        _strategy.setKeeper(keeper);
-        // set treasury
-        _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
-        // set management of the strategy
-        _strategy.setManagement(management);
-
-        return address(_strategy);
-    }
-
-    function setUpIlliquidStrategy() public returns (address) {
-        IMockStrategy _strategy = IMockStrategy(
-            address(
-                new MockIlliquidStrategy(address(asset), address(yieldSource))
-            )
-        );
-
-        // set keeper
-        _strategy.setKeeper(keeper);
-        // set treasury
-        _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
-        // set management of the strategy
-        _strategy.setManagement(management);
-
-        return address(_strategy);
-    }
-
-    function setUpFaultyStrategy() public returns (address) {
-        IMockStrategy _strategy = IMockStrategy(
-            address(
-                new MockFaultyStrategy(address(asset), address(yieldSource))
-            )
-        );
-
-        // set keeper
-        _strategy.setKeeper(keeper);
-        // set treasury
-        _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
-        // set management of the strategy
-        _strategy.setManagement(management);
-
-        return address(_strategy);
     }
 
     function setupWhitelist(address _address) public {

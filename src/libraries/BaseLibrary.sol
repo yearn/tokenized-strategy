@@ -20,7 +20,6 @@ interface IFactory {
 /// TODO:
 //      Does base strategy need to hold events?
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
-//      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
 //      Deposit limit?
 
 library BaseLibrary {
@@ -523,10 +522,7 @@ library BaseLibrary {
         _asset.safeTransferFrom(msg.sender, address(this), assets);
 
         // We will deposit up to current idle plus the new amount added
-        uint256 toInvest;
-        unchecked {
-            toInvest = S.totalIdle + assets;
-        }
+        uint256 toInvest = S.totalIdle + assets;
 
         // Cache for post {invest} checks.
         uint256 beforeBalance = _asset.balanceOf(address(this));
@@ -542,9 +538,8 @@ library BaseLibrary {
         );
 
         // Adjust total Assets.
+        S.totalDebt += invested;
         unchecked {
-            // Can't overflow, or the preview conversions would too.
-            S.totalDebt += invested;
             // Cant't underflow due to previous min check.
             S.totalIdle = toInvest - invested;
         }

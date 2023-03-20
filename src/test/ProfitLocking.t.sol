@@ -4,30 +4,17 @@ pragma solidity ^0.8.18;
 import "forge-std/console.sol";
 import {Setup, BaseLibrary} from "./utils/Setup.sol";
 
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-
 contract ProfitLockingTest is Setup {
     function setUp() public override {
         super.setUp();
     }
 
-    function getExpectedProtocolFee(
-        uint256 _amount,
-        uint16 _fee
-    ) public view returns (uint256) {
-        uint256 timePassed = Math.min(
-            block.timestamp - strategy.lastReport(),
-            block.timestamp - mockFactory.lastChange()
-        );
-        return (_amount * _fee * timePassed) / MAX_BPS / 31_556_952;
-    }
-
     function test_gain_NoFeesNoBuffer(
         address _address,
-        uint256 _amount,
+        uint128 amount,
         uint16 _profitFactor
     ) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        uint256 _amount = bound(uint256(amount), minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(
             _address != address(0) &&
@@ -49,8 +36,7 @@ contract ProfitLockingTest is Setup {
             protocolFee
         );
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
-        uint256 totalExpectedFees = expectedPerformanceFee +
-            expectedProtocolFee;
+
         createAndCheckProfit(
             strategy,
             profit,
@@ -1304,6 +1290,3 @@ contract ProfitLockingTest is Setup {
         assertEq(strategy.pricePerShare(), wad, "pps reset");
     }
 }
-
-// TODO:
-//      read the unlocking rate and time

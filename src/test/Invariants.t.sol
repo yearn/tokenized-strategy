@@ -10,4 +10,13 @@ contract InvariantTest is Setup {
     function setUp() public override {
         super.setUp();
     }
+
+    // TODO:
+    //      Total assets = debt + idle
+    //      idle <= balanceOf()
+    //      unlcokedShares <= balanceOf(strategy)
+    //      PPS doesnt change unless reporting a loss
+    //      maxWithdraw <= totalAssets
+    //      maxRedeem <= totalSupply
+    //      read the unlocking rate and time
 }
