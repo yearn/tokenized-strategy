@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.14;
+pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
 import {Setup, IMockStrategy, BaseLibrary, MockStrategy, MockIlliquidStrategy, ERC20Mock, DiamondHelper} from "./utils/Setup.sol";
@@ -132,12 +132,7 @@ contract DiamondHelperTest is Setup {
     }
 
     function test_initEmitsDiamondEvent() public {
-        ERC20Mock mockToken = new ERC20Mock(
-            "Test asset",
-            "tTKN",
-            address(this),
-            0
-        );
+        ERC20Mock mockToken = new ERC20Mock();
 
         // Get what should be emitted in the event
         IDiamond.FacetCut[] memory diamondCuts = new IDiamond.FacetCut[](1);

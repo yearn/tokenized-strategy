@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.14;
+pragma solidity 0.8.18;
 
 import "forge-std/console.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
@@ -58,7 +58,7 @@ contract Setup is ExtendedTest {
         diamondHelper.setLibrary(address(BaseLibrary));
 
         // create asset we will be using as the underlying asset
-        asset = new ERC20Mock("Test asset", "tTKN", address(this), 0);
+        asset = new ERC20Mock();
         // create a mock yield source to deposit into
         yieldSource = new MockYieldSource(address(asset));
 

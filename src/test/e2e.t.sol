@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.14;
+pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
 import {Setup, ERC20Mock, MockYieldSource, IMockStrategy} from "./utils/Setup.sol";
@@ -20,7 +20,7 @@ contract e2eTest is Setup {
 
     StrategyInfo[] public strategies;
 
-    function test_multipleStrategies_depositAndRedeem(
+    function test_multipleStrategiesAndTokens_depositAndRedeem(
         address _address,
         uint256 _amount,
         uint16 _profitFactor
@@ -41,7 +41,7 @@ contract e2eTest is Setup {
         uint256 i;
 
         for (i; i < toMake; ++i) {
-            asset = new ERC20Mock("Test asset", "tTKN", address(this), 0);
+            asset = new ERC20Mock();
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
 
@@ -110,7 +110,7 @@ contract e2eTest is Setup {
         }
     }
 
-    function test_multipleStrategies_mintAndWithdraw(
+    function test_multipleStrategiesAndTokens_mintAndWithdraw(
         address _address,
         uint256 _amount,
         uint16 _profitFactor
@@ -131,7 +131,7 @@ contract e2eTest is Setup {
         uint256 i;
 
         for (i; i < toMake; ++i) {
-            asset = new ERC20Mock("Test asset", "tTKN", address(this), 0);
+            asset = new ERC20Mock();
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
 
@@ -211,7 +211,7 @@ contract e2eTest is Setup {
         }
     }
 
-    function test_multipleStrategies__multipleUsers(
+    function test_multipleStrategiesTokensAndUsers(
         address _address,
         address _secondAddress,
         uint256 _amount,
@@ -240,7 +240,7 @@ contract e2eTest is Setup {
         uint256 i;
 
         for (i; i < toMake; ++i) {
-            asset = new ERC20Mock("Test asset", "tTKN", address(this), 0);
+            asset = new ERC20Mock();
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
 
@@ -341,8 +341,4 @@ contract e2eTest is Setup {
             checkStrategyTotals(info.strat, 0, 0, 0);
         }
     }
-
-    // TODO: multiple deposits/mints/redeem/withdraw and reports
-    //      Multiple strategies added to the same library, deposits/storage check
-    // random deposit/withd/tend/report based on opcode from number that checks each action
 }
