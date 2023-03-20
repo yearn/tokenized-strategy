@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.14;
+pragma solidity 0.8.18;
 
 // A loupe is a small magnifying glass used to look at diamonds.
 // These functions look at diamonds

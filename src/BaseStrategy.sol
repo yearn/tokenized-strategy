@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.14;
+pragma solidity 0.8.18;
 
 // Custom Base Strategy interfacies
-import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
 
-import "forge-std/console.sol";
-
-abstract contract BaseStrategy is IBaseStrategy {
+abstract contract BaseStrategy {
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
@@ -17,17 +14,17 @@ abstract contract BaseStrategy is IBaseStrategy {
     }
 
     modifier onlyManagement() {
-        BaseLibrary.isManagement();
+        BaseLibrary.isManagement(msg.sender);
         _;
     }
 
     modifier onlyKeepers() {
-        BaseLibrary.isKeeperOrManagement();
+        BaseLibrary.isKeeperOrManagement(msg.sender);
         _;
     }
 
     function _onlySelf() internal view {
-        if (msg.sender != address(this)) revert Unauthorized();
+        require(msg.sender == address(this), "!Authorized");
     }
 
     /*//////////////////////////////////////////////////////////////

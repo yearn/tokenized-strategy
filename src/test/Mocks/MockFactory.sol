@@ -1,4 +1,4 @@
-pragma solidity 0.8.14;
+pragma solidity 0.8.18;
 
 contract MockFactory {
     uint16 public feeBps;
@@ -20,7 +20,11 @@ contract MockFactory {
         lastChange = uint32(block.timestamp);
     }
 
-    function protocol_fee_config() external returns (uint16, uint32, address) {
+    function protocol_fee_config()
+        external
+        view
+        returns (uint16, uint32, address)
+    {
         return (feeBps, lastChange, recipient);
     }
 }

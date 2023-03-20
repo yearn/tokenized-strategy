@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-
-pragma solidity 0.8.14;
+pragma solidity 0.8.18;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -18,19 +17,14 @@ interface IFactory {
         returns (uint16, uint32, address);
 }
 
-import "forge-std/console.sol";
-
 /// TODO:
-//      Bump sol version
 //      Does base strategy need to hold events?
-//      add unchecked {} where applicable
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
-//      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
-//      Check rounding for all convertTo internal uses
+//      Deposit limit?
 
 library BaseLibrary {
-    using SafeERC20 for ERC20;
     using Math for uint256;
+    using SafeERC20 for ERC20;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -113,12 +107,6 @@ library BaseLibrary {
     event Cloned(address indexed clone);
 
     /*//////////////////////////////////////////////////////////////
-                                Errors
-    //////////////////////////////////////////////////////////////*/
-
-    error Unauthorized();
-
-    /*//////////////////////////////////////////////////////////////
                         STORAGE STRUCT
     //////////////////////////////////////////////////////////////*/
 
@@ -137,7 +125,6 @@ library BaseLibrary {
      * does not load any of the contents of the struct into memory. So
      * the size has no effect on gas usage.
      */
-    // TODO: this should be able to be packed better
     // prettier-ignore
     struct BaseStrategyData {
         // The ERC20 compliant underlying asset that will be
@@ -148,8 +135,8 @@ library BaseLibrary {
         // These are the corresponding ERC20 variables needed for the
         // token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals the asset and strategy use
+        bytes10 symbol; // The symbol of the token for the strategy.
         string name; // The name of the token for the strategy.
-        string symbol; // The symbol of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued
         uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
         bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain seperator used for permits on the intitial chain.
@@ -164,13 +151,14 @@ library BaseLibrary {
         
 
         // Variables for profit reporting and locking
-        uint256 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
+        // We use uint128 for time stamps which is 1,025 years in the future.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
-        uint256 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
-        uint256 lastReport; // The last time a {report} was called.
+        uint128 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
+        uint128 lastReport; // The last time a {report} was called.
+        uint32 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
         uint16 performanceFee; // The percent in Basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
-        
+
 
         // Access management addressess for permisssioned functions.
         address management; // Main address that can set all configurable variables.
@@ -183,18 +171,18 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyManagement() {
-        isManagement();
+        isManagement(msg.sender);
         _;
     }
 
     modifier onlyKeepers() {
-        isKeeperOrManagement();
+        isKeeperOrManagement(msg.sender);
         _;
     }
 
     /**
      * @dev Prevents a contract from calling itself, directly or indirectly.
-     *  Placed over all state changing function for increased safety.
+     *  Placed over all state changing functions for increased safety.
      */
     modifier nonReentrant() {
         BaseStrategyData storage S = _baseStrategyStorgage();
@@ -210,17 +198,28 @@ library BaseLibrary {
         S.entered = false;
     }
 
-    // These are left public to allow for the strategy to use them as well.
-
-    function isManagement() public view {
-        if (msg.sender != _baseStrategyStorgage().management)
-            revert Unauthorized();
+    /**
+     * @notice To check if a sender is the management for a specific strategy.
+     * @dev Is left public so that it can be used by the implementation.
+     *
+     * When the implementations calls this the msg.sender would be the
+     * address of the strategy so we need to specify the sender.
+     */
+    function isManagement(address _sender) public view {
+        require(_sender == _baseStrategyStorgage().management, "!Authorized");
     }
 
-    function isKeeperOrManagement() public view {
+    /**
+     * @notice To check if a sender is the keeper or management
+     * for a specific strategy.
+     * @dev Is left public so that it can be used by the implementation.
+     *
+     * When the implementations calls this the msg.sender would be the
+     * address of the strategy so we need to specify the sender.
+     */
+    function isKeeperOrManagement(address _sender) public view {
         BaseStrategyData storage S = _baseStrategyStorgage();
-        if (msg.sender != S.management && msg.sender != S.keeper)
-            revert Unauthorized();
+        require(_sender == S.keeper || _sender == S.management, "!Authorized");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -264,6 +263,14 @@ library BaseLibrary {
                     STORAGE GETTER FUNCTION
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev will return the actaul storage slot where the strategy
+     * sepcific `BaseStrategyData` struct is stored for both read
+     * add write operations.
+     *
+     * This loads just the slot location, not the full struct
+     * so it can be used in a gas effecient manner.
+     */
     function _baseStrategyStorgage()
         private
         pure
@@ -299,7 +306,7 @@ library BaseLibrary {
         S.name = _name;
         // Set the symbol and decimals based off the `asset`.
         IERC20Metadata a = IERC20Metadata(_asset);
-        S.symbol = string(abi.encodePacked("ys", a.symbol()));
+        S.symbol = bytes10(abi.encodePacked("ys", a.symbol()));
         S.decimals = a.decimals();
         // Set initial chain id for permit replay protection
         S.INITIAL_CHAIN_ID = block.chainid;
@@ -315,7 +322,7 @@ library BaseLibrary {
         // default to a 10% performance fee?
         S.performanceFee = 1_000;
         // set last report to this block
-        S.lastReport = block.timestamp;
+        S.lastReport = uint128(block.timestamp);
 
         // Set the default management address. Can't be 0.
         require(_management != address(0));
@@ -464,7 +471,8 @@ library BaseLibrary {
             _maxRedeem = balanceOf(_owner);
         } else {
             _maxRedeem = Math.min(
-                convertToShares(_maxRedeem),
+                // Use preview withdraw to round up
+                previewWithdraw(_maxRedeem),
                 balanceOf(_owner)
             );
         }
@@ -486,13 +494,14 @@ library BaseLibrary {
     }
 
     /**
-     * @dev Function to be called during {deposit} and {mint} after
-     * all neccesary checks have been completed.
+     * @dev Function to be called during {deposit} and {mint}.
      *
-     * This function handles all logic including transfers, minting and accounting.
+     * This function handles all logic including transfers,
+     * minting and accounting.
      *
-     * We do all external calls before updating any internal values to prevent
-     * re-entrancy from the token transfers or the _invest() calls.
+     * We do all external calls before updating any internal
+     * values to prevent view re-entrancy issues from the token
+     * transfers or the _invest() calls.
      */
     function _deposit(
         address receiver,
@@ -513,10 +522,7 @@ library BaseLibrary {
         _asset.safeTransferFrom(msg.sender, address(this), assets);
 
         // We will deposit up to current idle plus the new amount added
-        uint256 toInvest;
-        unchecked {
-            toInvest = S.totalIdle + assets;
-        }
+        uint256 toInvest = S.totalIdle + assets;
 
         // Cache for post {invest} checks.
         uint256 beforeBalance = _asset.balanceOf(address(this));
@@ -532,9 +538,8 @@ library BaseLibrary {
         );
 
         // Adjust total Assets.
+        S.totalDebt += invested;
         unchecked {
-            // Can't overflow, or the preview conversions would too.
-            S.totalDebt += invested;
             // Cant't underflow due to previous min check.
             S.totalIdle = toInvest - invested;
         }
@@ -546,11 +551,10 @@ library BaseLibrary {
     }
 
     /**
-     * @dev To be called after all neccesary checks have been done in
-     * {redeem} and {withdraw}.
+     * @dev To be called during {redeem} and {withdraw}.
      *
-     * This will handle all logic, transfers and accounting in order to
-     * service the withdraw request.
+     * This will handle all logic, transfers and accounting
+     * in order to service the withdraw request.
      *
      * If we are not able to withdraw the full amount needed, it will
      * be counted as a loss and passed on to the user.
@@ -599,6 +603,7 @@ library BaseLibrary {
                 unchecked {
                     loss = assets - idle;
                 }
+                // Lower the amount to be sent
                 assets = idle;
             }
 
@@ -739,10 +744,10 @@ library BaseLibrary {
         {
             // Scoped to avoid stack to deep errors
             uint256 totalLockedShares = balanceOf(address(this));
-            uint256 _profitMaxUnlockTime = S.profitMaxUnlockTime;
+            uint32 _profitMaxUnlockTime = S.profitMaxUnlockTime;
             if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
                 uint256 remainingTime;
-                uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+                uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
                 if (_fullProfitUnlockDate > block.timestamp) {
                     unchecked {
                         remainingTime = _fullProfitUnlockDate - block.timestamp;
@@ -763,9 +768,9 @@ library BaseLibrary {
                     (totalLockedShares * MAX_BPS_EXTENDED) /
                     newProfitLockingPeriod;
 
-                S.fullProfitUnlockDate =
-                    block.timestamp +
-                    newProfitLockingPeriod;
+                S.fullProfitUnlockDate = uint128(
+                    block.timestamp + newProfitLockingPeriod
+                );
             } else {
                 // Only setting this to 0 will turn in the desired effect,
                 // no need to update fullProfitUnlockDate
@@ -774,7 +779,7 @@ library BaseLibrary {
         }
 
         // Update last report before external calls
-        S.lastReport = block.timestamp;
+        S.lastReport = uint128(block.timestamp);
 
         // Emit event with info
         emit Reported(
@@ -815,7 +820,7 @@ library BaseLibrary {
 
         if (protocolFeeBps > 0) {
             protocolFeesRecipient = _protocolFeesRecipient;
-            // NOTE: charge fees since last report OR last fee change
+            // Charge fees since last report OR last fee change
             // (this will mean less fees are charged after a change
             // in protocol_fees, but fees should not change frequently)
             uint256 secondsSinceLastReport = Math.min(
@@ -840,7 +845,7 @@ library BaseLibrary {
 
         // update variables (done here to keep _unlcokdedShares() as a view function)
         if (_baseStrategyStorgage().fullProfitUnlockDate > block.timestamp) {
-            _baseStrategyStorgage().lastReport = block.timestamp;
+            _baseStrategyStorgage().lastReport = uint128(block.timestamp);
         }
 
         _burn(address(this), unlcokdedShares);
@@ -849,12 +854,14 @@ library BaseLibrary {
     function _unlockedShares() private view returns (uint256) {
         // should save 2 extra calls for most scenarios
         BaseStrategyData storage S = _baseStrategyStorgage();
-        uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+        uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         uint256 unlockedShares;
         if (_fullProfitUnlockDate > block.timestamp) {
-            unlockedShares =
-                (S.profitUnlockingRate * (block.timestamp - S.lastReport)) /
-                MAX_BPS_EXTENDED;
+            unchecked {
+                unlockedShares =
+                    (S.profitUnlockingRate * (block.timestamp - S.lastReport)) /
+                    MAX_BPS_EXTENDED;
+            }
         } else if (_fullProfitUnlockDate != 0) {
             // All shares have been unlocked
             unlockedShares = S.balances[address(this)];
@@ -929,8 +936,6 @@ library BaseLibrary {
                         Getter FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
-    // External view function to pull public variables from storage
-
     /**
      * @notice Get the api version for this Library.
      */
@@ -963,7 +968,7 @@ library BaseLibrary {
     }
 
     function fullProfitUnlockDate() external view returns (uint256) {
-        return _baseStrategyStorgage().fullProfitUnlockDate;
+        return uint256(_baseStrategyStorgage().fullProfitUnlockDate);
     }
 
     function profitUnlockingRate() external view returns (uint256) {
@@ -975,7 +980,7 @@ library BaseLibrary {
     }
 
     function lastReport() external view returns (uint256) {
-        return _baseStrategyStorgage().lastReport;
+        return uint256(_baseStrategyStorgage().lastReport);
     }
 
     function pricePerShare() external view returns (uint256) {
@@ -1016,10 +1021,14 @@ library BaseLibrary {
         emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
     }
 
+    // Still allow for uint256 input for easy integration
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
-        _baseStrategyStorgage().profitMaxUnlockTime = _profitMaxUnlockTime;
+        require(_profitMaxUnlockTime <= 31_556_952, "to long");
+        _baseStrategyStorgage().profitMaxUnlockTime = uint32(
+            _profitMaxUnlockTime
+        );
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
@@ -1085,7 +1094,7 @@ library BaseLibrary {
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
-        return _baseStrategyStorgage().symbol;
+        return string(abi.encodePacked((_baseStrategyStorgage().symbol)));
     }
 
     /**

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.14;
+pragma solidity 0.8.18;
 
 import {IBaseLibrary} from "../../interfaces/IBaseLibrary.sol";
 
@@ -45,4 +45,16 @@ interface IMockStrategy is IBaseLibrary {
     function totalInvested() external returns (uint256);
 
     function tendThis(uint256 _totalIdle) external;
+
+    function tendTrigger() external view returns (bool);
+
+    function setTrigger(bool _trigger) external;
+
+    function onlyLetManagers() external;
+
+    function onlyLetKeepersIn() external;
+
+    function managed() external view returns (bool);
+
+    function kept() external view returns (bool);
 }

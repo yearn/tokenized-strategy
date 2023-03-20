@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.14;
+pragma solidity 0.8.18;
 
 interface IBaseStrategy {
     /*//////////////////////////////////////////////////////////////
@@ -44,12 +44,6 @@ interface IBaseStrategy {
         uint256 indexed loss,
         uint256 indexed fees
     );
-
-    /*//////////////////////////////////////////////////////////////
-                                Errors
-    //////////////////////////////////////////////////////////////*/
-
-    error Unauthorized();
 
     /*//////////////////////////////////////////////////////////////
                             IMMUTABLE FUNCTIONS

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.14;
+pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, DiamondHelper, MockFactory, ERC20Mock, MockYieldSource, IMockStrategy} from "./utils/Setup.sol";
+import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
 import {BaseLibrary} from "../libraries/BaseLibrary.sol";
 
@@ -37,10 +37,10 @@ contract FaultyStrategy is Setup {
         // We need to allow the strategy to invest more than it should
         asset.mint(address(strategy), _faultAmount);
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         // These should all be right even though the amount invested was actually more
-        checkStrategyTotals(_amount, _amount, 0, _amount);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         assertEq(asset.balanceOf(address(yieldSource)), _amount + _faultAmount);
 
@@ -51,7 +51,7 @@ contract FaultyStrategy is Setup {
 
         // We should have just withdrawn '_amount' and
         // not accounted for the _faultAmount but will be in the strategy now
-        checkStrategyTotals(0, 0, 0, 0);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
 
         assertEq(asset.balanceOf(_address) - before, _amount);
         assertEq(asset.balanceOf(address(strategy)), _faultAmount);
@@ -68,9 +68,9 @@ contract FaultyStrategy is Setup {
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        checkStrategyTotals(_amount, _amount, 0, _amount);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         configureFaultyStrategy(_faultAmount, false);
 
@@ -84,7 +84,7 @@ contract FaultyStrategy is Setup {
 
         // We should have just withdrawn '_amount' and
         // not accounted for the _faultAmount but will be in the strategy now
-        checkStrategyTotals(0, 0, 0, 0);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
 
         assertEq(asset.balanceOf(_address) - before, _amount);
         assertEq(asset.balanceOf(address(strategy)), _faultAmount);
@@ -93,11 +93,11 @@ contract FaultyStrategy is Setup {
     function test_investViewReentrancy(
         address _address,
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
@@ -111,30 +111,30 @@ contract FaultyStrategy is Setup {
         storeCallBackVariables(_amount);
 
         // The deposit should check against the stored variables
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         configureFaultyStrategy(0, false);
 
-        createAndCheckProfit(profit, 0, 0);
+        createAndCheckProfit(strategy, profit, 0, 0);
 
-        increaseTimeAndCheckBuffer(5 days, profit / 2);
+        increaseTimeAndCheckBuffer(strategy, 5 days, profit / 2);
 
         // Check again while there is profit unlocking
         configureFaultyStrategy(0, true);
 
         storeCallBackVariables(_amount);
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
     }
 
     function test_freeFundsViewReentrancy(
         address _address,
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
@@ -142,9 +142,9 @@ contract FaultyStrategy is Setup {
 
         setFees(0, 0);
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        increaseTimeAndCheckBuffer(5 days, 0);
+        increaseTimeAndCheckBuffer(strategy, 5 days, 0);
 
         configureFaultyStrategy(0, true);
 
@@ -155,9 +155,9 @@ contract FaultyStrategy is Setup {
 
         configureFaultyStrategy(0, false);
 
-        createAndCheckProfit(profit, 0, 0);
+        createAndCheckProfit(strategy, profit, 0, 0);
 
-        increaseTimeAndCheckBuffer(5 days, profit / 2);
+        increaseTimeAndCheckBuffer(strategy, 5 days, profit / 2);
 
         // Check again while there is profit unlocking
         configureFaultyStrategy(0, true);
@@ -171,11 +171,11 @@ contract FaultyStrategy is Setup {
     function test_reportViewReentrancy(
         address _address,
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
@@ -183,7 +183,7 @@ contract FaultyStrategy is Setup {
 
         setFees(0, 0);
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         // The expected '_amount' for the callback check
         uint256 assets = _amount + profit;
@@ -192,16 +192,16 @@ contract FaultyStrategy is Setup {
 
         storeCallBackVariables(assets);
 
-        createAndCheckProfit(profit, 0, 0);
+        createAndCheckProfit(strategy, profit, 0, 0);
 
-        increaseTimeAndCheckBuffer(10 days, 0);
+        increaseTimeAndCheckBuffer(strategy, 10 days, 0);
 
         // Check with a loss now. The pps will be back to to wad since the reentrancy is done after updates
         pps = wad;
         convertAmountToShares = _amount;
         convertAmountToAssets = _amount;
 
-        createAndCheckLoss(profit, 0, 0);
+        createAndCheckLoss(strategy, profit, 0, 0);
     }
 
     function test_tendViewReentrancy(address _address, uint256 _amount) public {
@@ -212,7 +212,7 @@ contract FaultyStrategy is Setup {
 
         setFees(0, 0);
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         configureFaultyStrategy(0, true);
         // Tend with some idle
@@ -250,13 +250,13 @@ contract FaultyStrategy is Setup {
         vm.prank(_address);
         strategy.deposit(_amount, _address);
 
-        checkStrategyTotals(0, 0, 0, 0);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
 
         vm.expectRevert("ReentrancyGuard: reentrant call");
         vm.prank(_address);
         strategy.mint(_amount, _address);
 
-        checkStrategyTotals(0, 0, 0, 0);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
     function test_freeFundsReentrancy_reverts(
@@ -270,9 +270,9 @@ contract FaultyStrategy is Setup {
 
         setFees(0, 0);
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        increaseTimeAndCheckBuffer(5 days, 0);
+        increaseTimeAndCheckBuffer(strategy, 5 days, 0);
 
         configureFaultyStrategy(0, true);
         reenter = true;
@@ -284,24 +284,24 @@ contract FaultyStrategy is Setup {
         vm.prank(_address);
         strategy.withdraw(_amount, _address, _address);
 
-        checkStrategyTotals(_amount, _amount, 0, _amount);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         vm.expectRevert("ReentrancyGuard: reentrant call");
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
 
-        checkStrategyTotals(_amount, _amount, 0, _amount);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
     }
 
     // Reentrancy cant be allowed during a report call/
     function test_reportReentrancy_reverts(
         address _address,
         uint256 _amount,
-        uint256 _profitFactor
+        uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
-        _profitFactor = bound(_profitFactor, 10, MAX_BPS);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
@@ -309,7 +309,7 @@ contract FaultyStrategy is Setup {
 
         setFees(0, 0);
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         configureFaultyStrategy(0, true);
 
@@ -323,7 +323,7 @@ contract FaultyStrategy is Setup {
         vm.prank(keeper);
         strategy.report();
 
-        checkStrategyTotals(_amount, _amount, 0, _amount);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
     }
 
     function test_tendReentrancy_reverts(
@@ -337,7 +337,7 @@ contract FaultyStrategy is Setup {
 
         setFees(0, 0);
 
-        mintAndDepositIntoStrategy(_address, _amount);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         configureFaultyStrategy(0, true);
 
@@ -360,7 +360,7 @@ contract FaultyStrategy is Setup {
         // If 'reenter' we will actually try to deposit if not just check values for views
         if (reenter) {
             // Try and deposit back into the strategy within the original call
-            mintAndDepositIntoStrategy(addr, amount);
+            mintAndDepositIntoStrategy(strategy, addr, amount);
         } else {
             assertEq(_pps, pps);
             assertEq(_convertAmountToShares, convertAmountToShares);

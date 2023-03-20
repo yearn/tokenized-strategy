@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.14;
+pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
 import {Setup, MockStrategy, IMockStrategy} from "./utils/Setup.sol";
@@ -20,7 +20,11 @@ contract ERC20BaseTest is Setup {
         assertEq(strategy.name(), "Test Strategy");
         assertEq(
             strategy.symbol(),
-            string(abi.encodePacked("ys", asset.symbol()))
+            string(
+                abi.encodePacked(
+                    bytes10(abi.encodePacked("ys", asset.symbol()))
+                )
+            )
         );
         assertEq(strategy.decimals(), 18);
     }
@@ -30,7 +34,7 @@ contract ERC20BaseTest is Setup {
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
 
         vm.prank(address(strategy));
-        mintAndDepositIntoStrategy(account_, amount_);
+        mintAndDepositIntoStrategy(strategy, account_, amount_);
 
         assertEq(strategy.totalSupply(), amount_);
         assertEq(strategy.balanceOf(account_), amount_);
@@ -45,7 +49,7 @@ contract ERC20BaseTest is Setup {
         amount0_ = bound(amount0_, minFuzzAmount, maxFuzzAmount);
         if (amount1_ > amount0_) return; // Mint amount must exceed burn amount.
 
-        mintAndDepositIntoStrategy(account_, amount0_);
+        mintAndDepositIntoStrategy(strategy, account_, amount0_);
         vm.prank(account_);
         strategy.withdraw(amount1_, account_, account_);
 
@@ -158,7 +162,7 @@ contract ERC20BaseTest is Setup {
         vm.assume(account_ != address(0) && account_ != address(strategy));
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
 
-        mintAndDepositIntoStrategy(self, amount_);
+        mintAndDepositIntoStrategy(strategy, self, amount_);
 
         assertTrue(strategy.transfer(account_, amount_));
 
@@ -184,7 +188,7 @@ contract ERC20BaseTest is Setup {
 
         ERC20User owner = new ERC20User();
 
-        mintAndDepositIntoStrategy(address(owner), amount_);
+        mintAndDepositIntoStrategy(strategy, address(owner), amount_);
 
         owner.erc20_approve(address(strategy), self, approval_);
 
@@ -215,7 +219,7 @@ contract ERC20BaseTest is Setup {
 
         ERC20User owner = new ERC20User();
 
-        mintAndDepositIntoStrategy(address(owner), amount_);
+        mintAndDepositIntoStrategy(strategy, address(owner), amount_);
         owner.erc20_approve(address(strategy), self, MAX_UINT256);
 
         assertEq(strategy.balanceOf(address(owner)), amount_);
@@ -244,12 +248,12 @@ contract ERC20BaseTest is Setup {
 
         ERC20User account = new ERC20User();
 
-        mintAndDepositIntoStrategy(address(account), amount_ - 1);
+        mintAndDepositIntoStrategy(strategy, address(account), amount_ - 1);
 
         vm.expectRevert(ARITHMETIC_ERROR);
         account.erc20_transfer(address(strategy), recipient_, amount_);
 
-        mintAndDepositIntoStrategy(address(account), 1);
+        mintAndDepositIntoStrategy(strategy, address(account), 1);
         account.erc20_transfer(address(strategy), recipient_, amount_);
 
         assertEq(strategy.balanceOf(recipient_), amount_);
@@ -264,7 +268,7 @@ contract ERC20BaseTest is Setup {
 
         ERC20User owner = new ERC20User();
 
-        mintAndDepositIntoStrategy(address(owner), amount_);
+        mintAndDepositIntoStrategy(strategy, address(owner), amount_);
 
         owner.erc20_approve(address(strategy), self, amount_ - 1);
 
@@ -286,13 +290,13 @@ contract ERC20BaseTest is Setup {
 
         ERC20User owner = new ERC20User();
 
-        mintAndDepositIntoStrategy(address(owner), amount_ - 1);
+        mintAndDepositIntoStrategy(strategy, address(owner), amount_ - 1);
         owner.erc20_approve(address(strategy), self, amount_);
 
         vm.expectRevert(ARITHMETIC_ERROR);
         strategy.transferFrom(address(owner), recipient_, amount_);
 
-        mintAndDepositIntoStrategy(address(owner), 1);
+        mintAndDepositIntoStrategy(strategy, address(owner), 1);
         strategy.transferFrom(address(owner), recipient_, amount_);
 
         assertEq(strategy.balanceOf(recipient_), amount_);
@@ -696,7 +700,7 @@ contract ERC20PermitTest is Setup {
         uint256 nonce_,
         uint256 deadline_,
         uint256 ownerSk_
-    ) internal returns (uint8 v_, bytes32 r_, bytes32 s_) {
+    ) internal view returns (uint8 v_, bytes32 r_, bytes32 s_) {
         return
             vm.sign(
                 ownerSk_,
