@@ -20,7 +20,7 @@ contract ERC20BaseTest is Setup {
         assertEq(strategy.name(), "Test Strategy");
         assertEq(
             strategy.symbol(),
-            string(abi.encodePacked("ys", asset.symbol()))
+            string(abi.encodePacked(bytes10(abi.encodePacked("ys", asset.symbol()))))
         );
         assertEq(strategy.decimals(), 18);
     }

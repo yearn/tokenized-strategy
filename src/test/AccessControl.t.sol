@@ -61,16 +61,17 @@ contract AccesssControlTest is Setup {
         assertEq(strategy.performanceFeeRecipient(), _address);
     }
 
-    function test_setProfitMaxUnlockTime(uint256 _amount) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+    function test_setProfitMaxUnlockTime(uint32 _amount) public {
+        // Must be less than 1 year
+        uint256 amount = bound(uint256(_amount), 0, 31_556_952);
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.UpdateProfitMaxUnlockTime(_amount);
+        emit BaseLibrary.UpdateProfitMaxUnlockTime(amount);
 
         vm.prank(management);
-        strategy.setProfitMaxUnlockTime(_amount);
+        strategy.setProfitMaxUnlockTime(amount);
 
-        assertEq(strategy.profitMaxUnlockTime(), _amount);
+        assertEq(strategy.profitMaxUnlockTime(), amount);
     }
 
     function test_setManagement_reverts(address _address) public {
@@ -133,16 +134,26 @@ contract AccesssControlTest is Setup {
 
     function test_settingProfitMaxUnlockTime_reverts(
         address _address,
-        uint256 _amount
+        uint32 _amount,
+        uint256 _badAmount
     ) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        // Must be less than 1 year
+        uint256 amount = bound(uint256(_amount), 0, 31_556_952);
+        _badAmount = bound(_badAmount, 31_556_952 + 1, type(uint256).max);
         vm.assume(_address != management);
 
         uint256 profitMaxUnlockTime = strategy.profitMaxUnlockTime();
 
         vm.prank(_address);
         vm.expectRevert("!Authorized");
-        strategy.setProfitMaxUnlockTime(_amount);
+        strategy.setProfitMaxUnlockTime(amount);
+
+        assertEq(strategy.profitMaxUnlockTime(), profitMaxUnlockTime);
+
+        // Can't be more than 1 year of seconds
+        vm.prank(management);
+        vm.expectRevert("to long");
+        strategy.setProfitMaxUnlockTime(_badAmount);
 
         assertEq(strategy.profitMaxUnlockTime(), profitMaxUnlockTime);
     }

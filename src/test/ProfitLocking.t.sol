@@ -1304,3 +1304,6 @@ contract ProfitLockingTest is Setup {
         assertEq(strategy.pricePerShare(), wad, "pps reset");
     }
 }
+
+// TODO:
+//      read the unlocking rate and time 

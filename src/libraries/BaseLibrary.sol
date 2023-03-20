@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0
-
 pragma solidity 0.8.18;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -18,20 +17,16 @@ interface IFactory {
         returns (uint16, uint32, address);
 }
 
-import "forge-std/console.sol";
-
 /// TODO:
-//      Bump sol version
 //      Does base strategy need to hold events?
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      Should storage stuct and variable be in its own contract. So it can be imported without accidently linking the library
 //      Deposit limit?
 
-
 library BaseLibrary {
-    using SafeERC20 for ERC20;
     using Math for uint256;
-
+    using SafeERC20 for ERC20;
+    
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -131,7 +126,6 @@ library BaseLibrary {
      * does not load any of the contents of the struct into memory. So
      * the size has no effect on gas usage.
      */
-    // TODO: this should be able to be packed better
     // prettier-ignore
     struct BaseStrategyData {
         // The ERC20 compliant underlying asset that will be
@@ -142,8 +136,8 @@ library BaseLibrary {
         // These are the corresponding ERC20 variables needed for the
         // token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals the asset and strategy use
+        bytes10 symbol; // The symbol of the token for the strategy.
         string name; // The name of the token for the strategy.
-        string symbol; // The symbol of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued
         uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
         bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain seperator used for permits on the intitial chain.
@@ -158,19 +152,21 @@ library BaseLibrary {
         
 
         // Variables for profit reporting and locking
-        uint256 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
+        // We use uint128 for time stamps which is 1,025 years in the future.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
-        uint256 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
-        uint256 lastReport; // The last time a {report} was called.
+        uint128 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
+        uint128 lastReport; // The last time a {report} was called.
+        uint32 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
         uint16 performanceFee; // The percent in Basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
-        
+
 
         // Access management addressess for permisssioned functions.
         address management; // Main address that can set all configurable variables.
         address keeper; // Address given permission to call {report} and {tend}.
         bool entered; // Bool to prevent reentrancy.
     }
+
 
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
@@ -312,7 +308,7 @@ library BaseLibrary {
         S.name = _name;
         // Set the symbol and decimals based off the `asset`.
         IERC20Metadata a = IERC20Metadata(_asset);
-        S.symbol = string(abi.encodePacked("ys", a.symbol()));
+        S.symbol = bytes10(abi.encodePacked("ys", a.symbol()));
         S.decimals = a.decimals();
         // Set initial chain id for permit replay protection
         S.INITIAL_CHAIN_ID = block.chainid;
@@ -328,7 +324,7 @@ library BaseLibrary {
         // default to a 10% performance fee?
         S.performanceFee = 1_000;
         // set last report to this block
-        S.lastReport = block.timestamp;
+        S.lastReport = uint128(block.timestamp);
 
         // Set the default management address. Can't be 0.
         require(_management != address(0));
@@ -754,10 +750,10 @@ library BaseLibrary {
         {
             // Scoped to avoid stack to deep errors
             uint256 totalLockedShares = balanceOf(address(this));
-            uint256 _profitMaxUnlockTime = S.profitMaxUnlockTime;
+            uint32 _profitMaxUnlockTime = S.profitMaxUnlockTime;
             if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
                 uint256 remainingTime;
-                uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+                uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
                 if (_fullProfitUnlockDate > block.timestamp) {
                     unchecked {
                         remainingTime = _fullProfitUnlockDate - block.timestamp;
@@ -779,8 +775,8 @@ library BaseLibrary {
                     newProfitLockingPeriod;
 
                 S.fullProfitUnlockDate =
-                    block.timestamp +
-                    newProfitLockingPeriod;
+                    uint128(block.timestamp +
+                    newProfitLockingPeriod);
             } else {
                 // Only setting this to 0 will turn in the desired effect,
                 // no need to update fullProfitUnlockDate
@@ -789,7 +785,7 @@ library BaseLibrary {
         }
 
         // Update last report before external calls
-        S.lastReport = block.timestamp;
+        S.lastReport = uint128(block.timestamp);
 
         // Emit event with info
         emit Reported(
@@ -855,7 +851,7 @@ library BaseLibrary {
 
         // update variables (done here to keep _unlcokdedShares() as a view function)
         if (_baseStrategyStorgage().fullProfitUnlockDate > block.timestamp) {
-            _baseStrategyStorgage().lastReport = block.timestamp;
+            _baseStrategyStorgage().lastReport = uint128(block.timestamp);
         }
 
         _burn(address(this), unlcokdedShares);
@@ -864,7 +860,7 @@ library BaseLibrary {
     function _unlockedShares() private view returns (uint256) {
         // should save 2 extra calls for most scenarios
         BaseStrategyData storage S = _baseStrategyStorgage();
-        uint256 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+        uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         uint256 unlockedShares;
         if (_fullProfitUnlockDate > block.timestamp) {
             unchecked {
@@ -978,7 +974,7 @@ library BaseLibrary {
     }
 
     function fullProfitUnlockDate() external view returns (uint256) {
-        return _baseStrategyStorgage().fullProfitUnlockDate;
+        return uint256(_baseStrategyStorgage().fullProfitUnlockDate);
     }
 
     function profitUnlockingRate() external view returns (uint256) {
@@ -990,7 +986,7 @@ library BaseLibrary {
     }
 
     function lastReport() external view returns (uint256) {
-        return _baseStrategyStorgage().lastReport;
+        return uint256(_baseStrategyStorgage().lastReport);
     }
 
     function pricePerShare() external view returns (uint256) {
@@ -1031,10 +1027,12 @@ library BaseLibrary {
         emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
     }
 
+    // Still allow for uint256 input for easy integration
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
-        _baseStrategyStorgage().profitMaxUnlockTime = _profitMaxUnlockTime;
+        require(_profitMaxUnlockTime <= 31_556_952, "to long");
+        _baseStrategyStorgage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
@@ -1100,7 +1098,7 @@ library BaseLibrary {
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
-        return _baseStrategyStorgage().symbol;
+        return string(abi.encodePacked((_baseStrategyStorgage().symbol)));
     }
 
     /**

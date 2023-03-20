@@ -2,10 +2,7 @@
 pragma solidity 0.8.18;
 
 // Custom Base Strategy interfacies
-import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
-
-import "forge-std/console.sol";
 
 abstract contract BaseStrategy {
     /*//////////////////////////////////////////////////////////////

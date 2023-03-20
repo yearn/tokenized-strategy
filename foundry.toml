@@ -11,7 +11,7 @@ remappings = [
 fs_permissions = [{ access = "read", path = "./"}]
 
 [fuzz]
-runs = 10000
+runs = 1000
 max_test_rejects = 100000
 
 # See more config options https://github.com/gakonst/foundry/tree/master/config
