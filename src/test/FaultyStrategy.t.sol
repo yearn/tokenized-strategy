@@ -196,10 +196,7 @@ contract FaultyStrategy is Setup {
 
         increaseTimeAndCheckBuffer(strategy, 10 days, 0);
 
-        // Check with a loss now. The pps will be back to to wad since the reentrancy is done after updates
-        pps = wad;
-        convertAmountToShares = _amount;
-        convertAmountToAssets = _amount;
+        storeCallBackVariables(_amount);
 
         createAndCheckLoss(strategy, profit, 0, 0);
     }

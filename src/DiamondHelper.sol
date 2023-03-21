@@ -9,10 +9,10 @@ interface IBaseLibrary {
 }
 
 contract DiamondHelper {
+    address public baseLibrary;
+
     bytes4[] private selectors;
     IDiamond.FacetCut[] private cuts;
-
-    address public baseLibrary;
 
     constructor(bytes4[] memory _selectors) {
         selectors = _selectors;
