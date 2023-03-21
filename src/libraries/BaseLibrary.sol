@@ -21,6 +21,7 @@ interface IFactory {
 //      Does base strategy need to hold events?
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      Deposit limit?
+//      how to account for protocol fees when the strategy is empty
 
 library BaseLibrary {
     using Math for uint256;
@@ -116,10 +117,10 @@ library BaseLibrary {
      *
      * This replaces all state variables for a traditional contract. This
      * full struct will be initiliazed on the createion of the implemenation
-     * contract and continually updated and read from for the life f the contract.
+     * contract and continually updated and read from for the life of the contract.
      *
      * We combine all the variables into one struct to limit the amount of times
-     * custom storage slots need to be loadded during complex functions.
+     * custom storage slots need to be loaded during complex functions.
      *
      * Loading the corresponding storage slot for the struct into memory
      * does not load any of the contents of the struct into memory. So
@@ -223,7 +224,7 @@ library BaseLibrary {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               CONSTANT
+                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     string private constant API_VERSION = "3.1.0";
@@ -237,7 +238,6 @@ library BaseLibrary {
 
     // Factory address NOTE: This will be set to deployed factory.
     // deterministic address for testing is used now
-    // TODO: how to account for protocol fees when the strategy is empty
     address private constant FACTORY =
         0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
 
@@ -251,8 +251,8 @@ library BaseLibrary {
      * to the specic location that will be used to store the
      * struct that holds all that data.
      *
-     * We intentionally use large strings in order to get high
-     * slots that that should allow for stratgists to use any
+     * We intentionally use a large string in order to get a high
+     * storage slot that will allow for stratgists to use any
      * amount of storage in the implementations without worrying
      * about collisions. This storage slot sits at roughly 1e77.
      */
@@ -527,8 +527,8 @@ library BaseLibrary {
         // Cache for post {invest} checks.
         uint256 beforeBalance = _asset.balanceOf(address(this));
 
-        // Invest up to all loose funds. Signal its during a permisionless deposit.
-        IBaseStrategy(address(this)).invest(toInvest, false);
+        // Invest up to all loose funds.
+        IBaseStrategy(address(this)).invest(toInvest);
 
         // Always get the actual amount invested for complete accuracy
         // We double check the diff agianst toInvest to never underflow
@@ -630,7 +630,7 @@ library BaseLibrary {
      * profits accrued.
      *
      * @dev This should only ever be called through protected relays
-     * as swaps will likely occur.
+     * if swaps are likely occur.
      *
      * This will account for any gains/losses since the last report
      * and charge fees accordingly.
@@ -648,10 +648,6 @@ library BaseLibrary {
      * rate based on a weighted average of any remaining time from the
      * last report and the new amount of shares to be locked.
      *
-     * Finally will tell the strategy to _invest all idle funds which
-     * should include both the totalIdle before the call as well any
-     * amount of 'asset' freed up during the totalInvested() call.
-     *
      * @return profit The notional amount of gain if any since the last
      * report in terms of `asset`.
      * @return loss The notional amount of loss if any since the last
@@ -668,7 +664,7 @@ library BaseLibrary {
 
         uint256 oldTotalAssets;
         unchecked {
-            // Manuaully calculate totalAssets to save an SLOAD
+            // Manuaully calculate totalAssets to save a SLOAD
             oldTotalAssets = S.totalIdle + S.totalDebt;
         }
 
@@ -682,35 +678,43 @@ library BaseLibrary {
         _burnUnlockedShares();
 
         // Tell the strategy to report the real total assets it has.
-        // It should account for invested and loose 'asset' so we can
-        // accuratly update the totalIdle to account for sold but
-        // non-reinvested funds during reward harvesting.
-        uint256 _invested = IBaseStrategy(address(this)).totalInvested();
+        // It should do all reward selling and reinvesting now and
+        // account for invested and loose `asset` so we can accuratly
+        // account for all funds including those potentially airdropped 
+        // by a trade factory.
+        uint256 invested = IBaseStrategy(address(this)).totalInvested();
 
         uint256 performanceFees;
         unchecked {
             // Calculate profit/loss
-            if (_invested > oldTotalAssets) {
+            if (invested > oldTotalAssets) {
                 // We have a profit
-                profit = _invested - oldTotalAssets;
+                profit = invested - oldTotalAssets;
 
                 // Asses performance fees
                 performanceFees = (profit * S.performanceFee) / MAX_BPS;
                 totalFees += performanceFees;
             } else {
                 // We have a loss
-                loss = oldTotalAssets - _invested;
+                loss = oldTotalAssets - invested;
             }
         }
 
         // We need to get the shares for fees to issue at current PPS before any minting or burning
-        uint256 sharesForFees = convertToShares(totalFees);
+        uint256 performanceFeeShares = convertToShares(performanceFees);
+        uint256 protocolFeeShares;
+        unchecked {
+            protocolFeeShares = convertToShares(
+                totalFees - performanceFees
+            );
+        }
         uint256 sharesToLock;
         if (loss + totalFees >= profit) {
             // We have a net loss
             // Will try and unlock the difference between between the gain and the loss
+            // To prevent any PPS decline post report.
             uint256 sharesToBurn = Math.min(
-                convertToShares((loss + totalFees) - profit), // Check vault code
+                convertToShares((loss + totalFees) - profit),
                 balanceOf(address(this))
             );
 
@@ -720,24 +724,19 @@ library BaseLibrary {
         } else {
             // we have a net profit
             // lock (profit - fees)
-            sharesToLock = convertToShares(profit - totalFees);
+            unchecked {
+                sharesToLock = convertToShares(profit - totalFees);
+            }
             _mint(address(this), sharesToLock);
         }
 
         // Mint fees shares.
-        if (sharesForFees > 0) {
-            uint256 performanceFeeShares = (sharesForFees * performanceFees) /
-                totalFees;
-            if (performanceFeeShares > 0) {
-                _mint(S.performanceFeeRecipient, performanceFeeShares);
-            }
+        if (performanceFeeShares > 0) {
+            _mint(S.performanceFeeRecipient, performanceFeeShares);
+        }
 
-            if (sharesForFees - performanceFeeShares > 0) {
-                _mint(
-                    protocolFeesRecipient,
-                    sharesForFees - performanceFeeShares
-                );
-            }
+        if (protocolFeeShares > 0) {
+            _mint(protocolFeesRecipient, protocolFeeShares);
         }
 
         // Update unlocking rate and time to fully unlocked
@@ -778,7 +777,11 @@ library BaseLibrary {
             }
         }
 
-        // Update last report before external calls
+        // Update storage
+        uint256 newIdle = S.asset.balanceOf(address(this));
+        S.totalIdle = newIdle;
+        S.totalDebt = invested - newIdle;
+
         S.lastReport = uint128(block.timestamp);
 
         // Emit event with info
@@ -788,21 +791,6 @@ library BaseLibrary {
             performanceFees,
             totalFees - performanceFees // Protocol fees
         );
-
-        // We need to update storage here for potential view reentrancy during
-        // the external {invest} call so pps is not distorted.
-        // NOTE: We could save an extra SSTORE here by only updating S.totalDebt = S.totalDebt + profit - loss. But reentrancy withdraws could break?
-        uint256 newIdle = S.asset.balanceOf(address(this));
-        S.totalIdle = newIdle;
-        S.totalDebt = _invested - newIdle;
-
-        // invest any idle funds, tell strategy it is during a report call
-        IBaseStrategy(address(this)).invest(newIdle, true);
-
-        // Update storage based on actual amounts
-        newIdle = S.asset.balanceOf(address(this));
-        S.totalIdle = newIdle;
-        S.totalDebt = _invested - newIdle;
     }
 
     function _assessProtocolFees(
@@ -851,11 +839,10 @@ library BaseLibrary {
         _burn(address(this), unlcokdedShares);
     }
 
-    function _unlockedShares() private view returns (uint256) {
+    function _unlockedShares() private view returns (uint256 unlockedShares) {
         // should save 2 extra calls for most scenarios
         BaseStrategyData storage S = _baseStrategyStorgage();
         uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
-        uint256 unlockedShares;
         if (_fullProfitUnlockDate > block.timestamp) {
             unchecked {
                 unlockedShares =
@@ -866,8 +853,6 @@ library BaseLibrary {
             // All shares have been unlocked
             unlockedShares = S.balances[address(this)];
         }
-
-        return unlockedShares;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -938,23 +923,40 @@ library BaseLibrary {
 
     /**
      * @notice Get the api version for this Library.
+     * @return . The api version for this library
      */
     function apiVersion() external pure returns (string memory) {
         return API_VERSION;
     }
 
+    /**
+     * @notice Get the current total idle for a strategy.
+     * @return . The current amount of idle funds.
+     */
     function totalIdle() external view returns (uint256) {
         return _baseStrategyStorgage().totalIdle;
     }
 
+    /**
+     * @notice Get the current total debt for a strategy.
+     * @return . The current amount of debt.
+     */
     function totalDebt() external view returns (uint256) {
         return _baseStrategyStorgage().totalDebt;
     }
 
+    /**
+     * @notice Get the current address that controls the strategy.
+     * @return . Address of management
+     */
     function management() external view returns (address) {
         return _baseStrategyStorgage().management;
     }
 
+    /**
+     * @notice Get the current address that can call tend and report.
+     * @return . Address of the keeper
+     */
     function keeper() external view returns (address) {
         return _baseStrategyStorgage().keeper;
     }
@@ -963,26 +965,54 @@ library BaseLibrary {
         return _baseStrategyStorgage().performanceFee;
     }
 
+    /**
+     * @notice Get the current address that receives the performance fees.
+     * @return . Address of performanceFeeRecipient
+     */
     function performanceFeeRecipient() external view returns (address) {
         return _baseStrategyStorgage().performanceFeeRecipient;
     }
 
+    /**
+     * @notice Gets the timestamp at which all profits will be unlocked.
+     * @return . The full profit unlocking timestamp
+     */
     function fullProfitUnlockDate() external view returns (uint256) {
         return uint256(_baseStrategyStorgage().fullProfitUnlockDate);
     }
 
+    /**
+     * @notice The per second rate at which profits are unlocking.
+     * @dev This is denominated in EXTENDED_BPS decimals.
+     * @return . The current profit unlocking rate.
+     */
     function profitUnlockingRate() external view returns (uint256) {
         return _baseStrategyStorgage().profitUnlockingRate;
     }
 
+    /**
+     * @notice Gets the current time profits are set to unlock over.
+     * @return . The current profit max unlock time.
+     */
     function profitMaxUnlockTime() external view returns (uint256) {
         return _baseStrategyStorgage().profitMaxUnlockTime;
     }
 
+    /**
+     * @notice The timestamp of the last time protocol fees were charged.
+     * @return . The last report.
+     */
     function lastReport() external view returns (uint256) {
         return uint256(_baseStrategyStorgage().lastReport);
     }
 
+    /**
+     * @notice Get the price per share.
+     * @dev This value offers limited precision. Integrations that require
+     * exact precision should use convertToAssets or convertToShares instead.
+     *
+     * @return . The price per share.
+     */
     function pricePerShare() external view returns (uint256) {
         return convertToAssets(10 ** _baseStrategyStorgage().decimals);
     }
@@ -991,6 +1021,14 @@ library BaseLibrary {
                         SETTER FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Sets a new address to be in charge of the stategy.
+     * @dev Can only be called by the current `management`.
+     *
+     * Cannot set `management` to address(0).
+     *
+     * @param _management New address to set `management` to.
+     */
     function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
         _baseStrategyStorgage().management = _management;
@@ -998,12 +1036,27 @@ library BaseLibrary {
         emit UpdateManagement(_management);
     }
 
+    /**
+     * @notice Sets a new address to be in charge of tend and reports.
+     * @dev Can only be called by the current `management`.
+     *
+     * @param _keeper New address to set `keeper` to.
+     */
     function setKeeper(address _keeper) external onlyManagement {
         _baseStrategyStorgage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
     }
 
+    /**
+     * @notice Sets the performance fee to be charged on a reported gains.
+     * @dev Can only be called by the current `management`.
+     *
+     * Denominated in Baseis Points. So 100% == 10_000.
+     * Cannot set greateer or equal to 10_000.
+     *
+     * @param _performanceFee New performance fee.
+     */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
         _baseStrategyStorgage().performanceFee = _performanceFee;
@@ -1011,6 +1064,14 @@ library BaseLibrary {
         emit UpdatePerformanceFee(_performanceFee);
     }
 
+    /**
+     * @notice Sets a new address to recieve performance fees.
+     * @dev Can only be called by the current `management`.
+     *
+     * Cannot set to address(0).
+     *
+     * @param _performanceFeeRecipient New address to set `management` to.
+     */
     function setPerformanceFeeRecipient(
         address _performanceFeeRecipient
     ) external onlyManagement {
@@ -1021,7 +1082,17 @@ library BaseLibrary {
         emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
     }
 
-    // Still allow for uint256 input for easy integration
+    /**
+     * @notice Sets the time for profits to be unlocked over.
+     * @dev Can only be called by the current `management`.
+     *
+     * Denominated in seconds and cannot be greater than 1 year.
+     *
+     * `profitMaxUnlockTime` is stored as a uint32 for packing but can
+     * be passed in as uint256 for simplicity.
+     *
+     * @param _profitMaxUnlockTime New `profitMaxUnlockTime`.
+     */
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {

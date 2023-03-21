@@ -42,7 +42,7 @@ abstract contract BaseStrategy {
      * This address should be the same for every strategy, never be adjusted
      * and always be checked before any integration with the implementation.
      */
-    // NOTE: This will be set to internal constants once the library has actually been deployed
+    // NOTE: This will be set to constants once the library has actually been deployed
     address public constant baseLibraryAddress =
         0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
 
@@ -105,20 +105,15 @@ abstract contract BaseStrategy {
     /**
      * @dev Should invest up to '_amount' of 'asset'.
      *
-     * Should do any needed parameter checks. 0 may be passed in as '_amount'.
-     *
-     * Both permisionless deposits and permissioned reports will lead to
-     * this function being called with all currently idle funds sent as
-     * '_amount'. The '_reported' bool is how to differeniate between the two.
-     * If true this means it was called at the end of a report with the
-     * potential of coming through a trusted relay and therefore safe to
-     * perform otherwise manipulatable transactions.
+     * This function is called at the end of a {deposit} or {mint}
+     * call. Meaning that unless a whitelist is implemented it will 
+     * be entirely permsionless and thus can be sandwhiched or otherwise
+     * manipulated.
      *
      * @param _amount The amount of 'asset' that the strategy should attemppt
      * to deposit in the yield source.
-     * @param _reported Bool repersenting if this is part of a permissined 'report'.
      */
-    function _invest(uint256 _amount, bool _reported) internal virtual;
+    function _invest(uint256 _amount) internal virtual;
 
     /**
      * @dev Will attempt to free the '_amount' of 'asset'.
@@ -126,8 +121,13 @@ abstract contract BaseStrategy {
      * The amount of 'asset' that is already loose has already
      * been accounted for.
      *
-     * Should do any needed parameter checks, '_amount' may be more than
-     * is actually available.
+     * Should do any needed parameter checks, '_amount' may be more 
+     * than is actually available.
+     *
+     * This function is called {withdraw} and {redeem} calls.
+     * Meaning that unless a whitelist is implemented it will be
+     * entirely permsionless and thus can be sandwhiched or otherwise
+     * manipulated.
      *
      * Should not rely on asset.balanceOf(address(this)) calls other than
      * for diff accounting puroposes.
@@ -137,22 +137,18 @@ abstract contract BaseStrategy {
     function _freeFunds(uint256 _amount) internal virtual;
 
     /**
-     * @dev Internal non-view function to return the accurate amount
-     * of funds currently held by the Strategy
+     * @dev Internal non-view function to harvest all rewards, reinvest
+     * and return the accurate amount of funds currently held by the Strategy.
      *
-     * This should do any needed harvesting, rewards selling, accrual
-     * etc. to get the most accurate view of current assets.
+     * This should do any needed harvesting, rewards selling, accrual,
+     * reinvesting etc. to get the most accurate view of current assets.
      *
-     * This can leave any or all assets uninvested if desired as there
-     * will always be a _invest() call at the end of the report with
-     * '_reported' set as true to differentiate between a normal deposit.
+     * All applicable assets including loose assets should be accounted
+     * for in this function.
      *
      * Care should be taken when relying on oracles or swap values rather
      * than actual amounts as all Strategy profit/loss accounting will
      * be done based on this returned value.
-     *
-     * All applicable assets including loose assets should be accounted
-     * for in this function.
      *
      * @return _invested A trusted and accurate account for the total
      * amount of 'asset' the strategy currently holds.
@@ -199,16 +195,48 @@ abstract contract BaseStrategy {
         return false;
     }
 
-    // NOTE: these functions are kept in the Base to give strategists
-    // the ability to override them to limit deposit or withdraws for
-    // andy strategies that want to implement deposit limts, whitelists, illiquid strategies etc.
-
+    /**
+     * @notice Gets the max amount of `asset` that an adress can deposit.
+     * @dev Defaults to an unlimited amount for any address. But can
+     * be overriden by strategists.
+     *
+     * This function will be called before any deposit or mints to enforce
+     * any limits desired by the strategist. This can be used for either a
+     * traditional deposit limit or for implementing a whitelist.
+     *
+     *   EX:
+     *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
+     *
+     * This does not need to take into account any conversion rates
+     * from shares to assets.
+     *
+     * @param . The address that is depositing into the strategy.
+     * @return . The avialable amount the `_owner can deposit in terms of `asset`
+     */
     function availableDepositLimit(
         address /*_owner*/
     ) public view virtual returns (uint256) {
         return type(uint256).max;
     }
 
+    /**
+     * @notice Gets the max amount of `asset` that can be withdrawn.
+     * @dev Defaults to an unlimited amount for any address. But can
+     * be overriden by strategists.
+     *
+     * This function will be called before any withdraw or redeem to enforce
+     * any limits desired by the strategist. This can be used for illiquid
+     * or sandwhichable strategies. It should never be lower than `totalIdle`.
+     *
+     *   EX:
+     *       return BaseLibray.totalIdle();
+     *
+     * This does not need to take into account the `_owner`'s share balance
+     * or conversion rates from shares to assets.
+     *
+     * @param . The address that is withdrawing from the strategy.
+     * @return . The avialable amount that can be withdrawn in terms of `asset`
+     */
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view virtual returns (uint256) {
@@ -221,25 +249,20 @@ abstract contract BaseStrategy {
 
     /**
      * @notice Should invest up to '_amount' of 'asset'.
-     * @dev Callback for the library to call during a deposit, mint
-     * or report to tell the strategy it can invest funds.
+     * @dev Callback for the library to call during a {deposit} or {mint}
+     * to tell the strategy it can invest funds.
      *
-     * This can only be called after a 'deposit', 'mint' or 'report'
-     * delegateCall to the library so msg.sender == address(this).
+     * Since this can only be called after a {deposit} or {mint} 
+     * delegateCall to the library msg.sender == address(this).
      *
-     * Both permisionless deposits and permissioned reports will lead
-     * to this function being called with all currently idle funds sent
-     * as '_assets'. The '_reported' bool is how to differeniate between
-     * the two. If true this means it was called at the end of a report
-     * with the expectation of coming through a trusted relay and therefore
-     * safe to perform otherwise manipulatable transactions.
+     * Unless a whitelist is implemented this will be entirely permsionless 
+     * and thus can be sandwhiched or otherwise manipulated.
      *
      * @param _amount The amount of 'asset' that the strategy should
      * attemppt to deposit in the yield source.
-     * @param _reported Bool repersenting if this is part of a `report`.
      */
-    function invest(uint256 _amount, bool _reported) external onlySelf {
-        _invest(_amount, _reported);
+    function invest(uint256 _amount) external onlySelf {
+        _invest(_amount);
     }
 
     /**

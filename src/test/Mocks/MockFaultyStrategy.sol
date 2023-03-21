@@ -30,14 +30,9 @@ contract MockFaultyStrategy is BaseStrategy {
         pappa = msg.sender;
     }
 
-    function _invest(uint256 _amount, bool _reported) internal override {
+    function _invest(uint256 _amount) internal override {
         if (doCallBack) {
-            // If we are reentering base it off of totalInvested during reports
-            if (_reported) {
-                callBack(_totalInvested());
-            } else {
                 callBack(_amount);
-            }
         }
         MockYieldSource(yieldSource).deposit(_amount + fault);
     }
@@ -48,9 +43,13 @@ contract MockFaultyStrategy is BaseStrategy {
     }
 
     function _totalInvested() internal override returns (uint256) {
-        return
-            MockYieldSource(yieldSource).balance() +
-            ERC20(asset).balanceOf(address(this));
+        uint256 balance = ERC20(asset).balanceOf(address(this));
+        if (balance > 0) {
+            MockYieldSource(yieldSource).deposit(balance);
+        }
+        uint256 total = MockYieldSource(yieldSource).balance();
+        if (doCallBack) callBack(total);
+        return total;
     }
 
     function _tend(uint256 _idle) internal override {
