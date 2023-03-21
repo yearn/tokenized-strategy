@@ -32,7 +32,7 @@ contract MockFaultyStrategy is BaseStrategy {
 
     function _invest(uint256 _amount) internal override {
         if (doCallBack) {
-                callBack(_amount);
+            callBack(_amount);
         }
         MockYieldSource(yieldSource).deposit(_amount + fault);
     }

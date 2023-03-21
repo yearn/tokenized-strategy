@@ -680,7 +680,7 @@ library BaseLibrary {
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and reinvesting now and
         // account for invested and loose `asset` so we can accuratly
-        // account for all funds including those potentially airdropped 
+        // account for all funds including those potentially airdropped
         // by a trade factory.
         uint256 invested = IBaseStrategy(address(this)).totalInvested();
 
@@ -704,9 +704,7 @@ library BaseLibrary {
         uint256 performanceFeeShares = convertToShares(performanceFees);
         uint256 protocolFeeShares;
         unchecked {
-            protocolFeeShares = convertToShares(
-                totalFees - performanceFees
-            );
+            protocolFeeShares = convertToShares(totalFees - performanceFees);
         }
         uint256 sharesToLock;
         if (loss + totalFees >= profit) {

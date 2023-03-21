@@ -32,7 +32,9 @@ contract MockIlliquidStrategy is BaseStrategy {
         if (balance > 0) {
             MockYieldSource(yieldSource).deposit(balance / 2);
         }
-        return MockYieldSource(yieldSource).balance() + ERC20(asset).balanceOf(address(this));
+        return
+            MockYieldSource(yieldSource).balance() +
+            ERC20(asset).balanceOf(address(this));
     }
 
     function _tend(uint256 /*_idle*/) internal override {

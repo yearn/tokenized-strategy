@@ -106,7 +106,7 @@ abstract contract BaseStrategy {
      * @dev Should invest up to '_amount' of 'asset'.
      *
      * This function is called at the end of a {deposit} or {mint}
-     * call. Meaning that unless a whitelist is implemented it will 
+     * call. Meaning that unless a whitelist is implemented it will
      * be entirely permsionless and thus can be sandwhiched or otherwise
      * manipulated.
      *
@@ -121,7 +121,7 @@ abstract contract BaseStrategy {
      * The amount of 'asset' that is already loose has already
      * been accounted for.
      *
-     * Should do any needed parameter checks, '_amount' may be more 
+     * Should do any needed parameter checks, '_amount' may be more
      * than is actually available.
      *
      * This function is called {withdraw} and {redeem} calls.
@@ -252,10 +252,10 @@ abstract contract BaseStrategy {
      * @dev Callback for the library to call during a {deposit} or {mint}
      * to tell the strategy it can invest funds.
      *
-     * Since this can only be called after a {deposit} or {mint} 
+     * Since this can only be called after a {deposit} or {mint}
      * delegateCall to the library msg.sender == address(this).
      *
-     * Unless a whitelist is implemented this will be entirely permsionless 
+     * Unless a whitelist is implemented this will be entirely permsionless
      * and thus can be sandwhiched or otherwise manipulated.
      *
      * @param _amount The amount of 'asset' that the strategy should
