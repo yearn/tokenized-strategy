@@ -6,11 +6,11 @@ import {ExtendedTest} from "./ExtendedTest.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
-import {IMockStrategy} from "../Mocks/IMockStrategy.sol";
-import {MockStrategy, MockYieldSource} from "../Mocks/MockStrategy.sol";
-import {MockIlliquidStrategy} from "../Mocks/MockIlliquidStrategy.sol";
-import {MockFaultyStrategy} from "../Mocks/MockFaultyStrategy.sol";
-import {MockFactory} from "../Mocks/MockFactory.sol";
+import {IMockStrategy} from "../mocks/IMockStrategy.sol";
+import {MockStrategy, MockYieldSource} from "../mocks/MockStrategy.sol";
+import {MockIlliquidStrategy} from "../mocks/MockIlliquidStrategy.sol";
+import {MockFaultyStrategy} from "../mocks/MockFaultyStrategy.sol";
+import {MockFactory} from "../mocks/MockFactory.sol";
 
 import {DiamondHelper} from "../../DiamondHelper.sol";
 import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
