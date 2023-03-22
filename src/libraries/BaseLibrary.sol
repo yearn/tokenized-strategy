@@ -20,7 +20,6 @@ interface IFactory {
 /// TODO:
 //      Does base strategy need to hold events?
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
-//      Deposit limit?
 //      how to account for protocol fees when the strategy is empty
 
 library BaseLibrary {

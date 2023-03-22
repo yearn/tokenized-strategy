@@ -6,83 +6,275 @@ import {ExtendedTest} from "../utils/ExtendedTest.sol";
 import {Setup, IMockStrategy, ERC20Mock} from "../utils/Setup.sol";
 
 contract StrategyHandler is ExtendedTest {
+    using LibAddressSet for AddressSet;
 
     Setup public setup;
+    IMockStrategy public strategy;
+    ERC20Mock public asset;
+
+    uint256 public maxFuzzAmount = 1e30;
+    uint256 public minFuzzAmount = 10_000;
+
+    uint256 public ghost_depositSum;
+    uint256 public ghost_withdrawSum;
+    uint256 public ghost_profitSum;
+    uint256 public ghost_lossSum;
+
+    uint256 public ghost_zeroDeposits;
+    uint256 public ghost_zeroWithdrawals;
+    uint256 public ghost_zeroTransfers;
+    uint256 public ghost_zeroTransferFroms;
+
+    mapping(bytes32 => uint256) public calls;
+
+    AddressSet internal _actors;
+    address internal actor;
+
+    modifier createActor() {
+        actor = msg.sender;
+        _actors.add(msg.sender);
+        _;
+    }
+
+    modifier useActor(uint256 actorIndexSeed) {
+        actor = _actors.rand(actorIndexSeed);
+        _;
+    }
+
+    modifier countCall(bytes32 key) {
+        calls[key]++;
+        _;
+    }
 
     constructor() {
         setup = Setup(msg.sender);
-    }
-    
-    function deposit(address _user, uint256 _amount) public {
-        ERC20Mock asset = setup.asset();
-        IMockStrategy strategy = setup.strategy();
 
-        asset.mint(_user, _amount);
-        vm.prank(_user);
+        asset = setup.asset();
+        strategy = setup.strategy();
+    }
+
+    function deposit(uint256 _amount) public createActor countCall("deposit") {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+
+        asset.mint(actor, _amount);
+        vm.prank(actor);
         asset.approve(address(strategy), _amount);
 
-        vm.prank(_user);
-        strategy.deposit(_amount, _user);
+        vm.prank(actor);
+        strategy.deposit(_amount, actor);
+
+        ghost_depositSum += _amount;
     }
 
-    function mint(address _user, uint256 _amount) public {
-        ERC20Mock asset = setup.asset();
-        IMockStrategy strategy = setup.strategy();
-        
+    function mint(uint256 _amount) public createActor countCall("mint") {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+
         uint256 toMint = strategy.previewMint(_amount);
-        asset.mint(_user, toMint);
-        vm.prank(_user);
+        asset.mint(actor, toMint);
+
+        vm.prank(actor);
         asset.approve(address(strategy), toMint);
 
-        vm.prank(_user);
-        strategy.mint(_amount, _user);
+        vm.prank(actor);
+        uint256 assets = strategy.mint(_amount, actor);
+
+        ghost_depositSum += assets;
     }
 
-    function withdraw(address _user, uint256 _amount) public {
-        ERC20Mock asset = setup.asset();
-        IMockStrategy strategy = setup.strategy();
+    function withdraw(
+        uint256 actorSeed,
+        uint256 _amount
+    ) public useActor(actorSeed) countCall("withdraw") {
+        if (strategy.maxWithdraw(address(actor)) == 0) deposit(_amount * 2);
+        _amount = bound(_amount, 0, strategy.maxWithdraw(address(actor)));
+        if (_amount == 0) ghost_zeroWithdrawals++;
 
-        vm.prank(_user);
-        strategy.withdraw(_amount, _user, _user);
+        vm.prank(actor);
+        strategy.withdraw(_amount, actor, actor);
+
+        ghost_withdrawSum += _amount;
     }
 
-    function redeem(address _user, uint256 _amount) public {
-        ERC20Mock asset = setup.asset();
-        IMockStrategy strategy = setup.strategy();
+    function redeem(
+        uint256 actorSeed,
+        uint256 _amount
+    ) public useActor(actorSeed) countCall("redeem") {
+        if (strategy.balanceOf(address(actor)) == 0) mint(_amount * 2);
+        _amount = bound(_amount, 0, strategy.balanceOf(address(actor)));
+        if (_amount == 0) ghost_zeroWithdrawals++;
 
-        vm.prank(_user);
-        strategy.redeem(_amount, _user, _user);
+        vm.prank(actor);
+        uint256 assets = strategy.redeem(_amount, actor, actor);
+
+        ghost_withdrawSum += assets;
     }
 
-    function createProfit(uint256 _amount) public {
-        ERC20Mock asset = setup.asset();
-        IMockStrategy strategy = setup.strategy();
+    function reportProfit(uint256 _amount) public countCall("reportProfit") {
+        _amount = bound(_amount, 1, strategy.totalAssets() / 2);
 
+        // Simulate earning interest
         asset.mint(address(strategy), _amount);
-    }
-
-    function createLoss(address _address, uint256 _amount) public {
-        ERC20Mock asset = setup.asset();
-
-        vm.prank(address(setup.yieldSource()));
-        asset.transfer(_address, _amount);
-    }
-
-    function report() public {
-        IMockStrategy strategy = setup.strategy();
 
         vm.prank(setup.keeper());
         strategy.report();
+
+        ghost_profitSum += _amount;
     }
 
-    function tend() public {
-        IMockStrategy strategy = setup.strategy();
+    function reportLoss(uint256 _amount) public countCall("reportLoss") {
+        _amount = bound(_amount, 0, strategy.totalAssets() / 2);
+
+        // Simulate lossing money
+        vm.prank(address(setup.yieldSource()));
+        asset.transfer(address(69), _amount);
+
+        vm.prank(setup.keeper());
+        strategy.report();
+
+        ghost_lossSum += _amount;
+    }
+
+    function tend(uint256 _amount) public countCall("tend") {
+        _amount = bound(_amount, 1, strategy.totalAssets() / 2);
+        asset.mint(address(strategy), _amount);
 
         vm.prank(setup.keeper());
         strategy.tend();
     }
 
+    function approve(
+        uint256 actorSeed,
+        uint256 spenderSeed,
+        uint256 amount
+    ) public useActor(actorSeed) countCall("approve") {
+        address spender = _actors.rand(spenderSeed);
+
+        vm.prank(actor);
+        strategy.approve(spender, amount);
+    }
+
+    function transfer(
+        uint256 actorSeed,
+        uint256 toSeed,
+        uint256 amount
+    ) public useActor(actorSeed) countCall("transfer") {
+        address to = _actors.rand(toSeed);
+
+        amount = bound(amount, 0, strategy.balanceOf(actor));
+        if (amount == 0) ghost_zeroTransfers++;
+
+        vm.prank(actor);
+        strategy.transfer(to, amount);
+    }
+
+    function transferFrom(
+        uint256 actorSeed,
+        uint256 fromSeed,
+        uint256 amount
+    ) public useActor(actorSeed) countCall("transferFrom") {
+        address from = _actors.rand(fromSeed);
+        address to = msg.sender;
+        _actors.add(msg.sender);
+
+        amount = bound(amount, 0, strategy.balanceOf(from));
+        uint256 allowance = strategy.allowance(actor, from);
+        if (allowance == 0) {
+            vm.prank(from);
+            strategy.approve(actor, amount);
+        } else if (allowance < amount) {
+            strategy.increaseAllowance(actor, amount - allowance);
+        }
+        if (amount == 0) ghost_zeroTransferFroms++;
+
+        vm.prank(actor);
+        strategy.transferFrom(from, to, amount);
+    }
+
+    function increaseTime() public countCall("skip") {
+        skip(1 days);
+    }
+
+    function callSummary() external view {
+        console.log("Call summary:");
+        console.log("-------------------");
+        console.log("deposit", calls["deposit"]);
+        console.log("mint", calls["mint"]);
+        console.log("withdraw", calls["withdraw"]);
+        console.log("redeem", calls["redeem"]);
+        console.log("report profit", calls["reportProfit"]);
+        console.log("report loss", calls["reportLoss"]);
+        console.log("tend", calls["tend"]);
+        console.log("approve", calls["approve"]);
+        console.log("transfer", calls["transfer"]);
+        console.log("transferFrom", calls["transferFrom"]);
+        console.log("skip", calls["skip"]);
+        console.log("-------------------");
+        console.log("Total Deposit sum", ghost_depositSum);
+        console.log("Total withdraw sum", ghost_withdrawSum);
+        console.log("Total Profit", ghost_profitSum);
+        console.log("Total Loss", ghost_lossSum);
+        console.log("-------------------");
+        console.log("Amount of actors", _actors.count());
+        console.log("Zero Deposits:", ghost_zeroDeposits);
+        console.log("Zero withdrawals:", ghost_zeroWithdrawals);
+        console.log("Zero transferFroms:", ghost_zeroTransferFroms);
+        console.log("Zero transfers:", ghost_zeroTransfers);
+    }
     // setter functions
-        // ERC20 functions
-    
+}
+
+struct AddressSet {
+    address[] addrs;
+    mapping(address => bool) saved;
+}
+
+library LibAddressSet {
+    function add(AddressSet storage s, address addr) internal {
+        if (!s.saved[addr]) {
+            s.addrs.push(addr);
+            s.saved[addr] = true;
+        }
+    }
+
+    function contains(
+        AddressSet storage s,
+        address addr
+    ) internal view returns (bool) {
+        return s.saved[addr];
+    }
+
+    function count(AddressSet storage s) internal view returns (uint256) {
+        return s.addrs.length;
+    }
+
+    function rand(
+        AddressSet storage s,
+        uint256 seed
+    ) internal view returns (address) {
+        if (s.addrs.length > 0) {
+            return s.addrs[seed % s.addrs.length];
+        } else {
+            return address(0);
+        }
+    }
+
+    function forEach(
+        AddressSet storage s,
+        function(address) external func
+    ) internal {
+        for (uint256 i; i < s.addrs.length; ++i) {
+            func(s.addrs[i]);
+        }
+    }
+
+    function reduce(
+        AddressSet storage s,
+        uint256 acc,
+        function(uint256, address) external returns (uint256) func
+    ) internal returns (uint256) {
+        for (uint256 i; i < s.addrs.length; ++i) {
+            acc = func(acc, s.addrs[i]);
+        }
+        return acc;
+    }
 }

@@ -8,13 +8,13 @@ size  :; forge build --sizes
 inspect :; forge inspect ${contract} storage-layout --pretty
 
 # local tests without fork
-test  :; forge test
+test  :; forge test -vv
 trace  :; forge test -vvv
 gas  :; forge test --gas-report
-test-contract  :; forge test --match-contract $(contract)
+test-contract  :; forge test -vv --match-contract $(contract)
 test-contract-gas  :; forge test --gas-report --match-contract ${contract}
 trace-contract  :; forge test -vvv --match-contract $(contract)
-test-test  :; forge test --match-test $(test)
+test-test  :; forge test -vv --match-test $(test)
 trace-test  :; forge test -vvv --match-test $(test)
 clean  :; forge clean
 snapshot :; forge snapshot
