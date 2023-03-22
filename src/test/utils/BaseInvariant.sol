@@ -38,6 +38,7 @@ abstract contract BaseInvariant is Setup {
     }
 
     function assert_totalAssets() public {
+        console.log("Testingss   :", address(strategy));
         assertEq(
             strategy.totalAssets(),
             strategy.totalIdle() + strategy.totalDebt()

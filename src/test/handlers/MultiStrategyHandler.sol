@@ -75,7 +75,7 @@ contract MultiStrategyHandler is ExtendedTest {
         uint256 _amount
     ) public createStrategy createActor countCall("deposit") {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-
+        console.log("Amount made it:", _amount);
         asset.mint(actor, _amount);
         vm.prank(actor);
         asset.approve(address(strategy), _amount);
@@ -300,6 +300,7 @@ contract MultiStrategyHandler is ExtendedTest {
         console.log("Total Loss", ghost_lossSum);
         console.log("Total unreported Loss", ghost_unreportedLossSum);
         console.log("-------------------");
+        console.log("Amount of Strategies", _strategies.count());
         console.log("Amount of actors", _actors.count());
         console.log("Zero Deposits:", ghost_zeroDeposits);
         console.log("Zero withdrawals:", ghost_zeroWithdrawals);
@@ -316,10 +317,10 @@ contract MultiStrategyHandler is ExtendedTest {
         ERC20Mock _asset = new ERC20Mock();
 
         // create a mock yield source to deposit into
-        MockYieldSource yieldSource = new MockYieldSource(address(asset));
+        MockYieldSource _yieldSource = new MockYieldSource(address(_asset));
 
         _strategy = IMockStrategy(
-            address(new MockStrategy(address(asset), address(yieldSource)))
+            address(new MockStrategy(address(_asset), address(_yieldSource)))
         );
 
         // set keeper

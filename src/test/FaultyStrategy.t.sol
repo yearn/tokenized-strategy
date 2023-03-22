@@ -28,7 +28,7 @@ contract FaultyStrategy is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _faultAmount = bound(_faultAmount, 10, MAX_BPS);
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(_address != address(0) && _address != address(strategy) && _address != address(yieldSource));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
@@ -64,7 +64,7 @@ contract FaultyStrategy is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _faultAmount = bound(_faultAmount, 10, MAX_BPS);
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(_address != address(0) && _address != address(strategy) && _address != address(yieldSource));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
 
