@@ -360,7 +360,7 @@ library BaseLibrary {
         address receiver
     ) public nonReentrant returns (uint256 assets) {
         // No need to check for rounding error, previewMint rounds up.
-        assets = previewMint(shares);
+        require((assets = previewMint(shares)) != 0, "ZERO_ASSETS");
 
         _deposit(receiver, assets, shares);
     }
@@ -371,7 +371,7 @@ library BaseLibrary {
         address owner
     ) public nonReentrant returns (uint256 shares) {
         // No need to check for rounding error, previewWithdraw rounds up.
-        shares = previewWithdraw(assets);
+        require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
         _withdraw(receiver, owner, assets, shares);
     }
@@ -388,12 +388,16 @@ library BaseLibrary {
     }
 
     function convertToShares(uint256 assets) public view returns (uint256) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
+        uint256 _totalAssets = totalAssets(); // Saves an extra SLOAD if totalAssets() is non-zero.
 
         return
-            supply == 0
+            _totalAssets == 0
                 ? assets
-                : assets.mulDiv(supply, totalAssets(), Math.Rounding.Down);
+                : assets.mulDiv(
+                    totalSupply(),
+                    _totalAssets,
+                    Math.Rounding.Down
+                );
     }
 
     function convertToAssets(uint256 shares) public view returns (uint256) {
@@ -419,12 +423,12 @@ library BaseLibrary {
     }
 
     function previewWithdraw(uint256 assets) public view returns (uint256) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
+        uint256 _totalAssets = totalAssets(); // Saves an extra SLOAD if totalAssets() is non-zero.
 
         return
-            supply == 0
+            _totalAssets == 0
                 ? assets
-                : assets.mulDiv(supply, totalAssets(), Math.Rounding.Up);
+                : assets.mulDiv(totalSupply(), _totalAssets, Math.Rounding.Up);
     }
 
     function previewRedeem(uint256 shares) public view returns (uint256) {

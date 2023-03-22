@@ -54,6 +54,8 @@ interface IMockStrategy is IBaseLibrary {
 
     function onlyLetKeepersIn() external;
 
+    function yieldSource() external view returns (address);
+
     function managed() external view returns (bool);
 
     function kept() external view returns (bool);
