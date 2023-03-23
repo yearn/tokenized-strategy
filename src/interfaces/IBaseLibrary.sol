@@ -4,13 +4,14 @@ pragma solidity 0.8.18;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 
 import {IDiamond} from "./IDiamond.sol";
 import {IDiamondLoupe} from "./IDiamondLoupe.sol";
 
 // Interface that implements the 4626 standard the Library functions and the Strategies immutable functions
 interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
+    // Base Library functions \\
     function init(
         address _asset,
         string memory _name,
@@ -25,11 +26,9 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
 
     function tend() external;
 
-    // Base Library functions \\
-
     function report() external returns (uint256 _profit, uint256 _loss);
 
-    // Getters
+    // Getters \\
     function apiVersion() external returns (string memory);
 
     function pricePerShare() external view returns (uint256);
@@ -54,7 +53,7 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
 
     function lastReport() external view returns (uint256);
 
-    // Setters
+    // Setters \\
     function setManagement(address) external;
 
     function setKeeper(address _keeper) external;
@@ -67,7 +66,7 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external;
 
-    // ERC20
+    // ERC20 add ons
 
     function decreaseAllowance(
         address spender,

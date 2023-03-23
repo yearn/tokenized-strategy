@@ -16,5 +16,6 @@ test-contract-gas  :; forge test --gas-report --match-contract ${contract}
 trace-contract  :; forge test -vvv --match-contract $(contract)
 test-test  :; forge test -vv --match-test $(test)
 trace-test  :; forge test -vvv --match-test $(test)
+
 clean  :; forge clean
 snapshot :; forge snapshot
