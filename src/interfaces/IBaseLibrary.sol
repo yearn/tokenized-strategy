@@ -9,7 +9,7 @@ import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC2
 import {IDiamond} from "./IDiamond.sol";
 import {IDiamondLoupe} from "./IDiamondLoupe.sol";
 
-// Interface to use during testing that implements the 4626 standard the Library functions and the Strategies immutable functions
+// Interface that implements the 4626 standard the Library functions and the Strategies immutable functions
 interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
     function init(
         address _asset,

@@ -46,8 +46,8 @@ contract ERC20BaseTest is Setup {
         uint256 amount1_
     ) public {
         vm.assume(account_ != address(0) && account_ != address(strategy));
-        amount0_ = bound(amount0_, minFuzzAmount, maxFuzzAmount);
-        if (amount1_ > amount0_) return; // Mint amount must exceed burn amount.
+        amount0_ = bound(amount0_, minFuzzAmount + 1, maxFuzzAmount);
+        amount1_ = bound(amount1_, minFuzzAmount, amount0_);
 
         mintAndDepositIntoStrategy(strategy, account_, amount0_);
         vm.prank(account_);
