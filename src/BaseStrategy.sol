@@ -4,20 +4,57 @@ pragma solidity 0.8.18;
 // Custom Base Strategy interfacies
 import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
 
+/**
+ * @title YearnV3 Base Strategy
+ * @author yearn.finance
+ * @notice
+ *  BaseStrategy implements all of the required functionality to be a fully
+ *  permisionless ERC-4626 compliant Vault. It utilizes a simplified and
+ *  immutable version of the ERC-2535 'Diamond Pattern' to keep the BaseStrategy
+ *  simple and small. All needed logic is held withen the `BaseLibrary` and
+ *  is reused over any n strategies all using the `fallback` function to
+ *  delegatecall this library so that strategists can only be concerned
+ *  with writing the implementation specific code.
+ *
+ *  This contract should be inherited and the three main abstract methods
+ *  `_invest`, `_freeFunds` and `_totalInvested` implemented to adapt the
+ *  Strategy to the particular needs it has to create a return. There are
+ *  other optional methods that can be implemented to further customize
+ *  the strategy if desired.
+ *
+ *  All default storage for the implementation wil will controlled and
+ *  updated by the `BaseLibrary`. The library holds a storage struct that
+ *  contains all needed global variables in a manual storage slot at roughly
+ *  1e77. This means strategists can feel free to implement their own storage
+ *  variables as they need with no concern of collisions. All global variables
+ *  can be viewed within the implementation by a simple call using the
+ *  `BaseLibrary` variable. IE: BaseLibrary.globalVariable();.
+ */
 abstract contract BaseStrategy {
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev Used on library callback function to make sure it is post
+     * a delegateCall from this address to the library.
+     */
     modifier onlySelf() {
         _onlySelf();
         _;
     }
 
+    /**
+     * @dev Use to assure that the call is coming from the strategies mangement.
+     */
     modifier onlyManagement() {
         BaseLibrary.isManagement(msg.sender);
         _;
     }
 
+    /**
+     * @dev Use to assure that the call is coming from either the strategies
+     * management or the keeper.
+     */
     modifier onlyKeepers() {
         BaseLibrary.isKeeperOrManagement(msg.sender);
         _;
@@ -78,6 +115,21 @@ abstract contract BaseStrategy {
         initialize(_asset, _name, msg.sender, msg.sender, msg.sender);
     }
 
+    /**
+     * @notice Used to intialize the strategy on deployment or after cloning.
+     * @dev This can only be called once. It will be called automatically
+     * by the library during a cloning.
+     *
+     * This will set the `BaseLibrary` variable for easy internal view
+     * calls to the library. As well telling the library to initialize the
+     * defualt storage variables based on the parameters given.
+     *
+     * @param _asset Address of the underlying asset.
+     * @param _name Name the strategy will use.
+     * @param _management Address to set as the strategies `management`.
+     * @param _performanceFeeRecipient Address to receive performance fees.
+     * @param _keeper Address to set as strategies `keeper`.
+     */
     function initialize(
         address _asset,
         string memory _name,

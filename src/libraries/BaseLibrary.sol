@@ -76,6 +76,10 @@ library BaseLibrary {
         uint256 value
     );
 
+    /**
+     * @dev Emitted when the `caller` has exchanged `assets` for `shares`,
+     * and transferred those `shares` to `owner`.
+     */
     event Deposit(
         address indexed caller,
         address indexed owner,
@@ -83,6 +87,10 @@ library BaseLibrary {
         uint256 shares
     );
 
+    /**
+     * @dev Emitted when the `caller` has exchanged `owner`s `shares` for `assets`,
+     * and transferred those `assets` to `receiver`.
+     */
     event Withdraw(
         address indexed caller,
         address indexed receiver,
@@ -91,6 +99,10 @@ library BaseLibrary {
         uint256 shares
     );
 
+    /**
+     * @dev Emitted when the strategy reports `profit` or `loss` and
+     * `performanceFees` and `protocolFees` are paid out.
+     */
     event Reported(
         uint256 profit,
         uint256 loss,
@@ -98,13 +110,19 @@ library BaseLibrary {
         uint256 protocolFees
     );
 
+    /**
+     * @dev Emitted on the initialization of a new strategy.
+     */
     event DiamondCut(
         IDiamond.FacetCut[] _diamondCut,
         address _init,
         bytes _calldata
     );
 
-    event Cloned(address indexed clone);
+    /**
+     * @dev Emitted when a new `clone` is created from an `original`.
+     */
+    event Cloned(address indexed clone, address indexed original);
 
     /*//////////////////////////////////////////////////////////////
                         STORAGE STRUCT
@@ -170,11 +188,18 @@ library BaseLibrary {
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Require that the call is coming from the strategies mangement.
+     */
     modifier onlyManagement() {
         isManagement(msg.sender);
         _;
     }
 
+    /**
+     * @dev Require that the call is coming from either the strategies
+     * management or the keeper.
+     */
     modifier onlyKeepers() {
         isKeeperOrManagement(msg.sender);
         _;
@@ -345,48 +370,86 @@ library BaseLibrary {
                         ERC4626 FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Mints `shares` of strategy shares to `receiver` by
+     * depositing exactly `assets` of underlying tokens.
+     * @param assets The amount of underlying to deposit in.
+     * @param receiver The address to receive the `shares`.
+     * @return shares The actual amount of shares issued.
+     */
     function deposit(
         uint256 assets,
         address receiver
     ) public nonReentrant returns (uint256 shares) {
-        // Check for rounding error since we round down in previewDeposit.
+        // Check for rounding error.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
         _deposit(receiver, assets, shares);
     }
 
+    /**
+     * @notice Mints exactly `shares` of strategy shares to
+     * `receiver` by depositing `assets` of underlying tokens.
+     * @param shares The amount of strategy shares mint.
+     * @param receiver The address to receive the `shares`.
+     * @return assets The actual amount of asset deposited.
+     */
     function mint(
         uint256 shares,
         address receiver
     ) public nonReentrant returns (uint256 assets) {
-        // No need to check for rounding error, previewMint rounds up.
+        // Check for rounding error.
         require((assets = previewMint(shares)) != 0, "ZERO_ASSETS");
 
         _deposit(receiver, assets, shares);
     }
 
+    /**
+     * @notice Redeems `shares` from `owner` and sends `assets`
+     * of underlying tokens to `receiver`.
+     * @param assets The amount of underlying to withdraw.
+     * @param receiver The address to receive `assets`.
+     * @param owner The address whose shares are burnt.
+     * @return shares The actual amount of shares burnt.
+     */
     function withdraw(
         uint256 assets,
         address receiver,
         address owner
     ) public nonReentrant returns (uint256 shares) {
-        // No need to check for rounding error, previewWithdraw rounds up.
+        // Check for rounding error.
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
         _withdraw(receiver, owner, assets, shares);
     }
 
+    /**
+     * @notice Redeems exactly `shares` from `owner` and
+     * sends `assets` of underlying tokens to `receiver`.
+     * @param shares The amount of shares burnt.
+     * @param receiver The address to receive `assets`.
+     * @param owner The address whose shares are burnt.
+     * @return assets The actual amount of underlying withdrawn.
+     */
     function redeem(
         uint256 shares,
         address receiver,
         address owner
     ) public nonReentrant returns (uint256 assets) {
-        // Check for rounding error since we round down in previewRedeem.
+        // Check for rounding error.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
         _withdraw(receiver, owner, assets, shares);
     }
 
+    /**
+     * @notice The amount of shares that the strategy would
+     *  exchange for the amount of assets provided, in an
+     * ideal scenario where all the conditions are met.
+     *
+     * @param assets The amount of underlying.
+     * @return . Expected shares that `assets` repersents.
+     */
     function convertToShares(uint256 assets) public view returns (uint256) {
         uint256 _totalAssets = totalAssets(); // Saves an extra SLOAD if totalAssets() is non-zero.
 
@@ -400,6 +463,14 @@ library BaseLibrary {
                 );
     }
 
+    /**
+     * @notice The amount of assets that the strategy would
+     * exchange for the amount of shares provided, in an
+     * ideal scenario where all the conditions are met.
+     *
+     * @param shares The amount of the strategies shares.
+     * @return . Expected amount of `asset` the shares repersent.
+     */
     function convertToAssets(uint256 shares) public view returns (uint256) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
 
@@ -409,10 +480,22 @@ library BaseLibrary {
                 : shares.mulDiv(totalAssets(), supply, Math.Rounding.Down);
     }
 
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate
+     * the effects of their deposit at the current block, given
+     * current on-chain conditions.
+     * @dev This will round down.
+     */
     function previewDeposit(uint256 assets) public view returns (uint256) {
         return convertToShares(assets);
     }
 
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate
+     * the effects of their mint at the current block, given
+     * current on-chain conditions.
+     * @dev This will round up.
+     */
     function previewMint(uint256 shares) public view returns (uint256) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
 
@@ -422,6 +505,11 @@ library BaseLibrary {
                 : shares.mulDiv(totalAssets(), supply, Math.Rounding.Up);
     }
 
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate
+     * the effects of their withdrawal at the current block,
+     * given current on-chain conditions.
+     */
     function previewWithdraw(uint256 assets) public view returns (uint256) {
         uint256 _totalAssets = totalAssets(); // Saves an extra SLOAD if totalAssets() is non-zero.
 
@@ -431,14 +519,29 @@ library BaseLibrary {
                 : assets.mulDiv(totalSupply(), _totalAssets, Math.Rounding.Up);
     }
 
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate
+     * the effects of their redeemption at the current block,
+     * given current on-chain conditions.
+     */
     function previewRedeem(uint256 shares) public view returns (uint256) {
         return convertToAssets(shares);
     }
 
+    /**
+     * @notice Total number of underlying assets that can
+     * be deposited by `_owner` into the strategy, where `_owner`
+     * corresponds to the msg.sender of a {deposit} call.
+     */
     function maxDeposit(address _owner) public view returns (uint256) {
         return IBaseStrategy(address(this)).availableDepositLimit(_owner);
     }
 
+    /**
+     * @notice Total number of shares that can be minted by `_owner`
+     * into the strategy, where `_owner` corresponds to the msg.sender
+     * of a {mint} call.
+     */
     function maxMint(address _owner) public view returns (uint256 _maxMint) {
         _maxMint = IBaseStrategy(address(this)).availableDepositLimit(_owner);
         if (_maxMint != type(uint256).max) {
@@ -446,6 +549,11 @@ library BaseLibrary {
         }
     }
 
+    /**
+     * @notice Total number of underlying assets that can be
+     * withdrawn from the strategy by `owner`, where `owner`
+     * corresponds to the msg.sender of a {redeem} call.
+     */
     function maxWithdraw(
         address _owner
     ) public view returns (uint256 _maxWithdraw) {
@@ -463,6 +571,11 @@ library BaseLibrary {
         }
     }
 
+    /**
+     * @notice Total number of strategy shares that can be
+     * redeemed from the strategy by `owner`, where `owner`
+     * corresponds to the msg.sender of a {redeem} call.
+     */
     function maxRedeem(
         address _owner
     ) public view returns (uint256 _maxRedeem) {
@@ -1651,6 +1764,6 @@ library BaseLibrary {
             _keeper
         );
 
-        emit Cloned(newStrategy);
+        emit Cloned(newStrategy, address(this));
     }
 }

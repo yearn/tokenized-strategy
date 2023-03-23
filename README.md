@@ -1,6 +1,11 @@
 
 # Yearn V3 Base Strategy
 
+This repository contains the code for the Yearn V3 BaseStrategy implementation. The V3 strategy implementation utilizes a simplified and immutable version of the ERC-2535 'Diamond Pattern' to allow for strategies to all use them same `BaseLibrary` for their redundant high risk code. The library holds all ERC-20, ERC-4626, ERC-2535 and profit locking and reporting functionility to make any strategy that uses it a fully permisionless vault without holding any of the logic itself. Each Strategy simply needs to utilize a fallback function that delegateCalls the library as seen in `BaseLibrary` and can become a fully funciton vault with only overriding three simple function in the implementation.
+
+[BaseStrategy](https://github.com/Schlagonia/yearn-base-strategy/blob/master/src/BaseStrategy.sol) Abastract contract to inherit that communicates with the `BaseLibrary`.
+[DiamondHelper](https://github.com/Schlagonia/yearn-base-strategy/blob/master/src/DiamondHelper.sol) Helper contract for the Library to use for all ERC-2535 'Diamond' functionality.
+[BaseLibrary](https://github.com/Schlagonia/yearn-base-strategy/blob/master/src/libraries/BaseLibrary.sol) The library that holds all logic for every strategy.
 
 ## Installation and Setup
 
@@ -50,25 +55,10 @@ Run all tests with gas outputs
 ```sh
 make gas
 ```
-Run specific test contract (e.g. `test/StrategyOperation.t.sol`)
-
-```sh
-make test-contract contract=StrategyOperationsTest
-```
 Run specific test contract with traces (e.g. `test/StrategyOperation.t.sol`)
 
 ```sh
 make trace-contract contract=StrategyOperationsTest
-```
-Run specific test contract with gas report (e.g. `test/StrategyOperation.t.sol`)
-
-```sh
-make test-contract-gas contract=StrategyOperationsTest
-```
-Run specific test (e.g. `test/StrategyOperation.t.sol::testStrategy`)
-
-```sh
-make test-test test=testStrategy
 ```
 Run specific test with traces (e.g. `test/StrategyOperation.t.sol::testStrategy`)
 

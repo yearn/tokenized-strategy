@@ -2,7 +2,8 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {BaseInvariant, StrategyHandler} from "./utils/BaseInvariant.sol";
+import {BaseInvariant} from "./utils/BaseInvariant.sol";
+import {StrategyHandler} from "./handlers/StrategyHandler.sol";
 
 contract SingleStrategyInvariantTest is BaseInvariant {
     StrategyHandler public strategyHandler;
@@ -75,7 +76,7 @@ contract SingleStrategyInvariantTest is BaseInvariant {
         }
     }
 
-    function invariant_callSummary() public {
+    function invariant_callSummary() public view {
         strategyHandler.callSummary();
     }
 

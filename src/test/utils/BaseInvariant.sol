@@ -3,7 +3,6 @@ pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
 import {Setup, BaseLibrary} from "./Setup.sol";
-import {StrategyHandler} from "../handlers/StrategyHandler.sol";
 
 abstract contract BaseInvariant is Setup {
     function setUp() public virtual override {
