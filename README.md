@@ -1,24 +1,31 @@
 
-# Yearn V3 Base Strategy
+# Yearn Tokenized Strategy
 
-This repository contains the code for the Yearn V3 BaseStrategy implementation. The V3 strategy implementation utilizes a simplified and immutable version of the ERC-2535 'Diamond Pattern' to allow for strategies to all use them same `BaseLibrary` for their redundant high risk code. The library holds all ERC-20, ERC-4626, ERC-2535 and profit locking and reporting functionility to make any strategy that uses it a fully permisionless vault without holding any of the logic itself. Each Strategy simply needs to utilize a fallback function that delegateCalls the library as seen in `BaseLibrary` and can become a fully funciton vault with only overriding three simple function in the implementation.
+This repository contains the base code for the Yearn V3 tokenized strategy implementation. The V3 strategy implementation utilizes a simplified and immutable version of the ERC-2535 'Diamond Pattern' to allow for strategies to all use the same `BaseLibrary` for their redundant and high risk code. The library holds all ERC-20, ERC-4626, ERC-2535, profit locking and reporting functionility to make any strategy that uses it a fully permisionless vault without holding any of the logic itself. 
 
-[BaseStrategy](https://github.com/Schlagonia/yearn-base-strategy/blob/master/src/BaseStrategy.sol) Abastract contract to inherit that communicates with the `BaseLibrary`.
-[DiamondHelper](https://github.com/Schlagonia/yearn-base-strategy/blob/master/src/DiamondHelper.sol) Helper contract for the Library to use for all ERC-2535 'Diamond' functionality.
-[BaseLibrary](https://github.com/Schlagonia/yearn-base-strategy/blob/master/src/libraries/BaseLibrary.sol) The library that holds all logic for every strategy.
+By inheriting the `BaseStrategy` contract that uses the fallback function to delegateCall a previously deployed version of `BaseLibrary` a strategist can create a fully functional and secure ERC-4626 vault with only overriding three simple functions in their specific implementation.
+
+[BaseStrategy](https://github.com/yearn/tokenized-strategy/blob/master/src/BaseStrategy.sol) - Abastract contract to inherit that communicates with the `BaseLibrary`.
+
+[DiamondHelper](https://github.com/yearn/tokenized-strategy/blob/master/src/DiamondHelper.sol) - Helper contract for the Library to use for all ERC-2535 'Diamond' functionality.
+
+[BaseLibrary](https://github.com/yearn/tokenized-strategy/blob/master/src/libraries/BaseLibrary.sol) - The library that holds all logic for every strategy.
+
+'''
 
 ## Installation and Setup
 
-1. To install with [Foundry](https://github.com/gakonst/foundry).
+1. First you will need to install [Foundry](https://book.getfoundry.sh/getting-started/installation).
+NOTE: If you are on a windows machine it is recommended to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
 
 2. Fork this repository (easier) or create a new repository using it as template. [Create from template](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template)
 
 3. Clone your newly created repository recursively to include modules.
 
 ```sh
-git clone --recursive https://github.com/myuser/yearn-base-strategy
+git clone --recursive https://github.com/myuser/tokenized-strategy
 
-cd yearn-base-strategy
+cd tokenized-strategy
 ```
 
 NOTE: if you create from template you may need to run the following command to fetch the git submodules (.gitmodules for exact releases) `git submodule init && git submodule update`

@@ -151,7 +151,7 @@ abstract contract BaseStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                    NEEDED TO OVERRIDEN BY STRATEGIST
+                NEEDED TO BE OVERRIDDEN BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
 
     /**

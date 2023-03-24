@@ -19,6 +19,7 @@ interface IFactory {
 
 /// TODO:
 //      Does base strategy need to hold events?
+//      Can init event be read from here or does it need to make a call to a registry.
 //      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      how to account for protocol fees when the strategy is empty
 
