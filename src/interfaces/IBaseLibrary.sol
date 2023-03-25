@@ -29,7 +29,7 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
     function report() external returns (uint256 _profit, uint256 _loss);
 
     // Getters \\
-    function apiVersion() external returns (string memory);
+    function apiVersion() external view returns (string memory);
 
     function pricePerShare() external view returns (uint256);
 

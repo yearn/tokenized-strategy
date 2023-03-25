@@ -18,9 +18,7 @@ interface IFactory {
 }
 
 /// TODO:
-//      Does base strategy need to hold events?
 //      Can init event be read from here or does it need to make a call to a registry.
-//      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
 //      how to account for protocol fees when the strategy is empty
 
 library BaseLibrary {
@@ -255,13 +253,13 @@ library BaseLibrary {
     string private constant API_VERSION = "3.1.0";
 
     address private constant diamondHelper =
-        0xFA29C0f850784F7109355D7dc776132905aF8deF;
+        0x5705A1fCef82CB4735e456588af37E8e1DDecA2c;
 
     uint256 private constant MAX_BPS = 10_000;
     uint256 private constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
     address private constant FACTORY =
-        0x701AbfCeA5e728BC6DBE77C0d3589b38304cb32b;
+        0xa8f46C3f5A89fbC3c80B3EE333a1dAF8FA719061;
 
     /**
      * @dev Custom storgage slot that will be used to store the
