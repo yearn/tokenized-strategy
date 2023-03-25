@@ -245,22 +245,6 @@ contract Setup is ExtendedTest {
         return (_amount * _fee * timePassed) / MAX_BPS / 31_556_952;
     }
 
-    // prettier-ignore
-    function getSelectors() public pure returns (bytes4[] memory selectors) {
-        string[48] memory _selectors = [
-            "dd62ed3e","095ea7b3","70a08231","07a2d13a","c6e6f592","a457c2d7","6e553f65","39509351",
-            "534021b0","94bf804d","ef8b30f7","b3d7f6b9","4cdad506","0a28a477","ba087652","969b1cdb",
-            "01e1d114","18160ddd","a9059cbb","23b872dd","b460af94","dd62ed3e","095ea7b3","70a08231",
-            "07a2d13a","c6e6f592","a457c2d7","6e553f65","39509351","534021b0","94bf804d","ef8b30f7",
-            "b3d7f6b9","4cdad506","0a28a477","ba087652","969b1cdb","01e1d114","18160ddd","a9059cbb",
-            "23b872dd","b460af94","70a08231","07a2d13a","c6e6f592","a457c2d7","6e553f65","39509351"
-        ];
-        selectors = new bytes4[](_selectors.length);
-        for (uint256 i; i < _selectors.length; ++i) {
-            selectors[i] = bytes4(bytes(_selectors[i]));
-        }
-    }
-
     function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
         mockFactory.setFee(_protocolFee);
         vm.prank(management);
@@ -285,5 +269,73 @@ contract Setup is ExtendedTest {
 
         _strategy.setFaultAmount(_fault);
         _strategy.setCallBack(_callBack);
+    }
+
+    // prettier-ignore
+    function getSelectors() public pure returns (bytes4[] memory selectors) {
+        string[58] memory _selectors = [
+            "3644e515",
+            "dd62ed3e",
+            "25829410",
+            "095ea7b3",
+            "38d52e0f",
+            "70a08231",
+            "5e04a4d6",
+            "07a2d13a",
+            "c6e6f592",
+            "313ce567",
+            "a457c2d7",
+            "6e553f65",
+            "1f931c1c",
+            "cdffacc6",
+            "52ef6b2c",
+            "adfca15e",
+            "7a0ed627",
+            "2d632692",
+            "39509351",
+            "2ecfe315",
+            "1d3b7227",
+            "ec0c7e28",
+            "aced1661",
+            "c3535b52",
+            "88a8d602",
+            "402d267d",
+            "c63d75b6",
+            "d905777e",
+            "ce96cb77",
+            "94bf804d",
+            "06fdde03",
+            "7ecebe00",
+            "87788782",
+            "ed27f7c9",
+            "d505accf",
+            "ef8b30f7",
+            "b3d7f6b9",
+            "4cdad506",
+            "0a28a477",
+            "99530b06",
+            "0952864e",
+            "5141eebb",
+            "ba087652",
+            "2606a10b",
+            "748747e6",
+            "d4a22bde",
+            "aa290e6d",
+            "6a5f1aa2",
+            "df69b22a",
+            "95d89b41",
+            "440368a3",
+            "01e1d114",
+            "fc7b9c18",
+            "9aa7df94",
+            "18160ddd",
+            "a9059cbb",
+            "23b872dd",
+            "b460af94"
+        ];
+        selectors = new bytes4[](_selectors.length);
+        for (uint256 i; i < _selectors.length; ++i) {
+            selectors[i] = bytes4(bytes(_selectors[i]));
+        }
     }
 }

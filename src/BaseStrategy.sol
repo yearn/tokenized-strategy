@@ -79,9 +79,8 @@ abstract contract BaseStrategy {
      * This address should be the same for every strategy, never be adjusted
      * and always be checked before any integration with the implementation.
      */
-    // NOTE: This will be set to constants once the library has actually been deployed
     address public constant baseLibraryAddress =
-        0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
+        0x356E5e8637531d2F32b561dd44c309f2e7157C66;
 
     /**
      * This variable is set to address(this) during initialization of each strategy.
