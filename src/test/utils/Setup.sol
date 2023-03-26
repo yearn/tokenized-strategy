@@ -57,7 +57,7 @@ contract Setup is ExtendedTest {
         diamondHelper.setLibrary(address(BaseLibrary));
 
         // create asset we will be using as the underlying asset
-        asset = new ERC20Mock();
+        asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
 
         // create a mock yield source to deposit into
         yieldSource = new MockYieldSource(address(asset));
