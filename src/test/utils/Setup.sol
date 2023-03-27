@@ -273,7 +273,7 @@ contract Setup is ExtendedTest {
 
     // prettier-ignore
     function getSelectors() public pure returns (bytes4[] memory selectors) {
-        string[58] memory _selectors = [
+        string[60] memory _selectors = [
             "0x3644e515",
             "0xdd62ed3e",
             "0x25829410",
@@ -331,7 +331,9 @@ contract Setup is ExtendedTest {
             "0x18160ddd",
             "0xa9059cbb",
             "0x23b872dd",
-            "0xb460af94"
+            "0xb460af94",
+            "0xbf86d690",
+            "0xbe8f1668"
         ];
         selectors = new bytes4[](_selectors.length);
         for (uint256 i; i < _selectors.length; ++i) {
