@@ -72,6 +72,7 @@ contract Setup is ExtendedTest {
         vm.label(address(strategy), "strategy");
         vm.label(address(BaseLibrary), "library");
         vm.label(address(mockFactory), "mock Factory");
+        vm.label(address(mockRegistry), "mock registry");
         vm.label(address(diamondHelper), "Diamond heleper");
         vm.label(address(yieldSource), "Mock Yield Source");
         vm.label(protocolFeeRecipient, "protocolFeeRecipient");
