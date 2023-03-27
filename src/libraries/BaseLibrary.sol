@@ -21,6 +21,19 @@ interface IRegistry {
     function newStrategy(address _strategy, address _asset) external;
 }
 
+/**
+ * @title YearnV3 Base Library
+ * @author yearn.finance
+ * @notice
+ *  This library can be used by anyone wishing to easily build and deploy
+ *  their own custom ERC4626 compiant one strategy Vault. This library
+ *  would be used to hanle all logic, storage and mangement for the custom
+ *  strategy. Any ERC4626, ERC20 or ERC2535 function calls to the implemenation
+ *  would be forwarded throug a delegateCall to this library and so the
+ *  implementation would only need to override a few simple functions that
+ *  are focused entirely on the strategy specific needs to easily and cheaply
+ *  deploy their own permisionless vault.
+ */
 library BaseLibrary {
     using Math for uint256;
     using SafeERC20 for ERC20;
@@ -134,7 +147,7 @@ library BaseLibrary {
 
     /**
      * @dev The struct that will hold all the data for each implementation
-     * strategy that uses the library.
+     * strategy that uses this library.
      *
      * This replaces all state variables for a traditional contract. This
      * full struct will be initiliazed on the createion of the implemenation
@@ -143,20 +156,22 @@ library BaseLibrary {
      * We combine all the variables into one struct to limit the amount of times
      * custom storage slots need to be loaded during complex functions.
      *
-     * Loading the corresponding storage slot for the struct into memory
-     * does not load any of the contents of the struct into memory. So
-     * the size has no effect on gas usage.
+     * Loading the corresponding storage slot for the struct does not
+     * load any of the contents of the struct into memory. So the size
+     * has no effect on gas usage.
      */
     // prettier-ignore
     struct BaseStrategyData {
         // The ERC20 compliant underlying asset that will be
-        // used by the implementation contract.
+        // used by the implementation contract. We can keep this
+        // as and ERC20 instance because the implementation holds the
+        // addres of `asset` as a immutable variable to be 4626 compliant.
         ERC20 asset;
         
 
         // These are the corresponding ERC20 variables needed for the
-        // token that is issued and burned on each deposit or withdraw.
-        uint8 decimals; // The amount of decimals the asset and strategy use
+        // strategies token that is issued and burned on each deposit or withdraw.
+        uint8 decimals; // The amount of decimals that `asset` and strategy use
         bytes10 symbol; // The symbol of the token for the strategy.
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued
@@ -168,6 +183,8 @@ library BaseLibrary {
         
 
         // Assets data to track totals the strategy holds.
+        // We manually track idle instead of relying on asset.balanceOf(address(this))
+        // to prevent PPS manipulation through airdrops.
         uint256 totalIdle; // The total amount of loose `asset` the strategy holds.
         uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy
         
@@ -178,11 +195,11 @@ library BaseLibrary {
         uint128 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
         uint128 lastReport; // The last time a {report} was called.
         uint32 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
-        uint16 performanceFee; // The percent in Basis points of profit that is charged as a fee.
+        uint16 performanceFee; // The percent in basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
 
 
-        // Access management addressess for permisssioned functions.
+        // Access management variables.
         address management; // Main address that can set all configurable variables.
         address keeper; // Address given permission to call {report} and {tend}.
         bool entered; // Bool to prevent reentrancy.
@@ -276,20 +293,25 @@ library BaseLibrary {
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
+    // Api version this library implements.
     string private constant API_VERSION = "3.1.0";
 
+    // The address of the helper contract for all ERC-2535 view functions.
     // NOTE: holder address based on expected location during tests
     address private constant diamondHelper =
         0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
 
+    // Used for fee calculations.
     uint256 private constant MAX_BPS = 10_000;
+    // Used for profit unlocking rate calculations.
     uint256 private constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
-    // Factory address NOTE: This will be set to deployed factory.
-    // deterministic address for testing is used now
+    // Address of the Vault factory that protocl fee config is retrieved from.
+    // NOTE: This will be set to deployed factory. deterministic address for testing is used now
     address private constant FACTORY =
         0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
 
+    // Address of the registry used to track all deployed vaults and strategies
     // NOTE: holder address based on expected location during tests
     address private constant REGISTRY =
         0x72384992222BE015DE0146a6D7E5dA0E19d2Ba49;
@@ -319,7 +341,7 @@ library BaseLibrary {
     /**
      * @dev will return the actaul storage slot where the strategy
      * sepcific `BaseStrategyData` struct is stored for both read
-     * add write operations.
+     * and write operations.
      *
      * This loads just the slot location, not the full struct
      * so it can be used in a gas effecient manner.
@@ -343,7 +365,7 @@ library BaseLibrary {
 
     /**
      * @notice Used to initialize storage for a newly deployed strategy.
-     * @dev This should be called automically whenever a new strategy is
+     * @dev This should be called atomically whenever a new strategy is
      * deployed or cloned, and can only be called once for each strategy.
      *
      * This will set all the default storage that must be set for a
@@ -371,17 +393,19 @@ library BaseLibrary {
         address _performanceFeeRecipient,
         address _keeper
     ) external {
-        // cache storage pointer
+        // Cache storage pointer
         BaseStrategyData storage S = _baseStrategyStorgage();
 
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
-        // set the strategys underlying asset
+        // Set the strategys underlying asset
         S.asset = ERC20(_asset);
         // Set the Tokens name.
         S.name = _name;
         // Set the symbol and decimals based off the `asset`.
         IERC20Metadata a = IERC20Metadata(_asset);
+        // This stores the symbol as bytes10 so it can be
+        // packed in the struct with `asset` and `decimals`
         S.symbol = bytes10(abi.encodePacked("ys", a.symbol()));
         S.decimals = a.decimals();
         // Set initial chain id for permit replay protection
@@ -389,15 +413,15 @@ library BaseLibrary {
         // Set the inital domain seperator for permit functions
         S.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
 
-        // default to a 10 day profit unlock period
+        // Default to a 10 day profit unlock period
         S.profitMaxUnlockTime = 10 days;
         // Set address to receive performance fees.
         // Can't be address(0) or we will be burning fees.
         require(_performanceFeeRecipient != address(0));
         S.performanceFeeRecipient = _performanceFeeRecipient;
-        // default to a 10% performance fee?
+        // Default to a 10% performance fee?
         S.performanceFee = 1_000;
-        // set last report to this block
+        // Set last report to this block
         S.lastReport = uint128(block.timestamp);
 
         // Set the default management address. Can't be 0.
@@ -406,14 +430,14 @@ library BaseLibrary {
         // Set the keeper address
         S.keeper = _keeper;
 
-        // emit the standard DiamondCut event with the values from our helper contract
+        // Emit the standard DiamondCut event with the values from our helper contract
         emit DiamondCut(
-            // struct containing the address of the library,
-            // the add enum and array of all function selectors
+            // Struct containing the address of the library,
+            // the add enum and array of all function selectors.
             DiamondHelper(diamondHelper).diamondCut(),
-            // init address to call if applicable
+            // Init address to call if applicable.
             address(0),
-            // call data to send the init address if applicable
+            // Call data to send the init address if applicable.
             new bytes(0)
         );
 
@@ -435,7 +459,7 @@ library BaseLibrary {
     function deposit(
         uint256 assets,
         address receiver
-    ) public notShutdown nonReentrant returns (uint256 shares) {
+    ) external notShutdown nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
@@ -452,7 +476,7 @@ library BaseLibrary {
     function mint(
         uint256 shares,
         address receiver
-    ) public notShutdown nonReentrant returns (uint256 assets) {
+    ) external notShutdown nonReentrant returns (uint256 assets) {
         // Check for rounding error.
         require((assets = previewMint(shares)) != 0, "ZERO_ASSETS");
 
@@ -471,7 +495,7 @@ library BaseLibrary {
         uint256 assets,
         address receiver,
         address owner
-    ) public nonReentrant returns (uint256 shares) {
+    ) external nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
@@ -490,7 +514,7 @@ library BaseLibrary {
         uint256 shares,
         address receiver,
         address owner
-    ) public nonReentrant returns (uint256 assets) {
+    ) external nonReentrant returns (uint256 assets) {
         // Check for rounding error.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
@@ -506,7 +530,8 @@ library BaseLibrary {
      * @return . Expected shares that `assets` repersents.
      */
     function convertToShares(uint256 assets) public view returns (uint256) {
-        uint256 _totalAssets = totalAssets(); // Saves an extra SLOAD if totalAssets() is non-zero.
+        // Saves an extra SLOAD if totalAssets() is non-zero.
+        uint256 _totalAssets = totalAssets();
 
         return
             _totalAssets == 0
@@ -527,7 +552,8 @@ library BaseLibrary {
      * @return . Expected amount of `asset` the shares repersent.
      */
     function convertToAssets(uint256 shares) public view returns (uint256) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
+        // Saves an extra SLOAD if totalSupply() is non-zero.
+        uint256 supply = totalSupply();
 
         return
             supply == 0
@@ -549,10 +575,12 @@ library BaseLibrary {
      * @notice Allows an on-chain or off-chain user to simulate
      * the effects of their mint at the current block, given
      * current on-chain conditions.
-     * @dev This will round up.
+     * @dev This is used instead of convertToAssets so that it can
+     * round up for safer mints.
      */
     function previewMint(uint256 shares) public view returns (uint256) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply() is non-zero.
+        // Saves an extra SLOAD if totalSupply() is non-zero.
+        uint256 supply = totalSupply();
 
         return
             supply == 0
@@ -564,9 +592,12 @@ library BaseLibrary {
      * @notice Allows an on-chain or off-chain user to simulate
      * the effects of their withdrawal at the current block,
      * given current on-chain conditions.
+     * @dev This is used instead of convertToShares so that it can
+     * round up for safer withdraws.
      */
     function previewWithdraw(uint256 assets) public view returns (uint256) {
-        uint256 _totalAssets = totalAssets(); // Saves an extra SLOAD if totalAssets() is non-zero.
+        // Saves an extra SLOAD if totalAssets() is non-zero.
+        uint256 _totalAssets = totalAssets();
 
         return
             _totalAssets == 0
@@ -578,6 +609,7 @@ library BaseLibrary {
      * @notice Allows an on-chain or off-chain user to simulate
      * the effects of their redeemption at the current block,
      * given current on-chain conditions.
+     * @dev This will round down.
      */
     function previewRedeem(uint256 shares) public view returns (uint256) {
         return convertToAssets(shares);
@@ -701,8 +733,8 @@ library BaseLibrary {
         // Invest up to all loose funds.
         IBaseStrategy(address(this)).invest(toInvest);
 
-        // Always get the actual amount invested for complete accuracy
-        // We double check the diff agianst toInvest to never underflow
+        // Always get the actual amount invested. We double check the
+        // diff agianst toInvest for complete accuracy.
         uint256 invested = Math.min(
             beforeBalance - _asset.balanceOf(address(this)),
             toInvest
@@ -748,17 +780,17 @@ library BaseLibrary {
 
         uint256 idle = S.totalIdle;
 
+        // Check if we need to withdraw funds.
         if (idle < assets) {
-            // We need to withdraw funds
-
             // Cache before balance for diff checks.
             uint256 before = _asset.balanceOf(address(this));
+
             // Tell implementation to free what we need.
             unchecked {
                 IBaseStrategy(address(this)).freeFunds(assets - idle);
             }
+
             // Return the actual amount withdrawn. Adjust for potential overwithdraws.
-            // TODO: Add an if check here so were only pulling from storage if neccesary?
             uint256 withdrawn = Math.min(
                 _asset.balanceOf(address(this)) - before,
                 S.totalDebt
@@ -769,12 +801,12 @@ library BaseLibrary {
             }
 
             uint256 loss;
-            // If we didn't get enough out then we have a loss
+            // If we didn't get enough out then we have a loss.
             if (idle < assets) {
                 unchecked {
                     loss = assets - idle;
                 }
-                // Lower the amount to be sent
+                // Lower the amount to be withdrawn.
                 assets = idle;
             }
 
@@ -782,7 +814,7 @@ library BaseLibrary {
             S.totalDebt -= (withdrawn + loss);
         }
 
-        // Update idle based on how much we took
+        // Update idle based on how much we took.
         S.totalIdle = idle - assets;
 
         _burn(owner, shares);
@@ -800,13 +832,13 @@ library BaseLibrary {
      * @notice Function for keepers to call to harvest and record all
      * profits accrued.
      *
-     * @dev This should only ever be called through protected relays
-     * if swaps are likely occur.
+     * @dev This should be called through protected relays if swaps
+     * are likely occur.
      *
      * This will account for any gains/losses since the last report
      * and charge fees accordingly.
      *
-     * Any profit over the totalFees charged will be immediatly locked
+     * Any profit over the fees charged will be immediatly locked
      * so there is no change in PricePerShare. Then slowly unlocked
      * over the `maxProfitUnlockTime` each second based on the
      * calculated `profitUnlockingRate`.
@@ -830,48 +862,51 @@ library BaseLibrary {
         onlyKeepers
         returns (uint256 profit, uint256 loss)
     {
-        // Cache storage pointer since its used again at the end
+        // Cache storage pointer since its used repeatedly.
         BaseStrategyData storage S = _baseStrategyStorgage();
 
         uint256 oldTotalAssets;
         unchecked {
-            // Manuaully calculate totalAssets to save a SLOAD
+            // Manuaully calculate totalAssets to save a SLOAD.
             oldTotalAssets = S.totalIdle + S.totalDebt;
         }
 
-        // Calculate protocol fees before we burn shares and potentially update lastReport
+        // Calculate protocol fees before we burn shares and
+        // potentially update lastReport.
         (
             uint256 totalFees,
             address protocolFeesRecipient
         ) = _assessProtocolFees(oldTotalAssets);
 
-        // burn unlocked shares
+        // Burn unlocked shares.
         _burnUnlockedShares();
 
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and reinvesting now and
         // account for invested and loose `asset` so we can accuratly
         // account for all funds including those potentially airdropped
-        // by a trade factory.
+        // by a trade factory. It is safe here to use asset.balanceOf()
+        // instead of totalIdle because any profits are immediatly locked.
         uint256 invested = IBaseStrategy(address(this)).totalInvested();
 
         uint256 performanceFees;
         unchecked {
-            // Calculate profit/loss
+            // Calculate profit/loss.
             if (invested > oldTotalAssets) {
                 // We have a profit
                 profit = invested - oldTotalAssets;
 
-                // Asses performance fees
+                // Asses performance fees.
                 performanceFees = (profit * S.performanceFee) / MAX_BPS;
                 totalFees += performanceFees;
             } else {
-                // We have a loss
+                // We have a loss.
                 loss = oldTotalAssets - invested;
             }
         }
 
-        // We need to get the shares for fees to issue at current PPS before any minting or burning
+        // We need to get the shares to issue for the fees at
+        // current PPS before any minting or burning.
         uint256 performanceFeeShares = convertToShares(performanceFees);
         uint256 protocolFeeShares;
         unchecked {
@@ -879,12 +914,12 @@ library BaseLibrary {
         }
         uint256 sharesToLock;
         if (loss + totalFees >= profit) {
-            // We have a net loss
+            // We have a net loss.
             // Will try and unlock the difference between between the gain and the loss
-            // To prevent any PPS decline post report.
+            // to prevent any PPS decline post report.
             uint256 sharesToBurn = Math.min(
                 convertToShares((loss + totalFees) - profit),
-                balanceOf(address(this))
+                S.balances[address(this)]
             );
 
             if (sharesToBurn > 0) {
@@ -911,7 +946,7 @@ library BaseLibrary {
         // Update unlocking rate and time to fully unlocked
         {
             // Scoped to avoid stack to deep errors
-            uint256 totalLockedShares = balanceOf(address(this));
+            uint256 totalLockedShares = S.balances[address(this)];
             uint32 _profitMaxUnlockTime = S.profitMaxUnlockTime;
             if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
                 uint256 remainingTime;
@@ -946,7 +981,9 @@ library BaseLibrary {
             }
         }
 
-        // Update storage
+        // Update storage we use the actual loose here since it should have
+        // been accounted for in `totalInvested` and any airdropped amounts
+        // would have been locked to prevent PPS manipulation.
         uint256 newIdle = S.asset.balanceOf(address(this));
         S.totalIdle = newIdle;
         S.totalDebt = invested - newIdle;
@@ -979,7 +1016,7 @@ library BaseLibrary {
             protocolFeesRecipient = _protocolFeesRecipient;
             // Charge fees since last report OR last fee change
             // (this will mean less fees are charged after a change
-            // in protocol_fees, but fees should not change frequently)
+            // in protocol_fees, but fees should not change frequently).
             uint256 secondsSinceLastReport = Math.min(
                 block.timestamp - _baseStrategyStorgage().lastReport,
                 block.timestamp - uint256(protocolFeeLastChange)
@@ -1009,7 +1046,7 @@ library BaseLibrary {
     }
 
     function _unlockedShares() private view returns (uint256 unlockedShares) {
-        // should save 2 extra calls for most scenarios
+        // should save 2 extra calls for most scenarios.
         BaseStrategyData storage S = _baseStrategyStorgage();
         uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         if (_fullProfitUnlockDate > block.timestamp) {
@@ -1019,7 +1056,7 @@ library BaseLibrary {
                     MAX_BPS_EXTENDED;
             }
         } else if (_fullProfitUnlockDate != 0) {
-            // All shares have been unlocked
+            // All shares have been unlocked.
             unlockedShares = S.balances[address(this)];
         }
     }
@@ -1273,6 +1310,18 @@ library BaseLibrary {
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
 
+    /**
+     * @notice Used to shutdown the strategy preventing any further deposits.
+     * @dev Can only be called by the current `management`.
+     *
+     * This will stop any new {deposit} or {mint} calls but will
+     * not prevent {withdraw} or {redeem}. It will also still allow for
+     * {tend} and {report} so that management can report any last losses
+     * in an emergency as well as provide any maintence to allow for full
+     * withdraw.
+     *
+     * This is a one way switch and can never be set back once shutdown.
+     */
     function shutdownStrategy() external onlyManagement {
         _baseStrategyStorgage().shutdown = true;
 

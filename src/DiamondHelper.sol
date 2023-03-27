@@ -8,6 +8,15 @@ interface IBaseLibrary {
     function apiVersion() external view returns (string memory);
 }
 
+/**
+ * @title YearnV3 Diamond Helper
+ * @author yearn.finance
+ * @notice
+ *  This contract is meant to be a helper contract for the `BaseLibrary`
+ *  for any ERC-2535 view functions needed. This will hold all the needed
+ *  structs and event for the library to access upon a new strategy being
+ *  created or post creation for the "Diamond" functions.
+ */
 contract DiamondHelper {
     address public baseLibrary;
 

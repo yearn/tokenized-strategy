@@ -21,8 +21,8 @@ contract Setup is ExtendedTest {
     // Contract instancees that we will use repeatedly.
     ERC20Mock public asset;
     IMockStrategy public strategy;
-    MockRegistry public registry;
     MockFactory public mockFactory;
+    MockRegistry public mockRegistry;
     MockYieldSource public yieldSource;
     DiamondHelper public diamondHelper;
 
@@ -51,7 +51,7 @@ contract Setup is ExtendedTest {
         mockFactory = new MockFactory(0, protocolFeeRecipient);
 
         // Finally deploy the mock registry for deterministic location
-        registry = new MockRegistry();
+        mockRegistry = new MockRegistry();
 
         // Set the address of the library in the diamond Helper
         diamondHelper.setLibrary(address(BaseLibrary));
