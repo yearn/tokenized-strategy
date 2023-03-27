@@ -8,6 +8,15 @@ interface IBaseLibrary {
     function apiVersion() external view returns (string memory);
 }
 
+/**
+ * @title YearnV3 Diamond Helper
+ * @author yearn.finance
+ * @notice
+ *  This contract is meant to be a helper contract for the `BaseLibrary`
+ *  for any ERC-2535 view functions needed. This will hold all the needed
+ *  structs and event for the library to access upon a new strategy being
+ *  created or post creation for the "Diamond" functions.
+ */
 contract DiamondHelper {
     address public baseLibrary;
 
@@ -54,15 +63,25 @@ contract DiamondHelper {
      * Contatins the address of the library, the enum singaling we
      * are adding and the array of all its external function selectors.
      */
-    function diamondCut() external view returns (IDiamond.FacetCut[] memory) {
-        return cuts;
+    function diamondCut()
+        external
+        view
+        returns (IDiamond.FacetCut[] memory _cuts)
+    {
+        _cuts = new IDiamond.FacetCut[](cuts.length);
+        _cuts = cuts;
     }
 
     /**
      * @notice Returns the fully array of function selectors the BaseLibrary contains.
      */
-    function functionSelectors() external view returns (bytes4[] memory) {
-        return selectors;
+    function functionSelectors()
+        external
+        view
+        returns (bytes4[] memory _selectors)
+    {
+        _selectors = new bytes4[](selectors.length);
+        _selectors = selectors;
     }
 
     /**

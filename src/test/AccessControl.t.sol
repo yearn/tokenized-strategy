@@ -74,6 +74,18 @@ contract AccesssControlTest is Setup {
         assertEq(strategy.profitMaxUnlockTime(), amount);
     }
 
+    function test_shutdown() public {
+        assertTrue(!strategy.isShutdown());
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit BaseLibrary.StrategyShutdown();
+
+        vm.prank(management);
+        strategy.shutdownStrategy();
+
+        assertTrue(strategy.isShutdown());
+    }
+
     function test_setManagement_reverts(address _address) public {
         vm.assume(_address != management && _address != address(0));
 
@@ -156,6 +168,17 @@ contract AccesssControlTest is Setup {
         strategy.setProfitMaxUnlockTime(_badAmount);
 
         assertEq(strategy.profitMaxUnlockTime(), profitMaxUnlockTime);
+    }
+
+    function test_shutdown_reverts(address _address) public {
+        vm.assume(_address != management);
+        assertTrue(!strategy.isShutdown());
+
+        vm.prank(_address);
+        vm.expectRevert("!Authorized");
+        strategy.shutdownStrategy();
+
+        assertTrue(!strategy.isShutdown());
     }
 
     function test_reInitialize_reverts(

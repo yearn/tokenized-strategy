@@ -20,16 +20,18 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
         address _keeper
     ) external;
 
-    function isKeeperOrManagement(address _sender) external;
+    function isKeeperOrManagement(address _sender) external view;
 
-    function isManagement(address _sender) external;
+    function isManagement(address _sender) external view;
+
+    function isShutdown() external view returns (bool);
 
     function tend() external;
 
     function report() external returns (uint256 _profit, uint256 _loss);
 
     // Getters \\
-    function apiVersion() external returns (string memory);
+    function apiVersion() external view returns (string memory);
 
     function pricePerShare() external view returns (uint256);
 
@@ -65,6 +67,8 @@ interface IBaseLibrary is IERC4626, IERC20Permit, IDiamond, IDiamondLoupe {
     ) external;
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external;
+
+    function shutdownStrategy() external;
 
     // ERC20 add ons
 

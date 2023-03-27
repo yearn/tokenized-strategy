@@ -6,6 +6,8 @@ size  :; forge build --sizes
 
 # storage inspection
 inspect :; forge inspect ${contract} storage-layout --pretty
+# Get the list of function selectors
+selectors  :; forge inspect ${contract} methods --pretty
 
 # local tests without fork
 test  :; forge test -vv
