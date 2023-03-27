@@ -173,7 +173,7 @@ contract AccesssControlTest is Setup {
     function test_shutdown_reverts(address _address) public {
         vm.assume(_address != management);
         assertTrue(!strategy.isShutdown());
-        
+
         vm.prank(_address);
         vm.expectRevert("!Authorized");
         strategy.shutdownStrategy();

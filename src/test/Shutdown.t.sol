@@ -11,10 +11,7 @@ contract ShutdownTest is Setup {
         super.setUp();
     }
 
-    function test_shutdownStrategy(
-        address _address,
-        uint256 _amount
-    ) public {
+    function test_shutdownStrategy(address _address, uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 
@@ -31,7 +28,7 @@ contract ShutdownTest is Setup {
         strategy.shutdownStrategy();
 
         assertTrue(strategy.isShutdown());
-    
+
         asset.mint(_address, _amount);
         vm.prank(_address);
         asset.approve(address(strategy), _amount);
@@ -40,13 +37,7 @@ contract ShutdownTest is Setup {
         vm.prank(_address);
         strategy.deposit(_amount, _address);
 
-        checkStrategyTotals(
-            strategy,
-            _amount,
-            _amount,
-            0,
-            _amount
-        );
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
     }
 
     function test_shutdownStrategy_canWithdraw(
@@ -69,7 +60,7 @@ contract ShutdownTest is Setup {
         strategy.shutdownStrategy();
 
         assertTrue(strategy.isShutdown());
-    
+
         asset.mint(_address, _amount);
         vm.prank(_address);
         asset.approve(address(strategy), _amount);
@@ -78,26 +69,14 @@ contract ShutdownTest is Setup {
         vm.prank(_address);
         strategy.deposit(_amount, _address);
 
-        checkStrategyTotals(
-            strategy,
-            _amount,
-            _amount,
-            0,
-            _amount
-        );
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         uint256 before = asset.balanceOf(_address);
 
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
 
-        checkStrategyTotals(
-            strategy,
-            0,
-            0,
-            0,
-            0
-        );
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
 
         assertEq(asset.balanceOf(_address), before + _amount);
     }
@@ -126,7 +105,7 @@ contract ShutdownTest is Setup {
         strategy.shutdownStrategy();
 
         assertTrue(strategy.isShutdown());
-    
+
         asset.mint(_address, _amount);
         vm.prank(_address);
         asset.approve(address(strategy), _amount);
@@ -135,21 +114,10 @@ contract ShutdownTest is Setup {
         vm.prank(_address);
         strategy.deposit(_amount, _address);
 
-        checkStrategyTotals(
-            strategy,
-            _amount,
-            _amount,
-            0,
-            _amount
-        );
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         // Make sure report still works and we can report a final loss
-        createAndCheckLoss(
-            strategy,
-            loss,
-            0,
-            0
-        );
+        createAndCheckLoss(strategy, loss, 0, 0);
 
         checkStrategyTotals(
             strategy,
@@ -164,13 +132,7 @@ contract ShutdownTest is Setup {
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
 
-        checkStrategyTotals(
-            strategy,
-            0,
-            0,
-            0,
-            0
-        );
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
 
         assertEq(asset.balanceOf(_address), before + _amount - loss);
     }
