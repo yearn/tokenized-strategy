@@ -79,7 +79,7 @@ abstract contract BaseStrategy {
      * This address should be the same for every strategy, never be adjusted
      * and always be checked before any integration with the implementation.
      */
-    // NOTE: This will be set to constants once the library has actually been deployed
+    // NOTE: This is a holder address based on expected deterministic location for testing
     address public constant baseLibraryAddress =
         0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
 

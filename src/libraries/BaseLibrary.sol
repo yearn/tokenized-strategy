@@ -17,11 +17,9 @@ interface IFactory {
         returns (uint16, uint32, address);
 }
 
-/// TODO:
-//      Does base strategy need to hold events?
-//      Can init event be read from here or does it need to make a call to a registry.
-//      Add support interface for IERC165 https://github.com/mudgen/diamond-2-hardhat/blob/main/contracts/interfaces/IERC165.sol
-//      how to account for protocol fees when the strategy is empty
+interface IRegistry {
+    function newStrategy(address _strategy, address _asset) external;
+}
 
 library BaseLibrary {
     using Math for uint256;
@@ -58,6 +56,11 @@ library BaseLibrary {
      * @notice Emitted whent the 'profitMaxUnlockTime' is updtaed to 'newProfitMaxUnlockTime'.
      */
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
+
+    /**
+     * @notice Emitted when a strategy is shutdown.
+     */
+    event StrategyShutdown();
 
     /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
@@ -183,6 +186,7 @@ library BaseLibrary {
         address management; // Main address that can set all configurable variables.
         address keeper; // Address given permission to call {report} and {tend}.
         bool entered; // Bool to prevent reentrancy.
+        bool shutdown; // Bool that can be used to stop deposits into the strategy.
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -225,6 +229,15 @@ library BaseLibrary {
     }
 
     /**
+     * @dev Will stop new deposits if the strategy has been shutdown.
+     * This will not effect withdraws which can never be paused or stopped.
+     */
+    modifier notShutdown() {
+        require(!isShutdown(), "shutdown");
+        _;
+    }
+
+    /**
      * @notice To check if a sender is the management for a specific strategy.
      * @dev Is left public so that it can be used by the implementation.
      *
@@ -248,6 +261,17 @@ library BaseLibrary {
         require(_sender == S.keeper || _sender == S.management, "!Authorized");
     }
 
+    /**
+     * @notice To check if the strategy has been shutdown.
+     * @dev Is left public so that it can be used by the implementation.
+     *
+     * We don't revert here so this can be used for the external getter
+     * for the `shutdown` variable as well.
+     */
+    function isShutdown() public view returns (bool) {
+        return _baseStrategyStorgage().shutdown;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -265,6 +289,10 @@ library BaseLibrary {
     // deterministic address for testing is used now
     address private constant FACTORY =
         0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
+
+    // NOTE: holder address based on expected location during tests
+    address private constant REGISTRY =
+        0x72384992222BE015DE0146a6D7E5dA0E19d2Ba49;
 
     /**
      * @dev Custom storgage slot that will be used to store the
@@ -313,6 +341,29 @@ library BaseLibrary {
                 INITILIZATION OF DEFAULT STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Used to initialize storage for a newly deployed strategy.
+     * @dev This should be called automically whenever a new strategy is
+     * deployed or cloned, and can only be called once for each strategy.
+     *
+     * This will set all the default storage that must be set for a
+     * strategy to function. Any changes can be made post deployment
+     * through external calls from `management`.
+     *
+     * The function will also emit the `DiamondCut` event that will be
+     * emitted through the calling strategy as well as telling the
+     * registry a new strategy has been deployed for easy tracking
+     * purposes.
+     *
+     * This is called through a lowelevel call in the BaseStrategy so
+     * any reverts will return the "init failed" string.
+     *
+     * @param _asset Address of the underlying asset.
+     * @param _name Name the strategy will use.
+     * @param _management Address to set as the strategies `management`.
+     * @param _performanceFeeRecipient Address to receive performance fees.
+     * @param _keeper Address to set as strategies `keeper`.
+     */
     function init(
         address _asset,
         string memory _name,
@@ -365,6 +416,9 @@ library BaseLibrary {
             // call data to send the init address if applicable
             new bytes(0)
         );
+
+        // Tell the registry we have a new strategy deployed.
+        IRegistry(REGISTRY).newStrategy(address(this), _asset);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -381,7 +435,7 @@ library BaseLibrary {
     function deposit(
         uint256 assets,
         address receiver
-    ) public nonReentrant returns (uint256 shares) {
+    ) public notShutdown nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
@@ -398,7 +452,7 @@ library BaseLibrary {
     function mint(
         uint256 shares,
         address receiver
-    ) public nonReentrant returns (uint256 assets) {
+    ) public notShutdown nonReentrant returns (uint256 assets) {
         // Check for rounding error.
         require((assets = previewMint(shares)) != 0, "ZERO_ASSETS");
 
@@ -1217,6 +1271,12 @@ library BaseLibrary {
         );
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
+    }
+
+    function shutdownStrategy() external onlyManagement {
+        _baseStrategyStorgage().shutdown = true;
+
+        emit StrategyShutdown();
     }
 
     /*//////////////////////////////////////////////////////////////

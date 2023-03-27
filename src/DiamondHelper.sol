@@ -54,15 +54,25 @@ contract DiamondHelper {
      * Contatins the address of the library, the enum singaling we
      * are adding and the array of all its external function selectors.
      */
-    function diamondCut() external view returns (IDiamond.FacetCut[] memory) {
-        return cuts;
+    function diamondCut()
+        external
+        view
+        returns (IDiamond.FacetCut[] memory _cuts)
+    {
+        _cuts = new IDiamond.FacetCut[](cuts.length);
+        _cuts = cuts;
     }
 
     /**
      * @notice Returns the fully array of function selectors the BaseLibrary contains.
      */
-    function functionSelectors() external view returns (bytes4[] memory) {
-        return selectors;
+    function functionSelectors()
+        external
+        view
+        returns (bytes4[] memory _selectors)
+    {
+        _selectors = new bytes4[](selectors.length);
+        _selectors = selectors;
     }
 
     /**

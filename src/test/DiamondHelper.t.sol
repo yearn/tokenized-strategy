@@ -132,7 +132,7 @@ contract DiamondHelperTest is Setup {
     }
 
     function test_initEmitsDiamondEvent() public {
-        ERC20Mock mockToken = new ERC20Mock();
+        ERC20Mock mockToken = new ERC20Mock("Mock asset", "mcAsset", user, 0);
 
         // Get what should be emitted in the event
         IDiamond.FacetCut[] memory diamondCuts = new IDiamond.FacetCut[](1);

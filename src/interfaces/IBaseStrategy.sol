@@ -31,4 +31,6 @@ interface IBaseStrategy {
     function totalInvested() external returns (uint256);
 
     function tendThis(uint256 _totalIdle) external;
+
+    function tendTrigger() external view returns (bool);
 }

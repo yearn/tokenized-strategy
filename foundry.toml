@@ -11,7 +11,7 @@ remappings = [
 fs_permissions = [{ access = "read", path = "./"}]
 
 [fuzz]
-runs = 10_000
+runs = 10_00
 max_test_rejects = 100_000
 
 [invariant]
