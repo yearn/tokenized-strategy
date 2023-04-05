@@ -44,7 +44,11 @@ contract e2eTest is Setup {
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
 
-            vm.assume(_address != address(asset) && _address != address(yieldSource) && _address != address(newStrategy));
+            vm.assume(
+                _address != address(asset) &&
+                    _address != address(yieldSource) &&
+                    _address != address(newStrategy)
+            );
 
             vm.prank(management);
             newStrategy.setPerformanceFee(0);
@@ -136,7 +140,11 @@ contract e2eTest is Setup {
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
 
-            vm.assume(_address != address(asset) && _address != address(yieldSource) && _address != address(newStrategy));
+            vm.assume(
+                _address != address(asset) &&
+                    _address != address(yieldSource) &&
+                    _address != address(newStrategy)
+            );
 
             vm.prank(management);
             newStrategy.setPerformanceFee(0);
@@ -247,7 +255,11 @@ contract e2eTest is Setup {
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
 
-            vm.assume(_address != address(asset) && _address != address(yieldSource) && _address != address(newStrategy));
+            vm.assume(
+                _address != address(asset) &&
+                    _address != address(yieldSource) &&
+                    _address != address(newStrategy)
+            );
 
             vm.prank(management);
             newStrategy.setPerformanceFee(0);
