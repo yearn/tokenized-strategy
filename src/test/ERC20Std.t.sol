@@ -22,7 +22,7 @@ contract ERC20BaseTest is Setup {
             strategy.symbol(),
             string(
                 abi.encodePacked(
-                    bytes10(abi.encodePacked("ys", asset.symbol()))
+                    bytes11(abi.encodePacked("ys", asset.symbol()))
                 )
             )
         );

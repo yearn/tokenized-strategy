@@ -161,7 +161,7 @@ library BaseLibrary {
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals that `asset` and strategy use
-        bytes10 symbol; // The symbol of the token for the strategy.
+        bytes11 symbol; // The symbol of the token for the strategy.
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued
         uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
@@ -388,7 +388,7 @@ library BaseLibrary {
         IERC20Metadata a = IERC20Metadata(_asset);
         // This stores the symbol as bytes10 so it can be
         // packed in the struct with `asset` and `decimals`
-        S.symbol = bytes10(abi.encodePacked("ys", a.symbol()));
+        S.symbol = bytes11(abi.encodePacked("ys", a.symbol()));
         S.decimals = a.decimals();
         // Set initial chain id for permit replay protection
         S.INITIAL_CHAIN_ID = block.chainid;
