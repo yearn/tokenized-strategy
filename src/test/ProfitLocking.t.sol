@@ -20,7 +20,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set all fees to 0
         uint16 protocolFee = 0;
@@ -103,7 +104,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set protocol fee to 100 bps so there will always be fees charged over a 10 day period with minFuzzAmount
         uint16 protocolFee = 100;
@@ -204,7 +206,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set perf fee to 10%
         uint16 protocolFee = 0;
@@ -304,7 +307,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set perf fee to 10% protcol fee to 100 bps
         uint16 protocolFee = 100;
@@ -420,7 +424,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set fees to 0
         uint16 protocolFee = 0;
@@ -526,7 +531,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set fees
         uint16 protocolFee = 100;
@@ -651,7 +657,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set fees
         uint16 protocolFee = 0;
@@ -780,7 +787,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set fees
         uint16 protocolFee = 100;
@@ -918,7 +926,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set all fees to 0
         uint16 protocolFee = 0;
@@ -1000,7 +1009,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set all fees to 0
         uint16 protocolFee = 100;
@@ -1088,7 +1098,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set all fees to 0
         uint16 protocolFee = 0;
@@ -1197,7 +1208,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set all fees to 0
         uint16 protocolFee = 100;
@@ -1303,7 +1315,8 @@ contract ProfitLockingTest is Setup {
             _address != address(0) &&
                 _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
-                _address != performanceFeeRecipient
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
         );
         // set all fees to 0
         uint16 protocolFee = 0;

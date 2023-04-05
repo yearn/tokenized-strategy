@@ -28,9 +28,14 @@ contract FaultyStrategy is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _faultAmount = bound(_faultAmount, 10, MAX_BPS);
-        vm.assume(_address != address(0) && _address != address(strategy));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         configureFaultyStrategy(_faultAmount, false);
 
@@ -64,9 +69,14 @@ contract FaultyStrategy is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _faultAmount = bound(_faultAmount, 10, MAX_BPS);
-        vm.assume(_address != address(0) && _address != address(strategy));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
@@ -96,10 +106,15 @@ contract FaultyStrategy is Setup {
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
@@ -133,10 +148,15 @@ contract FaultyStrategy is Setup {
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
@@ -174,10 +194,15 @@ contract FaultyStrategy is Setup {
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
@@ -203,9 +228,13 @@ contract FaultyStrategy is Setup {
 
     function test_tendViewReentrancy(address _address, uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
-
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         setFees(0, 0);
 
@@ -224,9 +253,10 @@ contract FaultyStrategy is Setup {
         uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(_address != address(0) && _address != address(strategy));
 
         setFees(0, 0);
 
@@ -261,9 +291,14 @@ contract FaultyStrategy is Setup {
         uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         setFees(0, 0);
 
@@ -297,10 +332,15 @@ contract FaultyStrategy is Setup {
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
@@ -328,9 +368,14 @@ contract FaultyStrategy is Setup {
         uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
 
         strategy = IMockStrategy(setUpFaultyStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         setFees(0, 0);
 

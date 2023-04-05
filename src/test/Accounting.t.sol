@@ -18,7 +18,11 @@ contract AccountingTest is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         // set fees to 0 for calculations simplicity
         vm.prank(management);
@@ -61,7 +65,11 @@ contract AccountingTest is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         // set fees to 0 for calculations simplicity
         setFees(0, 0);
@@ -138,7 +146,11 @@ contract AccountingTest is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         // set fees to 0 for calculations simplicity
         setFees(0, 0);
@@ -180,7 +192,11 @@ contract AccountingTest is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         // set fees to 0 for calculations simplicity
         vm.prank(management);
@@ -391,7 +407,11 @@ contract AccountingTest is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _lossFactor = uint16(bound(uint256(_lossFactor), 10, MAX_BPS));
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         setFees(0, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
