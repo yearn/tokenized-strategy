@@ -6,8 +6,6 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import {DiamondHelper, IDiamond, IDiamondLoupe} from "../DiamondHelper.sol";
-
 import {IBaseStrategy} from "../interfaces/IBaseStrategy.sol";
 
 interface IFactory {
@@ -125,15 +123,6 @@ library BaseLibrary {
         uint256 loss,
         uint256 performanceFees,
         uint256 protocolFees
-    );
-
-    /**
-     * @dev Emitted on the initialization of a new strategy.
-     */
-    event DiamondCut(
-        IDiamond.FacetCut[] _diamondCut,
-        address _init,
-        bytes _calldata
     );
 
     /**
@@ -296,11 +285,6 @@ library BaseLibrary {
     // Api version this library implements.
     string private constant API_VERSION = "3.1.0";
 
-    // The address of the helper contract for all ERC-2535 view functions.
-    // NOTE: holder address based on expected location during tests
-    address private constant diamondHelper =
-        0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
-
     // Used for fee calculations.
     uint256 private constant MAX_BPS = 10_000;
     // Used for profit unlocking rate calculations.
@@ -309,12 +293,12 @@ library BaseLibrary {
     // Address of the Vault factory that protocl fee config is retrieved from.
     // NOTE: This will be set to deployed factory. deterministic address for testing is used now
     address private constant FACTORY =
-        0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
+        0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
 
     // Address of the registry used to track all deployed vaults and strategies
     // NOTE: holder address based on expected location during tests
     address private constant REGISTRY =
-        0x72384992222BE015DE0146a6D7E5dA0E19d2Ba49;
+        0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
 
     /**
      * @dev Custom storgage slot that will be used to store the
@@ -372,10 +356,8 @@ library BaseLibrary {
      * strategy to function. Any changes can be made post deployment
      * through external calls from `management`.
      *
-     * The function will also emit the `DiamondCut` event that will be
-     * emitted through the calling strategy as well as telling the
-     * registry a new strategy has been deployed for easy tracking
-     * purposes.
+     * The function will also tell the registry a new strategy has been 
+     * deployed for easy tracking purposes.
      *
      * This is called through a lowelevel call in the BaseStrategy so
      * any reverts will return the "init failed" string.
@@ -392,7 +374,7 @@ library BaseLibrary {
         address _management,
         address _performanceFeeRecipient,
         address _keeper
-    ) external {
+    ) public {
         // Cache storage pointer
         BaseStrategyData storage S = _baseStrategyStorgage();
 
@@ -430,17 +412,6 @@ library BaseLibrary {
         // Set the keeper address
         S.keeper = _keeper;
 
-        // Emit the standard DiamondCut event with the values from our helper contract
-        emit DiamondCut(
-            // Struct containing the address of the library,
-            // the add enum and array of all function selectors.
-            DiamondHelper(diamondHelper).diamondCut(),
-            // Init address to call if applicable.
-            address(0),
-            // Call data to send the init address if applicable.
-            new bytes(0)
-        );
-
         // Tell the registry we have a new strategy deployed.
         IRegistry(REGISTRY).newStrategy(address(this), _asset);
     }
@@ -459,7 +430,7 @@ library BaseLibrary {
     function deposit(
         uint256 assets,
         address receiver
-    ) external notShutdown nonReentrant returns (uint256 shares) {
+    ) public notShutdown nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
@@ -476,7 +447,7 @@ library BaseLibrary {
     function mint(
         uint256 shares,
         address receiver
-    ) external notShutdown nonReentrant returns (uint256 assets) {
+    ) public notShutdown nonReentrant returns (uint256 assets) {
         // Check for rounding error.
         require((assets = previewMint(shares)) != 0, "ZERO_ASSETS");
 
@@ -495,7 +466,7 @@ library BaseLibrary {
         uint256 assets,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 shares) {
+    ) public nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
@@ -514,7 +485,7 @@ library BaseLibrary {
         uint256 shares,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 assets) {
+    ) public nonReentrant returns (uint256 assets) {
         // Check for rounding error.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
@@ -857,7 +828,7 @@ library BaseLibrary {
      * report in terms of `asset`.
      */
     function report()
-        external
+        public
         nonReentrant
         onlyKeepers
         returns (uint256 profit, uint256 loss)
@@ -1087,7 +1058,7 @@ library BaseLibrary {
      *
      * A report() call will be needed to record the profit.
      */
-    function tend() external nonReentrant onlyKeepers {
+    function tend() public nonReentrant onlyKeepers {
         BaseStrategyData storage S = _baseStrategyStorgage();
         // Expected Behavior is this will get used twice so we cache it
         uint256 _totalIdle = S.totalIdle;
@@ -1167,6 +1138,11 @@ library BaseLibrary {
         return _baseStrategyStorgage().keeper;
     }
 
+    /**
+     * @notice Get the current performance fee charged on profits.
+     * denominated in Basis Points wehere 10_000 == 100%
+     * @return . Current performance fee.
+     */
     function performanceFee() external view returns (uint16) {
         return _baseStrategyStorgage().performanceFee;
     }
@@ -1235,7 +1211,7 @@ library BaseLibrary {
      *
      * @param _management New address to set `management` to.
      */
-    function setManagement(address _management) external onlyManagement {
+    function setManagement(address _management) public onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
         _baseStrategyStorgage().management = _management;
 
@@ -1248,7 +1224,7 @@ library BaseLibrary {
      *
      * @param _keeper New address to set `keeper` to.
      */
-    function setKeeper(address _keeper) external onlyManagement {
+    function setKeeper(address _keeper) public onlyManagement {
         _baseStrategyStorgage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
@@ -1263,7 +1239,7 @@ library BaseLibrary {
      *
      * @param _performanceFee New performance fee.
      */
-    function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
+    function setPerformanceFee(uint16 _performanceFee) public onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
         _baseStrategyStorgage().performanceFee = _performanceFee;
 
@@ -1280,7 +1256,7 @@ library BaseLibrary {
      */
     function setPerformanceFeeRecipient(
         address _performanceFeeRecipient
-    ) external onlyManagement {
+    ) public onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
         _baseStrategyStorgage()
             .performanceFeeRecipient = _performanceFeeRecipient;
@@ -1301,7 +1277,7 @@ library BaseLibrary {
      */
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
-    ) external onlyManagement {
+    ) public onlyManagement {
         require(_profitMaxUnlockTime <= 31_556_952, "to long");
         _baseStrategyStorgage().profitMaxUnlockTime = uint32(
             _profitMaxUnlockTime
@@ -1322,53 +1298,10 @@ library BaseLibrary {
      *
      * This is a one way switch and can never be set back once shutdown.
      */
-    function shutdownStrategy() external onlyManagement {
+    function shutdownStrategy() public onlyManagement {
         _baseStrategyStorgage().shutdown = true;
 
         emit StrategyShutdown();
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                    EXTERNAL ERC-2535 VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Gets all facet addresses and their four byte function selectors.
-     * @return facets_ Facet
-     */
-    function facets() external view returns (IDiamondLoupe.Facet[] memory) {
-        return DiamondHelper(diamondHelper).facets();
-    }
-
-    /**
-     * @notice Gets all the function selectors supported by a specific facet.
-     * @param _facet The facet address.
-     * @return facetFunctionSelectors_
-     */
-    function facetFunctionSelectors(
-        address _facet
-    ) external view returns (bytes4[] memory) {
-        return DiamondHelper(diamondHelper).facetFunctionSelectors(_facet);
-    }
-
-    /**
-     * @notice Get all the facet addresses used by a diamond.
-     * @return facetAddresses_
-     */
-    function facetAddresses() external view returns (address[] memory) {
-        return DiamondHelper(diamondHelper).facetAddresses();
-    }
-
-    /**
-     * @notice Gets the facet that supports the given selector.
-     * @dev If facet is not found return address(0).
-     * @param _functionSelector The function selector.
-     * @return facetAddress_ The facet address.
-     */
-    function facetAddress(
-        bytes4 _functionSelector
-    ) external view returns (address) {
-        return DiamondHelper(diamondHelper).facetAddress(_functionSelector);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1846,7 +1779,7 @@ library BaseLibrary {
         address _management,
         address _performanceFeeRecipient,
         address _keeper
-    ) external returns (address newStrategy) {
+    ) public returns (address newStrategy) {
         require(IBaseStrategy(address(this)).isOriginal(), "!clone");
         // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
         bytes20 addressBytes = bytes20(address(this));

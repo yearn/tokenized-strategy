@@ -69,16 +69,6 @@ abstract contract BaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-    * Used for interface so etherscan picks up the interface
-    * keccak256('eip1967.proxy.implementation' - 1)
-    *
-    * The `baseLibraryAddress` will be stored here on initialization
-    * and can never be updated.
-    */
-    bytes32 constant IMPLEMENTATION_SLOT =
-        0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-
-    /**
      * This is the address of the BaseLibrary that will be used by all
      * strategies to handle the accounting, logic, storage etc.
      *
@@ -160,8 +150,13 @@ abstract contract BaseStrategy {
         _init(_asset, _name, _management, _performanceFeeRecipient, _keeper);
 
         // Store the base library as the implementation address.
+        //  Used for interface so etherscan picks up the interface
+        //keccak256('eip1967.proxy.implementation' - 1)
+     
+        //The `baseLibraryAddress` will be stored here on initialization
+        //and can never be updated.
         assembly {
-            sstore(IMPLEMENTATION_SLOT, baseLibraryAddress)
+            sstore(0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc, baseLibraryAddress)
         }
     }
 
