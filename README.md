@@ -1,15 +1,15 @@
 
 # Yearn Tokenized Strategy
 
-This repository contains the base code for the Yearn V3 tokenized strategy implementation. The V3 strategy implementation utilizes a simplified and immutable version of the ERC-2535 'Diamond Pattern' to allow for strategies to all use the same `BaseLibrary` for their redundant and high risk code. The library holds all ERC-20, ERC-4626, ERC-2535, profit locking and reporting functionility to make any strategy that uses it a fully permisionless vault without holding any of the logic itself. 
+This repository contains the base code for the Yearn V3 tokenized strategy implementation. The V3 strategy implementation utilizes a simplified and immutable proxy pattern to allow for strategies to all use the same `BaseLibrary` for their redundant and high risk code. The library holds all ERC-20, ERC-4626, ERC-2535, profit locking and reporting functionility to make any strategy that uses it a fully permisionless vault without holding any of the logic itself. 
+
+NOTE: The library address that calls are delegated to is inherently stateless and is pre-set to a constant and can never be changed after post deployment.
 
 An `implementation` contract can become a fully ERC-4626 vault by inheriting the `BaseStrategy` contract that uses the fallback function to delegateCall a previously deployed version of `BaseLibrary`. A strategist then only needs to override three simple functions in their specific implementation.
 
 [BaseLibrary](https://github.com/yearn/tokenized-strategy/blob/master/src/libraries/BaseLibrary.sol) - The library that holds all logic for every strategy.
 
 [BaseStrategy](https://github.com/yearn/tokenized-strategy/blob/master/src/BaseStrategy.sol) - Abastract contract to inherit that communicates with the `BaseLibrary`.
-
-[DiamondHelper](https://github.com/yearn/tokenized-strategy/blob/master/src/DiamondHelper.sol) - Helper contract for the Library to use for all ERC-2535 'Diamond' functionality.
 
 ## Installation and Setup
 

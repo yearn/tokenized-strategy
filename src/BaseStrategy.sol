@@ -9,8 +9,8 @@ import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
  * @author yearn.finance
  * @notice
  *  BaseStrategy implements all of the required functionality to be a fully
- *  permisionless ERC-4626 compliant Vault. It utilizes a simplified and
- *  immutable version of the ERC-2535 'Diamond Pattern' to keep the BaseStrategy
+ *  permisionless ERC-4626 compliant Vault. It utilizes an immutable version
+ *  of a proxy pattern that allows the BaseStrategy to remain very
  *  simple and small. All needed logic is held withen the `BaseLibrary` and
  *  is reused over any n strategies all using the `fallback` function to
  *  delegatecall this library so that strategists can only be concerned
