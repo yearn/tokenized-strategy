@@ -356,7 +356,7 @@ library BaseLibrary {
      * strategy to function. Any changes can be made post deployment
      * through external calls from `management`.
      *
-     * The function will also tell the registry a new strategy has been 
+     * The function will also tell the registry a new strategy has been
      * deployed for easy tracking purposes.
      *
      * This is called through a lowelevel call in the BaseStrategy so
