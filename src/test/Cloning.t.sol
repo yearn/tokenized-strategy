@@ -30,6 +30,10 @@ contract CloningTest is Setup {
         assertEq(clonedStrategy.performanceFee(), 1_000);
         assertEq(clonedStrategy.performanceFeeRecipient(), address(this));
 
+        if (clone == _address) {
+            _address == management;
+        }
+
         // Deposit into the original and make sure it only changes that one
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
@@ -93,6 +97,10 @@ contract CloningTest is Setup {
         assertEq(clonedStrategy.performanceFee(), 1_000);
         assertEq(clonedStrategy.performanceFeeRecipient(), _pfr);
         assertEq(clonedStrategy.keeper(), _keeper);
+
+        if (clone == _address) {
+            _address == management;
+        }
 
         // Deposit into the original and make sure it only changes that one
         mintAndDepositIntoStrategy(strategy, _address, _amount);

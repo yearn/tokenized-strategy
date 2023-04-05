@@ -28,7 +28,6 @@ contract e2eTest is Setup {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(
             _address != address(0) &&
-                _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
                 _address != performanceFeeRecipient
         );
@@ -44,6 +43,8 @@ contract e2eTest is Setup {
             asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
+
+            vm.assume(_address != address(asset) && _address != address(yieldSource) && _address != address(newStrategy));
 
             vm.prank(management);
             newStrategy.setPerformanceFee(0);
@@ -134,6 +135,8 @@ contract e2eTest is Setup {
             asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
+
+            vm.assume(_address != address(asset) && _address != address(yieldSource) && _address != address(newStrategy));
 
             vm.prank(management);
             newStrategy.setPerformanceFee(0);
@@ -243,6 +246,8 @@ contract e2eTest is Setup {
             asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
+
+            vm.assume(_address != address(asset) && _address != address(yieldSource) && _address != address(newStrategy));
 
             vm.prank(management);
             newStrategy.setPerformanceFee(0);
