@@ -33,7 +33,7 @@ contract e2eTest is Setup {
 
         setFees(0, 0);
 
-        // Pick a random amount of strategies to add to the library between 5-10
+        // Pick a random amount of strategies to add between 5-10
         uint256 toMake = (_amount % 6) + 5;
         uint256 i;
 
@@ -129,7 +129,7 @@ contract e2eTest is Setup {
 
         setFees(0, 0);
 
-        // Pick a random amount of strategies to add to the library between 5-10
+        // Pick a random amount of strategies to add between 5-10
         uint256 toMake = (_amount % 6) + 5;
         uint256 i;
 
@@ -244,7 +244,7 @@ contract e2eTest is Setup {
 
         setFees(0, 0);
 
-        // Pick a random amount of strategies to add to the library between 5-10
+        // Pick a random amount of strategies to add between 5-10
         uint256 toMake = (_amount % 6) + 5;
         uint256 i;
 
@@ -257,6 +257,11 @@ contract e2eTest is Setup {
                 _address != address(asset) &&
                     _address != address(yieldSource) &&
                     _address != address(newStrategy)
+            );
+            vm.assume(
+                _secondAddress != address(asset) &&
+                    _secondAddress != address(yieldSource) &&
+                    _secondAddress != address(newStrategy)
             );
 
             vm.prank(management);

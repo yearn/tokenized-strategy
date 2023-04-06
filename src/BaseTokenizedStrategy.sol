@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
-// BaseLibrary interface used for internal view delegateCalls.
-import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
+// TokenizedStrategy interface used for internal view delegateCalls.
+import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
 
 /**
- * @title YearnV3 Base Strategy
+ * @title YearnV3 Base Tokenized Strategy
  * @author yearn.finance
  * @notice
- *  BaseStrategy implements all of the required functionality to be a fully
- *  permisionless ERC-4626 compliant Vault. It utilizes an immutable version
- *  of a proxy pattern that allows the BaseStrategy to remain very
- *  simple and small. All needed logic is held withen the `BaseLibrary` and
- *  is reused over any n strategies all using the `fallback` function to
- *  delegatecall this library so that strategists can only be concerned
- *  with writing the implementation specific code.
+ *  BaseTokenizedStrategy implements all of the required functionality to
+ *  seemlessly integrate with the `TokenizedStrategy` implementation contract
+ *  allowing anyone to easily build a fully permisionless ERC-4626 compliant
+ *  Vault by inheriting this contract and overriding three simple functions.
+ *  It utilizes an immutable proxy pattern that allows the BaseTokenizedStrategy
+ *  to remain incredibly simple and small. All needed logic is held withen the
+ *  `TokenizedStrategy` and is reused over any n strategies all using the
+ *  `fallback` function to delegatecall the implementation so that strategists
+ *  can only be concerned with writing their strategy specific code.
  *
  *  This contract should be inherited and the three main abstract methods
  *  `_invest`, `_freeFunds` and `_totalInvested` implemented to adapt the
@@ -22,21 +24,21 @@ import {IBaseLibrary} from "./interfaces/IBaseLibrary.sol";
  *  other optional methods that can be implemented to further customize
  *  the strategy if desired.
  *
- *  All default storage for the implementation wil will controlled and
- *  updated by the `BaseLibrary`. The library holds a storage struct that
+ *  All default storage for the strategy will controlled and updated by the
+ *  `TokenizedStrategy`. The implementation holds a storage struct that
  *  contains all needed global variables in a manual storage slot at roughly
  *  1e77. This means strategists can feel free to implement their own storage
  *  variables as they need with no concern of collisions. All global variables
  *  can be viewed within the implementation by a simple call using the
- *  `BaseLibrary` variable. IE: BaseLibrary.globalVariable();.
+ *  `TokenizedStrategy` variable. IE: TokenizedStrategy.globalVariable();.
  */
-abstract contract BaseStrategy {
+abstract contract BaseTokenizedStrategy {
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
     /**
-     * @dev Used on library callback function to make sure it is post
-     * a delegateCall from this address to the library.
+     * @dev Used on TokenizedStrategy callback functions to make sure it is post
+     * a delegateCall from this address to the TokenizedStrategy.
      */
     modifier onlySelf() {
         _onlySelf();
@@ -47,7 +49,7 @@ abstract contract BaseStrategy {
      * @dev Use to assure that the call is coming from the strategies mangement.
      */
     modifier onlyManagement() {
-        BaseLibrary.isManagement(msg.sender);
+        TokenizedStrategy.isManagement(msg.sender);
         _;
     }
 
@@ -56,7 +58,7 @@ abstract contract BaseStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        BaseLibrary.isKeeperOrManagement(msg.sender);
+        TokenizedStrategy.isKeeperOrManagement(msg.sender);
         _;
     }
 
@@ -69,37 +71,34 @@ abstract contract BaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * This is the address of the BaseLibrary that will be used by all
-     * strategies to handle the accounting, logic, storage etc.
+     * This is the address of the TokenizedStrategy implementation
+     * contract that will be used by all strategies to handle the
+     * accounting, logic, storage etc.
      *
-     * Any external calls to the strategy that don't hit one of the functions
-     * defined in the implementation will end up going to the fallback
-     * function, which will delegateCall this address.
+     * Any external calls to the that don't hit one of the functions
+     * defined in this base or the strategy will end up being forwarded
+     * through the fallback function, which will delegateCall this address.
      *
      * This address should be the same for every strategy, never be adjusted
      * and always be checked before any integration with the implementation.
      */
     // NOTE: This is a holder address based on expected deterministic location for testing
-    address public constant baseLibraryAddress =
+    address public constant tokenizedStrategyAddress =
         0xF62849F9A0B5Bf2913b396098F7c7019b51A820a;
 
     /**
      * This variable is set to address(this) during initialization of each strategy.
      *
-     * This can be used to retrieve storage data within the implementation
+     * This can be used to retrieve storage data within the strategy
      * contract as if it were a linked library.
      *
-     *       i.e. uint256 totalAssets = BaseLibrary.totalAssets()
-     *
-     * We use this so that there does not have to be a library actually linked
-     * to the strategy when deployed that would rarely be used and only for
-     * reading storage. It also standardizies all Base Library interaction.
+     *       i.e. uint256 totalAssets = TokenizedStrategy.totalAssets()
      *
      * Using address(this) will mean any calls using this variable will lead
      * to a static call to itself. Which will hit the fallback function and
-     * delegateCall that to the actual BaseLibrary.
+     * delegateCall that to the actual TokenizedStrategy.
      */
-    IBaseLibrary internal BaseLibrary;
+    ITokenizedStrategy internal TokenizedStrategy;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
@@ -118,10 +117,10 @@ abstract contract BaseStrategy {
     /**
      * @notice Used to intialize the strategy on deployment or after cloning.
      * @dev This can only be called once. It will be called automatically
-     * by the library during a cloning.
+     * by the implementation during a cloning.
      *
-     * This will set the `BaseLibrary` variable for easy internal view
-     * calls to the library. As well telling the library to initialize the
+     * This will set the `TokenizedStrategy` variable for easy internal view
+     * calls to the implementation. As well as initializing the
      * defualt storage variables based on the parameters given.
      *
      * @param _asset Address of the underlying asset.
@@ -140,8 +139,8 @@ abstract contract BaseStrategy {
         // make sure we have not been initialized
         require(asset == address(0), "!init");
 
-        // Set instance of the library for internal use.
-        BaseLibrary = IBaseLibrary(address(this));
+        // Set instance of the implementation for internal use.
+        TokenizedStrategy = ITokenizedStrategy(address(this));
 
         // Set the asset we are using.
         asset = _asset;
@@ -149,14 +148,14 @@ abstract contract BaseStrategy {
         // initilize the strategies storage variables
         _init(_asset, _name, _management, _performanceFeeRecipient, _keeper);
 
-        // Store the baseLibraryAddress at the standard implementation address
+        // Store the tokenizedStrategyAddress at the standard implementation address
         // storage slot so etherscan picks up the interface. This gets stored
         // on initialization and never updated.
         assembly {
             sstore(
                 // keccak256('eip1967.proxy.implementation' - 1)
                 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc,
-                baseLibraryAddress
+                tokenizedStrategyAddress
             )
         }
     }
@@ -216,7 +215,7 @@ abstract contract BaseStrategy {
      * be done based on this returned value.
      *
      * This can still be called post a shutdown, a strategist can check
-     * `BaseLibrary.isShutdown()` to decide if funds should be reinvested
+     * `TokenizedStrategy.isShutdown()` to decide if funds should be reinvested
      * or simply realize any profits/losses.
      *
      * @return _invested A trusted and accurate account for the total
@@ -245,7 +244,7 @@ abstract contract BaseStrategy {
      *       sandwhiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
-     * The library will do all needed debt and idle updates after this
+     * The TokenizedStrategy will do all needed debt and idle updates after this
      * has finished and will have no effect on PPS of the strategy till
      * report() is called.
      *
@@ -313,16 +312,16 @@ abstract contract BaseStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        BASELIBRARY HOOKS
+                        TokenizedStrategy HOOKS
     //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Should invest up to '_amount' of 'asset'.
-     * @dev Callback for the library to call during a {deposit} or {mint}
-     * to tell the strategy it can invest funds.
+     * @dev Callback for the TokenizedStrategy to call during a {deposit}
+     * or {mint} to tell the strategy it can invest funds.
      *
      * Since this can only be called after a {deposit} or {mint}
-     * delegateCall to the library msg.sender == address(this).
+     * delegateCall to the TokenizedStrategy msg.sender == address(this).
      *
      * Unless a whitelist is implemented this will be entirely permsionless
      * and thus can be sandwhiched or otherwise manipulated.
@@ -336,11 +335,11 @@ abstract contract BaseStrategy {
 
     /**
      * @notice Will attempt to free the '_amount' of 'asset'.
-     * @dev Callback for the library to call during a withdraw or redeem
-     * to free the needed funds to service the withdraw.
+     * @dev Callback for the TokenizedStrategy to call during a withdraw
+     * or redeem to free the needed funds to service the withdraw.
      *
      * This can only be called after a 'withdraw' or 'redeem' delegateCall
-     * to the library so msg.sender == address(this).
+     * to the TokenizedStrategy so msg.sender == address(this).
      *
      * @param _amount The amount of 'asset' that the strategy should attemppt to free up.
      */
@@ -351,11 +350,11 @@ abstract contract BaseStrategy {
     /**
      * @notice Returns the accurate amount of all funds currently
      * held by the Strategy.
-     * @dev Callback for the library to call during a report to
+     * @dev Callback for the TokenizedStrategy to call during a report to
      * get an accurate accounting of assets the strategy controls.
      *
      * This can only be called after a report() delegateCall to the
-     * library so msg.sender == address(this).
+     * TokenizedStrategy so msg.sender == address(this).
      *
      * @return _invested A trusted and accurate account for the total
      * amount of 'asset' the strategy currently holds.
@@ -366,13 +365,13 @@ abstract contract BaseStrategy {
 
     /**
      * @notice Will call the internal '_tend' when a keeper tends the strategy.
-     * @dev Callback for the library to initiate a _tend call in the strategy.
+     * @dev Callback for the TokenizedStrategy to initiate a _tend call in the strategy.
      *
-     * This can only be called after a tend() delegateCall to the library 
+     * This can only be called after a tend() delegateCall to the TokenizedStrategy 
      * so msg.sender == address(this).
      *
      * We name the function `tendThis` so that `tend` calls are forwarded to 
-     * the library so it can do the neccesary accounting.
+     * the TokenizedStrategy so it can do the neccesary accounting.
 
      * @param _totalIdle The amount of current idle funds that can be 
      * invested during the tend
@@ -383,11 +382,11 @@ abstract contract BaseStrategy {
 
     /**
      * @dev Funciton used on initilization to delegate call the
-     * library to setup the default storage for the strategy.
+     * TokenizedStrategy to setup the default storage for the strategy.
      *
-     * We cannot use the `BaseLibrary` variable call since this
+     * We cannot use the `TokenizedStrategy` variable call since this
      * contract is not deployed fully yet. So we need to manually
-     * delegateCall the library.
+     * delegateCall the TokenizedStrategy.
      *
      * This is the only time an internal delegateCall should not
      * be for a view function
@@ -399,7 +398,7 @@ abstract contract BaseStrategy {
         address _performanceFeeRecipient,
         address _keeper
     ) private {
-        (bool success, ) = baseLibraryAddress.delegatecall(
+        (bool success, ) = tokenizedStrategyAddress.delegatecall(
             abi.encodeWithSignature(
                 "init(address,string,address,address,address)",
                 _asset,
@@ -413,10 +412,10 @@ abstract contract BaseStrategy {
         require(success, "init failed");
     }
 
-    // exeute a function on the baseLibrary and return any value.
+    // exeute a function on the TokenizedStrategy and return any value.
     fallback() external payable {
         // load our target address
-        address _baseLibraryAddress = baseLibraryAddress;
+        address _tokenizedStrategyAddress = tokenizedStrategyAddress;
         // Execute external function using delegatecall and return any value.
         assembly {
             // Copy function selector and any arguments.
@@ -424,7 +423,7 @@ abstract contract BaseStrategy {
             // Execute function delegatecall.
             let result := delegatecall(
                 gas(),
-                _baseLibraryAddress,
+                _tokenizedStrategyAddress,
                 0,
                 calldatasize(),
                 0,

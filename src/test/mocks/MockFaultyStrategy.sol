@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {MockYieldSource} from "./MockYieldSource.sol";
-import {BaseStrategy} from "../../BaseStrategy.sol";
+import {BaseTokenizedStrategy} from "../../BaseTokenizedStrategy.sol";
 
 interface IPappa {
     function callBack(
@@ -14,7 +14,7 @@ interface IPappa {
     ) external;
 }
 
-contract MockFaultyStrategy is BaseStrategy {
+contract MockFaultyStrategy is BaseTokenizedStrategy {
     address public yieldSource;
 
     address public pappa;
@@ -24,7 +24,7 @@ contract MockFaultyStrategy is BaseStrategy {
     constructor(
         address _asset,
         address _yieldSource
-    ) BaseStrategy(_asset, "Test Strategy") {
+    ) BaseTokenizedStrategy(_asset, "Test Strategy") {
         yieldSource = _yieldSource;
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
         pappa = msg.sender;
@@ -72,9 +72,9 @@ contract MockFaultyStrategy is BaseStrategy {
     // We will simulate a view reentrancy.
     function callBack(uint256 _amount) public {
         IPappa(pappa).callBack(
-            BaseLibrary.pricePerShare(),
-            BaseLibrary.convertToShares(_amount),
-            BaseLibrary.convertToAssets(_amount)
+            TokenizedStrategy.pricePerShare(),
+            TokenizedStrategy.convertToShares(_amount),
+            TokenizedStrategy.convertToAssets(_amount)
         );
     }
 }

@@ -4,9 +4,9 @@ pragma solidity 0.8.18;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {MockYieldSource} from "./MockYieldSource.sol";
-import {BaseStrategy} from "../../BaseStrategy.sol";
+import {BaseTokenizedStrategy} from "../../BaseTokenizedStrategy.sol";
 
-contract MockIlliquidStrategy is BaseStrategy {
+contract MockIlliquidStrategy is BaseTokenizedStrategy {
     address public yieldSource;
     bool public whitelist;
     mapping(address => bool) public allowed;
@@ -14,7 +14,7 @@ contract MockIlliquidStrategy is BaseStrategy {
     constructor(
         address _asset,
         address _yieldSource
-    ) BaseStrategy(_asset, "Test Strategy") {
+    ) BaseTokenizedStrategy(_asset, "Test Strategy") {
         yieldSource = _yieldSource;
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
     }
@@ -57,7 +57,7 @@ contract MockIlliquidStrategy is BaseStrategy {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        return BaseLibrary.totalIdle();
+        return TokenizedStrategy.totalIdle();
     }
 
     function setWhitelist(bool _bool) external {

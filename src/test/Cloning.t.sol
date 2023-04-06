@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, IMockStrategy, TokenizedLogic} from "./utils/Setup.sol";
+import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
 contract CloningTest is Setup {
     function setUp() public override {
@@ -29,7 +29,7 @@ contract CloningTest is Setup {
         assertEq(clonedStrategy.performanceFeeRecipient(), address(this));
 
         if (clone == _address) {
-            _address == management;
+            _address = management;
         }
 
         // Deposit into the original and make sure it only changes that one
@@ -97,7 +97,7 @@ contract CloningTest is Setup {
         assertEq(clonedStrategy.keeper(), _keeper);
 
         if (clone == _address) {
-            _address == management;
+            _address = management;
         }
 
         // Deposit into the original and make sure it only changes that one

@@ -6,7 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
+import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
 
 interface IFactory {
     function protocol_fee_config()
@@ -20,19 +20,19 @@ interface IRegistry {
 }
 
 /**
- * @title YearnV3 Base Library
+ * @title YearnV3 Tokenized Strategy
  * @author yearn.finance
  * @notice
- *  This library can be used by anyone wishing to easily build and deploy
- *  their own custom ERC4626 compiant one strategy Vault. This library
- *  would be used to hanle all logic, storage and mangement for the custom
- *  strategy. Any ERC4626, ERC20 or ERC2535 function calls to the implemenation
- *  would be forwarded throug a delegateCall to this library and so the
- *  implementation would only need to override a few simple functions that
- *  are focused entirely on the strategy specific needs to easily and cheaply
- *  deploy their own permisionless vault.
+ *  This TokenizedStrategy can be used by anyone wishing to easily build
+ *  and deploy their own custom ERC4626 compliant one strategy Vault.
+ *  This TokenizedStrategy contract is used to hanle all logic, storage
+ *  and mangement for the custom strategy. Any function calls to the
+ *  strategy that are not defined would be forwarded throug a delegateCall
+ *  to this contract. Any strategy only needs to override a few simple
+ *  functions that are focused entirely on the strategy specific needs
+ *  to easily and cheaply deploy their own permisionless vault.
  */
-contract TokenizedLogic {
+contract TokenizedStrategy {
     using Math for uint256;
     using SafeERC20 for ERC20;
 
@@ -135,12 +135,12 @@ contract TokenizedLogic {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev The struct that will hold all the data for each implementation
-     * strategy that uses this library.
+     * @dev The struct that will hold all the data for each strategy that
+     * uses this implementation.
      *
      * This replaces all state variables for a traditional contract. This
-     * full struct will be initiliazed on the createion of the implemenation
-     * contract and continually updated and read from for the life of the contract.
+     * full struct will be initiliazed on the createion of the strategy
+     * and continually updated and read from for the life of the contract.
      *
      * We combine all the variables into one struct to limit the amount of times
      * custom storage slots need to be loaded during complex functions.
@@ -150,7 +150,7 @@ contract TokenizedLogic {
      * has no effect on gas usage.
      */
     // prettier-ignore
-    struct BaseStrategyData {
+    struct StrategyData {
         // The ERC20 compliant underlying asset that will be
         // used by the implementation contract. We can keep this
         // as and ERC20 instance because the implementation holds the
@@ -221,7 +221,7 @@ contract TokenizedLogic {
      *  Placed over all state changing functions for increased safety.
      */
     modifier nonReentrant() {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         // On the first call to nonReentrant, `entered` will be false
         require(!S.entered, "ReentrancyGuard: reentrant call");
 
@@ -251,7 +251,7 @@ contract TokenizedLogic {
      * address of the strategy so we need to specify the sender.
      */
     function isManagement(address _sender) public view {
-        require(_sender == _baseStrategyStorgage().management, "!Authorized");
+        require(_sender == _strategyStorgage().management, "!Authorized");
     }
 
     /**
@@ -263,7 +263,7 @@ contract TokenizedLogic {
      * address of the strategy so we need to specify the sender.
      */
     function isKeeperOrManagement(address _sender) public view {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         require(_sender == S.keeper || _sender == S.management, "!Authorized");
     }
 
@@ -275,14 +275,14 @@ contract TokenizedLogic {
      * for the `shutdown` variable as well.
      */
     function isShutdown() public view returns (bool) {
-        return _baseStrategyStorgage().shutdown;
+        return _strategyStorgage().shutdown;
     }
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    // Api version this library implements.
+    // Api version this TokenizedStrategy implements.
     string private constant API_VERSION = "3.1.0";
 
     // Used for fee calculations.
@@ -302,10 +302,10 @@ contract TokenizedLogic {
 
     /**
      * @dev Custom storgage slot that will be used to store the
-     * `BaseStrategyData` struct that holds each strategies
+     * `StrategyData` struct that holds each strategies
      * specific storage variables.
      *
-     * Any storage updates done by the library actually update
+     * Any storage updates done by the TokenizedStrategy actually update
      * the storage of the calling contract. This variable points
      * to the specic location that will be used to store the
      * struct that holds all that data.
@@ -324,17 +324,13 @@ contract TokenizedLogic {
 
     /**
      * @dev will return the actaul storage slot where the strategy
-     * sepcific `BaseStrategyData` struct is stored for both read
+     * sepcific `StrategyData` struct is stored for both read
      * and write operations.
      *
      * This loads just the slot location, not the full struct
      * so it can be used in a gas effecient manner.
      */
-    function _baseStrategyStorgage()
-        private
-        pure
-        returns (BaseStrategyData storage S)
-    {
+    function _strategyStorgage() private pure returns (StrategyData storage S) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
         bytes32 slot = BASE_STRATEGY_STORAGE;
@@ -359,8 +355,8 @@ contract TokenizedLogic {
      * The function will also tell the registry a new strategy has been
      * deployed for easy tracking purposes.
      *
-     * This is called through a lowelevel call in the BaseStrategy so
-     * any reverts will return the "init failed" string.
+     * This is called through a lowelevel call in the BaseTokenizedStrategy
+     * so any reverts will return the "init failed" string.
      *
      * @param _asset Address of the underlying asset.
      * @param _name Name the strategy will use.
@@ -376,7 +372,7 @@ contract TokenizedLogic {
         address _keeper
     ) external {
         // Cache storage pointer
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
@@ -592,7 +588,8 @@ contract TokenizedLogic {
      * corresponds to the msg.sender of a {deposit} call.
      */
     function maxDeposit(address _owner) public view returns (uint256) {
-        return IBaseStrategy(address(this)).availableDepositLimit(_owner);
+        return
+            IBaseTokenizedStrategy(address(this)).availableDepositLimit(_owner);
     }
 
     /**
@@ -601,7 +598,9 @@ contract TokenizedLogic {
      * of a {mint} call.
      */
     function maxMint(address _owner) public view returns (uint256 _maxMint) {
-        _maxMint = IBaseStrategy(address(this)).availableDepositLimit(_owner);
+        _maxMint = IBaseTokenizedStrategy(address(this)).availableDepositLimit(
+            _owner
+        );
         if (_maxMint != type(uint256).max) {
             _maxMint = convertToShares(_maxMint);
         }
@@ -615,9 +614,8 @@ contract TokenizedLogic {
     function maxWithdraw(
         address _owner
     ) public view returns (uint256 _maxWithdraw) {
-        _maxWithdraw = IBaseStrategy(address(this)).availableWithdrawLimit(
-            _owner
-        );
+        _maxWithdraw = IBaseTokenizedStrategy(address(this))
+            .availableWithdrawLimit(_owner);
         if (_maxWithdraw == type(uint256).max) {
             // Saves a min check if there is no withdrawal limit.
             _maxWithdraw = convertToAssets(balanceOf(_owner));
@@ -637,9 +635,8 @@ contract TokenizedLogic {
     function maxRedeem(
         address _owner
     ) public view returns (uint256 _maxRedeem) {
-        _maxRedeem = IBaseStrategy(address(this)).availableWithdrawLimit(
-            _owner
-        );
+        _maxRedeem = IBaseTokenizedStrategy(address(this))
+            .availableWithdrawLimit(_owner);
         // Conversion would overflow and saves a min check if there is no withdrawal limit.
         if (_maxRedeem == type(uint256).max) {
             _maxRedeem = balanceOf(_owner);
@@ -657,14 +654,14 @@ contract TokenizedLogic {
     //////////////////////////////////////////////////////////////*/
 
     function totalAssets() public view returns (uint256) {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         unchecked {
             return S.totalIdle + S.totalDebt;
         }
     }
 
     function totalSupply() public view returns (uint256) {
-        return _baseStrategyStorgage().totalSupply - _unlockedShares();
+        return _strategyStorgage().totalSupply - _unlockedShares();
     }
 
     /**
@@ -689,7 +686,7 @@ contract TokenizedLogic {
         );
 
         // Cache storage variables used more than once.
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         ERC20 _asset = S.asset;
 
         // Need to transfer before minting or ERC777s could reenter.
@@ -702,7 +699,7 @@ contract TokenizedLogic {
         uint256 beforeBalance = _asset.balanceOf(address(this));
 
         // Invest up to all loose funds.
-        IBaseStrategy(address(this)).invest(toInvest);
+        IBaseTokenizedStrategy(address(this)).invest(toInvest);
 
         // Always get the actual amount invested. We double check the
         // diff agianst toInvest for complete accuracy.
@@ -745,7 +742,7 @@ contract TokenizedLogic {
             _spendAllowance(owner, msg.sender, shares);
         }
 
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         // Expected beharvior is to need to free funds so we cache `_asset`.
         ERC20 _asset = S.asset;
 
@@ -758,7 +755,7 @@ contract TokenizedLogic {
 
             // Tell implementation to free what we need.
             unchecked {
-                IBaseStrategy(address(this)).freeFunds(assets - idle);
+                IBaseTokenizedStrategy(address(this)).freeFunds(assets - idle);
             }
 
             // Return the actual amount withdrawn. Adjust for potential overwithdraws.
@@ -834,7 +831,7 @@ contract TokenizedLogic {
         returns (uint256 profit, uint256 loss)
     {
         // Cache storage pointer since its used repeatedly.
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         uint256 oldTotalAssets;
         unchecked {
@@ -858,7 +855,8 @@ contract TokenizedLogic {
         // account for all funds including those potentially airdropped
         // by a trade factory. It is safe here to use asset.balanceOf()
         // instead of totalIdle because any profits are immediatly locked.
-        uint256 invested = IBaseStrategy(address(this)).totalInvested();
+        uint256 invested = IBaseTokenizedStrategy(address(this))
+            .totalInvested();
 
         uint256 performanceFees;
         unchecked {
@@ -989,7 +987,7 @@ contract TokenizedLogic {
             // (this will mean less fees are charged after a change
             // in protocol_fees, but fees should not change frequently).
             uint256 secondsSinceLastReport = Math.min(
-                block.timestamp - _baseStrategyStorgage().lastReport,
+                block.timestamp - _strategyStorgage().lastReport,
                 block.timestamp - uint256(protocolFeeLastChange)
             );
 
@@ -1009,8 +1007,8 @@ contract TokenizedLogic {
         }
 
         // update variables (done here to keep _unlcokdedShares() as a view function)
-        if (_baseStrategyStorgage().fullProfitUnlockDate > block.timestamp) {
-            _baseStrategyStorgage().lastReport = uint128(block.timestamp);
+        if (_strategyStorgage().fullProfitUnlockDate > block.timestamp) {
+            _strategyStorgage().lastReport = uint128(block.timestamp);
         }
 
         _burn(address(this), unlcokdedShares);
@@ -1018,7 +1016,7 @@ contract TokenizedLogic {
 
     function _unlockedShares() private view returns (uint256 unlockedShares) {
         // should save 2 extra calls for most scenarios.
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         if (_fullProfitUnlockDate > block.timestamp) {
             unchecked {
@@ -1043,7 +1041,7 @@ contract TokenizedLogic {
      * @dev Both 'tendTrigger' and '_tend' will need to be overridden
      * for this to be used.
      *
-     * This will callback the internal '_tend' call in the BaseStrategy
+     * This will callback the internal '_tend' call in the BaseTokenizedStrategy
      * with the total current amount available to the strategy to invest.
      *
      * Keepers are expected to use protected relays in tend calls so this
@@ -1059,13 +1057,13 @@ contract TokenizedLogic {
      * A report() call will be needed to record the profit.
      */
     function tend() external nonReentrant onlyKeepers {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         // Expected Behavior is this will get used twice so we cache it
         uint256 _totalIdle = S.totalIdle;
         ERC20 _asset = S.asset;
 
         uint256 beforeBalance = _asset.balanceOf(address(this));
-        IBaseStrategy(address(this)).tendThis(_totalIdle);
+        IBaseTokenizedStrategy(address(this)).tendThis(_totalIdle);
         uint256 afterBalance = _asset.balanceOf(address(this));
 
         // Adjust storage according to the changes without adjusting totalAssets().
@@ -1099,8 +1097,8 @@ contract TokenizedLogic {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Get the api version for this Library.
-     * @return . The api version for this library
+     * @notice Get the api version for this TokenizedStrategy.
+     * @return . The api version for this TokenizedStrategy
      */
     function apiVersion() external pure returns (string memory) {
         return API_VERSION;
@@ -1111,7 +1109,7 @@ contract TokenizedLogic {
      * @return . The current amount of idle funds.
      */
     function totalIdle() external view returns (uint256) {
-        return _baseStrategyStorgage().totalIdle;
+        return _strategyStorgage().totalIdle;
     }
 
     /**
@@ -1119,7 +1117,7 @@ contract TokenizedLogic {
      * @return . The current amount of debt.
      */
     function totalDebt() external view returns (uint256) {
-        return _baseStrategyStorgage().totalDebt;
+        return _strategyStorgage().totalDebt;
     }
 
     /**
@@ -1127,7 +1125,7 @@ contract TokenizedLogic {
      * @return . Address of management
      */
     function management() external view returns (address) {
-        return _baseStrategyStorgage().management;
+        return _strategyStorgage().management;
     }
 
     /**
@@ -1135,7 +1133,7 @@ contract TokenizedLogic {
      * @return . Address of the keeper
      */
     function keeper() external view returns (address) {
-        return _baseStrategyStorgage().keeper;
+        return _strategyStorgage().keeper;
     }
 
     /**
@@ -1144,7 +1142,7 @@ contract TokenizedLogic {
      * @return . Current performance fee.
      */
     function performanceFee() external view returns (uint16) {
-        return _baseStrategyStorgage().performanceFee;
+        return _strategyStorgage().performanceFee;
     }
 
     /**
@@ -1152,7 +1150,7 @@ contract TokenizedLogic {
      * @return . Address of performanceFeeRecipient
      */
     function performanceFeeRecipient() external view returns (address) {
-        return _baseStrategyStorgage().performanceFeeRecipient;
+        return _strategyStorgage().performanceFeeRecipient;
     }
 
     /**
@@ -1160,7 +1158,7 @@ contract TokenizedLogic {
      * @return . The full profit unlocking timestamp
      */
     function fullProfitUnlockDate() external view returns (uint256) {
-        return uint256(_baseStrategyStorgage().fullProfitUnlockDate);
+        return uint256(_strategyStorgage().fullProfitUnlockDate);
     }
 
     /**
@@ -1169,7 +1167,7 @@ contract TokenizedLogic {
      * @return . The current profit unlocking rate.
      */
     function profitUnlockingRate() external view returns (uint256) {
-        return _baseStrategyStorgage().profitUnlockingRate;
+        return _strategyStorgage().profitUnlockingRate;
     }
 
     /**
@@ -1177,7 +1175,7 @@ contract TokenizedLogic {
      * @return . The current profit max unlock time.
      */
     function profitMaxUnlockTime() external view returns (uint256) {
-        return _baseStrategyStorgage().profitMaxUnlockTime;
+        return _strategyStorgage().profitMaxUnlockTime;
     }
 
     /**
@@ -1185,7 +1183,7 @@ contract TokenizedLogic {
      * @return . The last report.
      */
     function lastReport() external view returns (uint256) {
-        return uint256(_baseStrategyStorgage().lastReport);
+        return uint256(_strategyStorgage().lastReport);
     }
 
     /**
@@ -1196,7 +1194,7 @@ contract TokenizedLogic {
      * @return . The price per share.
      */
     function pricePerShare() external view returns (uint256) {
-        return convertToAssets(10 ** _baseStrategyStorgage().decimals);
+        return convertToAssets(10 ** _strategyStorgage().decimals);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1213,7 +1211,7 @@ contract TokenizedLogic {
      */
     function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
-        _baseStrategyStorgage().management = _management;
+        _strategyStorgage().management = _management;
 
         emit UpdateManagement(_management);
     }
@@ -1225,7 +1223,7 @@ contract TokenizedLogic {
      * @param _keeper New address to set `keeper` to.
      */
     function setKeeper(address _keeper) external onlyManagement {
-        _baseStrategyStorgage().keeper = _keeper;
+        _strategyStorgage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
     }
@@ -1241,7 +1239,7 @@ contract TokenizedLogic {
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
-        _baseStrategyStorgage().performanceFee = _performanceFee;
+        _strategyStorgage().performanceFee = _performanceFee;
 
         emit UpdatePerformanceFee(_performanceFee);
     }
@@ -1258,8 +1256,7 @@ contract TokenizedLogic {
         address _performanceFeeRecipient
     ) external onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
-        _baseStrategyStorgage()
-            .performanceFeeRecipient = _performanceFeeRecipient;
+        _strategyStorgage().performanceFeeRecipient = _performanceFeeRecipient;
 
         emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
     }
@@ -1279,9 +1276,7 @@ contract TokenizedLogic {
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
         require(_profitMaxUnlockTime <= 31_556_952, "to long");
-        _baseStrategyStorgage().profitMaxUnlockTime = uint32(
-            _profitMaxUnlockTime
-        );
+        _strategyStorgage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
@@ -1299,7 +1294,7 @@ contract TokenizedLogic {
      * This is a one way switch and can never be set back once shutdown.
      */
     function shutdownStrategy() external onlyManagement {
-        _baseStrategyStorgage().shutdown = true;
+        _strategyStorgage().shutdown = true;
 
         emit StrategyShutdown();
     }
@@ -1313,7 +1308,7 @@ contract TokenizedLogic {
      * @return . The name the strategy is using for its token.
      */
     function name() public view returns (string memory) {
-        return _baseStrategyStorgage().name;
+        return _strategyStorgage().name;
     }
 
     /**
@@ -1322,7 +1317,7 @@ contract TokenizedLogic {
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
-        return string(abi.encodePacked((_baseStrategyStorgage().symbol)));
+        return string(abi.encodePacked((_strategyStorgage().symbol)));
     }
 
     /**
@@ -1330,7 +1325,7 @@ contract TokenizedLogic {
      * @return . The decimals used for the strategy and `asset`.
      */
     function decimals() public view returns (uint8) {
-        return _baseStrategyStorgage().decimals;
+        return _strategyStorgage().decimals;
     }
 
     /**
@@ -1342,10 +1337,9 @@ contract TokenizedLogic {
      */
     function balanceOf(address account) public view returns (uint256) {
         if (account == address(this)) {
-            return
-                _baseStrategyStorgage().balances[account] - _unlockedShares();
+            return _strategyStorgage().balances[account] - _unlockedShares();
         }
-        return _baseStrategyStorgage().balances[account];
+        return _strategyStorgage().balances[account];
     }
 
     /**
@@ -1380,7 +1374,7 @@ contract TokenizedLogic {
         address owner,
         address spender
     ) public view returns (uint256) {
-        return _baseStrategyStorgage().allowances[owner][spender];
+        return _strategyStorgage().allowances[owner][spender];
     }
 
     /**
@@ -1522,7 +1516,7 @@ contract TokenizedLogic {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(to != address(this), "ERC20 transfer to strategy");
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         S.balances[from] -= amount;
         unchecked {
@@ -1544,7 +1538,7 @@ contract TokenizedLogic {
      */
     function _mint(address account, uint256 amount) private {
         require(account != address(0), "ERC20: mint to the zero address");
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         S.totalSupply += amount;
         unchecked {
@@ -1566,7 +1560,7 @@ contract TokenizedLogic {
      */
     function _burn(address account, uint256 amount) private {
         require(account != address(0), "ERC20: burn from the zero address");
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         S.balances[account] -= amount;
         unchecked {
@@ -1592,7 +1586,7 @@ contract TokenizedLogic {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
-        _baseStrategyStorgage().allowances[owner][spender] = amount;
+        _strategyStorgage().allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
 
@@ -1636,7 +1630,7 @@ contract TokenizedLogic {
      * @return . the current nonce for the account.
      */
     function nonces(address _owner) external view returns (uint256) {
-        return _baseStrategyStorgage().nonces[_owner];
+        return _strategyStorgage().nonces[_owner];
     }
 
     /**
@@ -1687,7 +1681,7 @@ contract TokenizedLogic {
                                 owner,
                                 spender,
                                 value,
-                                _baseStrategyStorgage().nonces[owner]++,
+                                _strategyStorgage().nonces[owner]++,
                                 deadline
                             )
                         )
@@ -1717,7 +1711,7 @@ contract TokenizedLogic {
      * @return . The domain seperator that will be used for any {permit} calls.
      */
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         return
             block.chainid == S.INITIAL_CHAIN_ID
                 ? S.INITIAL_DOMAIN_SEPARATOR
@@ -1740,7 +1734,7 @@ contract TokenizedLogic {
                     keccak256(
                         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
                     ),
-                    keccak256(bytes(_baseStrategyStorgage().name)),
+                    keccak256(bytes(_strategyStorgage().name)),
                     keccak256(bytes(API_VERSION)),
                     block.chainid,
                     address(this)
@@ -1755,12 +1749,13 @@ contract TokenizedLogic {
     /**
      * @notice Used to create a new clone of the calling stategy.
      * @dev This can be called through a normal delegate call directly
-     * to the library however that will leave all implementation
+     * to the TokenizedStrategy however that will leave all implementation
      * sepcific setup uncompleted.
      *
      * The recommended use for strategies that wish to utilize cloning
-     * is to declare a implemtation specific {clone} that will then call
-     * `BaseLibrary.clone(data)` so it can implement its own initiliaztion.
+     * is to declare a strategy specific {clone} that will then call
+     * `TokenizedStrategy.clone(data)` so it can implement its own
+     * initiliaztion.
      *
      * This can't be called through a strategy that is a clone. All
      * cloning must come through the original contract that can be
@@ -1780,7 +1775,7 @@ contract TokenizedLogic {
         address _performanceFeeRecipient,
         address _keeper
     ) external returns (address newStrategy) {
-        require(IBaseStrategy(address(this)).isOriginal(), "!clone");
+        require(IBaseTokenizedStrategy(address(this)).isOriginal(), "!clone");
         // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
         bytes20 addressBytes = bytes20(address(this));
 
@@ -1799,7 +1794,7 @@ contract TokenizedLogic {
             newStrategy := create(0, clone_code, 0x37)
         }
 
-        IBaseStrategy(newStrategy).initialize(
+        IBaseTokenizedStrategy(newStrategy).initialize(
             _asset,
             _name,
             _management,

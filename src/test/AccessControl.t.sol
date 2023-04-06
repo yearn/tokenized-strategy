@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, TokenizedLogic} from "./utils/Setup.sol";
+import {Setup} from "./utils/Setup.sol";
 
 contract AccesssControlTest is Setup {
     function setUp() public override {

@@ -14,10 +14,8 @@ import {MockFaultyStrategy} from "../mocks/MockFaultyStrategy.sol";
 import {MockRegistry} from "../mocks/MockRegistry.sol";
 import {MockFactory} from "../mocks/MockFactory.sol";
 
-import {TokenizedLogic} from "../../TokenizedLogic.sol";
+import {TokenizedStrategy} from "../../TokenizedStrategy.sol";
 import {IEvents} from "../../interfaces/IEvents.sol";
-
-//import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
 
 contract Setup is ExtendedTest, IEvents {
     // Contract instancees that we will use repeatedly.
@@ -26,7 +24,7 @@ contract Setup is ExtendedTest, IEvents {
     MockFactory public mockFactory;
     MockRegistry public mockRegistry;
     MockYieldSource public yieldSource;
-    TokenizedLogic public tokenizedLogic;
+    TokenizedStrategy public tokenizedStrategy;
 
     // Addresses for different roles we will use repeatedly.
     address public user = address(10);
@@ -45,16 +43,14 @@ contract Setup is ExtendedTest, IEvents {
     uint256 public profitMaxUnlockTime = 10 days;
 
     function setUp() public virtual {
-        // deploy the mock factory next for deterministic location
+        // Deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
-        //console.log("Mock Factory ", address(mockFactory));
 
-        // Finally deploy the mock registry for deterministic location
+        // Deploy the mock registry for deterministic location
         mockRegistry = new MockRegistry();
-        //console.log("Registry, ", address(mockRegistry));
 
-        tokenizedLogic = new TokenizedLogic();
-        //console.log("Token addy ", address(tokenizedLogic));
+        // Finally deploy the implementation for deterministic location
+        tokenizedStrategy = new TokenizedStrategy();
 
         // create asset we will be using as the underlying asset
         asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
@@ -73,7 +69,7 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(address(mockFactory), "mock Factory");
         vm.label(address(mockRegistry), "mock registry");
         vm.label(address(yieldSource), "Mock Yield Source");
-        vm.label(address(tokenizedLogic), "tokenized Logic");
+        vm.label(address(tokenizedStrategy), "tokenized Logic");
         vm.label(protocolFeeRecipient, "protocolFeeRecipient");
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
     }
