@@ -2,9 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, BaseLibrary} from "./utils/Setup.sol";
-
-import {BaseLibrary} from "../libraries/BaseLibrary.sol";
+import {Setup, TokenizedLogic} from "./utils/Setup.sol";
 
 contract AccesssControlTest is Setup {
     function setUp() public override {
@@ -15,7 +13,7 @@ contract AccesssControlTest is Setup {
         vm.assume(_address != management && _address != address(0));
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.UpdateManagement(_address);
+        emit UpdateManagement(_address);
 
         vm.prank(management);
         strategy.setManagement(_address);
@@ -27,7 +25,7 @@ contract AccesssControlTest is Setup {
         vm.assume(_address != keeper);
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.UpdateKeeper(_address);
+        emit UpdateKeeper(_address);
 
         vm.prank(management);
         strategy.setKeeper(_address);
@@ -39,7 +37,7 @@ contract AccesssControlTest is Setup {
         _amount = uint16(bound(_amount, 0, 9_999));
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.UpdatePerformanceFee(_amount);
+        emit UpdatePerformanceFee(_amount);
 
         vm.prank(management);
         strategy.setPerformanceFee(_amount);
@@ -53,7 +51,7 @@ contract AccesssControlTest is Setup {
         );
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.UpdatePerformanceFeeRecipient(_address);
+        emit UpdatePerformanceFeeRecipient(_address);
 
         vm.prank(management);
         strategy.setPerformanceFeeRecipient(_address);
@@ -66,7 +64,7 @@ contract AccesssControlTest is Setup {
         uint256 amount = bound(uint256(_amount), 0, 31_556_952);
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.UpdateProfitMaxUnlockTime(amount);
+        emit UpdateProfitMaxUnlockTime(amount);
 
         vm.prank(management);
         strategy.setProfitMaxUnlockTime(amount);
@@ -78,7 +76,7 @@ contract AccesssControlTest is Setup {
         assertTrue(!strategy.isShutdown());
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.StrategyShutdown();
+        emit StrategyShutdown();
 
         vm.prank(management);
         strategy.shutdownStrategy();

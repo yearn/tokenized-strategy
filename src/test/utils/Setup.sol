@@ -14,15 +14,19 @@ import {MockFaultyStrategy} from "../mocks/MockFaultyStrategy.sol";
 import {MockRegistry} from "../mocks/MockRegistry.sol";
 import {MockFactory} from "../mocks/MockFactory.sol";
 
-import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
+import {TokenizedLogic} from "../../TokenizedLogic.sol";
+import {IEvents} from "../../interfaces/IEvents.sol";
 
-contract Setup is ExtendedTest {
+//import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
+
+contract Setup is ExtendedTest, IEvents {
     // Contract instancees that we will use repeatedly.
     ERC20Mock public asset;
     IMockStrategy public strategy;
     MockFactory public mockFactory;
     MockRegistry public mockRegistry;
     MockYieldSource public yieldSource;
+    TokenizedLogic public tokenizedLogic;
 
     // Addresses for different roles we will use repeatedly.
     address public user = address(10);
@@ -43,9 +47,14 @@ contract Setup is ExtendedTest {
     function setUp() public virtual {
         // deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
+        //console.log("Mock Factory ", address(mockFactory));
 
         // Finally deploy the mock registry for deterministic location
         mockRegistry = new MockRegistry();
+        //console.log("Registry, ", address(mockRegistry));
+
+        tokenizedLogic = new TokenizedLogic();
+        //console.log("Token addy ", address(tokenizedLogic));
 
         // create asset we will be using as the underlying asset
         asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
@@ -61,10 +70,10 @@ contract Setup is ExtendedTest {
         vm.label(address(asset), "asset");
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
-        vm.label(address(BaseLibrary), "library");
         vm.label(address(mockFactory), "mock Factory");
         vm.label(address(mockRegistry), "mock registry");
         vm.label(address(yieldSource), "Mock Yield Source");
+        vm.label(address(tokenizedLogic), "tokenized Logic");
         vm.label(protocolFeeRecipient, "protocolFeeRecipient");
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
     }
@@ -171,7 +180,7 @@ contract Setup is ExtendedTest {
 
         // Check the event matches the expected values
         vm.expectEmit(true, true, true, true, address(_strategy));
-        emit BaseLibrary.Reported(profit, 0, _performanceFees, _protocolFees);
+        emit Reported(profit, 0, _performanceFees, _protocolFees);
 
         vm.prank(keeper);
         (uint256 _profit, uint256 _loss) = _strategy.report();
@@ -196,7 +205,7 @@ contract Setup is ExtendedTest {
         yieldSource.simulateLoss(loss);
         // Check the event matches the expected values
         vm.expectEmit(true, true, false, true, address(_strategy));
-        emit BaseLibrary.Reported(0, loss, _performanceFees, _protocolFees);
+        emit Reported(0, loss, _performanceFees, _protocolFees);
 
         vm.prank(keeper);
         (uint256 _profit, uint256 _loss) = _strategy.report();

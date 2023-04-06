@@ -6,7 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import {IBaseStrategy} from "../interfaces/IBaseStrategy.sol";
+import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 
 interface IFactory {
     function protocol_fee_config()
@@ -32,7 +32,7 @@ interface IRegistry {
  *  are focused entirely on the strategy specific needs to easily and cheaply
  *  deploy their own permisionless vault.
  */
-library BaseLibrary {
+contract TokenizedLogic {
     using Math for uint256;
     using SafeERC20 for ERC20;
 
@@ -293,12 +293,12 @@ library BaseLibrary {
     // Address of the Vault factory that protocl fee config is retrieved from.
     // NOTE: This will be set to deployed factory. deterministic address for testing is used now
     address private constant FACTORY =
-        0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
+        0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
 
     // Address of the registry used to track all deployed vaults and strategies
     // NOTE: holder address based on expected location during tests
     address private constant REGISTRY =
-        0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
+        0x2e234DAe75C793f67A35089C9d99245E1C58470b;
 
     /**
      * @dev Custom storgage slot that will be used to store the
@@ -374,7 +374,7 @@ library BaseLibrary {
         address _management,
         address _performanceFeeRecipient,
         address _keeper
-    ) public {
+    ) external {
         // Cache storage pointer
         BaseStrategyData storage S = _baseStrategyStorgage();
 
@@ -430,7 +430,7 @@ library BaseLibrary {
     function deposit(
         uint256 assets,
         address receiver
-    ) public notShutdown nonReentrant returns (uint256 shares) {
+    ) external notShutdown nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
@@ -447,7 +447,7 @@ library BaseLibrary {
     function mint(
         uint256 shares,
         address receiver
-    ) public notShutdown nonReentrant returns (uint256 assets) {
+    ) external notShutdown nonReentrant returns (uint256 assets) {
         // Check for rounding error.
         require((assets = previewMint(shares)) != 0, "ZERO_ASSETS");
 
@@ -466,7 +466,7 @@ library BaseLibrary {
         uint256 assets,
         address receiver,
         address owner
-    ) public nonReentrant returns (uint256 shares) {
+    ) external nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
@@ -485,7 +485,7 @@ library BaseLibrary {
         uint256 shares,
         address receiver,
         address owner
-    ) public nonReentrant returns (uint256 assets) {
+    ) external nonReentrant returns (uint256 assets) {
         // Check for rounding error.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
@@ -828,7 +828,7 @@ library BaseLibrary {
      * report in terms of `asset`.
      */
     function report()
-        public
+        external
         nonReentrant
         onlyKeepers
         returns (uint256 profit, uint256 loss)
@@ -1058,7 +1058,7 @@ library BaseLibrary {
      *
      * A report() call will be needed to record the profit.
      */
-    function tend() public nonReentrant onlyKeepers {
+    function tend() external nonReentrant onlyKeepers {
         BaseStrategyData storage S = _baseStrategyStorgage();
         // Expected Behavior is this will get used twice so we cache it
         uint256 _totalIdle = S.totalIdle;
@@ -1211,7 +1211,7 @@ library BaseLibrary {
      *
      * @param _management New address to set `management` to.
      */
-    function setManagement(address _management) public onlyManagement {
+    function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
         _baseStrategyStorgage().management = _management;
 
@@ -1224,7 +1224,7 @@ library BaseLibrary {
      *
      * @param _keeper New address to set `keeper` to.
      */
-    function setKeeper(address _keeper) public onlyManagement {
+    function setKeeper(address _keeper) external onlyManagement {
         _baseStrategyStorgage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
@@ -1239,7 +1239,7 @@ library BaseLibrary {
      *
      * @param _performanceFee New performance fee.
      */
-    function setPerformanceFee(uint16 _performanceFee) public onlyManagement {
+    function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
         _baseStrategyStorgage().performanceFee = _performanceFee;
 
@@ -1256,7 +1256,7 @@ library BaseLibrary {
      */
     function setPerformanceFeeRecipient(
         address _performanceFeeRecipient
-    ) public onlyManagement {
+    ) external onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
         _baseStrategyStorgage()
             .performanceFeeRecipient = _performanceFeeRecipient;
@@ -1277,7 +1277,7 @@ library BaseLibrary {
      */
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
-    ) public onlyManagement {
+    ) external onlyManagement {
         require(_profitMaxUnlockTime <= 31_556_952, "to long");
         _baseStrategyStorgage().profitMaxUnlockTime = uint32(
             _profitMaxUnlockTime
@@ -1298,7 +1298,7 @@ library BaseLibrary {
      *
      * This is a one way switch and can never be set back once shutdown.
      */
-    function shutdownStrategy() public onlyManagement {
+    function shutdownStrategy() external onlyManagement {
         _baseStrategyStorgage().shutdown = true;
 
         emit StrategyShutdown();
@@ -1668,7 +1668,7 @@ library BaseLibrary {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public {
+    ) external {
         require(deadline >= block.timestamp, "ERC20: PERMIT_DEADLINE_EXPIRED");
 
         // Unchecked because the only math done is incrementing
@@ -1779,7 +1779,7 @@ library BaseLibrary {
         address _management,
         address _performanceFeeRecipient,
         address _keeper
-    ) public returns (address newStrategy) {
+    ) external returns (address newStrategy) {
         require(IBaseStrategy(address(this)).isOriginal(), "!clone");
         // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
         bytes20 addressBytes = bytes20(address(this));

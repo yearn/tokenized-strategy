@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, IMockStrategy, BaseLibrary} from "./utils/Setup.sol";
+import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
 // TODO: add checkStrategyTotals to all of these tests
 

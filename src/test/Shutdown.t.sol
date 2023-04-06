@@ -2,9 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, IMockStrategy} from "./utils/Setup.sol";
-
-import {BaseLibrary} from "../libraries/BaseLibrary.sol";
+import {Setup, IMockStrategy, TokenizedLogic} from "./utils/Setup.sol";
 
 contract ShutdownTest is Setup {
     function setUp() public override {
@@ -26,7 +24,7 @@ contract ShutdownTest is Setup {
         assertTrue(!strategy.isShutdown());
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.StrategyShutdown();
+        emit StrategyShutdown();
 
         vm.prank(management);
         strategy.shutdownStrategy();
@@ -62,7 +60,7 @@ contract ShutdownTest is Setup {
         assertTrue(!strategy.isShutdown());
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.StrategyShutdown();
+        emit StrategyShutdown();
 
         vm.prank(management);
         strategy.shutdownStrategy();
@@ -111,7 +109,7 @@ contract ShutdownTest is Setup {
         assertTrue(!strategy.isShutdown());
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.StrategyShutdown();
+        emit StrategyShutdown();
 
         vm.prank(management);
         strategy.shutdownStrategy();

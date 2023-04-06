@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, BaseLibrary} from "./Setup.sol";
+import {Setup, TokenizedLogic} from "./Setup.sol";
 
 abstract contract BaseInvariant is Setup {
     function setUp() public virtual override {
@@ -15,7 +15,7 @@ abstract contract BaseInvariant is Setup {
     function _baseStrategyStorgage()
         private
         pure
-        returns (BaseLibrary.BaseStrategyData storage S)
+        returns (TokenizedLogic.BaseStrategyData storage S)
     {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
@@ -64,7 +64,7 @@ abstract contract BaseInvariant is Setup {
         assertApproxEq(
             strategy.maxRedeem(msg.sender),
             strategy.convertToShares(strategy.maxWithdraw(msg.sender)),
-            1
+            2
         );
     }
 

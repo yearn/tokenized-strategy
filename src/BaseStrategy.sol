@@ -81,7 +81,7 @@ abstract contract BaseStrategy {
      */
     // NOTE: This is a holder address based on expected deterministic location for testing
     address public constant baseLibraryAddress =
-        0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
+        0xF62849F9A0B5Bf2913b396098F7c7019b51A820a;
 
     /**
      * This variable is set to address(this) during initialization of each strategy.

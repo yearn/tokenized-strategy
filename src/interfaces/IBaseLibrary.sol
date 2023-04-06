@@ -8,6 +8,59 @@ import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft
 
 // Interface that implements the 4626 standard the Library functions and the Strategies immutable functions
 interface IBaseLibrary is IERC4626, IERC20Permit {
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Emitted whent the 'mangement' address is updtaed to 'newManagement'.
+     */
+    event UpdateManagement(address indexed newManagement);
+
+    /**
+     * @notice Emitted whent the 'keeper' address is updtaed to 'newKeeper'.
+     */
+    event UpdateKeeper(address indexed newKeeper);
+
+    /**
+     * @notice Emitted whent the 'performaneFee' is updtaed to 'newPerformanceFee'.
+     */
+    event UpdatePerformanceFee(uint16 newPerformanceFee);
+
+    /**
+     * @notice Emitted whent the 'performanceFeeRecipient' address is
+     * updtaed to 'newPerformanceFeeRecipient'.
+     */
+    event UpdatePerformanceFeeRecipient(
+        address indexed newPerformanceFeeRecipient
+    );
+
+    /**
+     * @notice Emitted whent the 'profitMaxUnlockTime' is updtaed to 'newProfitMaxUnlockTime'.
+     */
+    event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
+
+    /**
+     * @notice Emitted when a strategy is shutdown.
+     */
+    event StrategyShutdown();
+
+    /**
+     * @dev Emitted when the strategy reports `profit` or `loss` and
+     * `performanceFees` and `protocolFees` are paid out.
+     */
+    event Reported(
+        uint256 profit,
+        uint256 loss,
+        uint256 performanceFees,
+        uint256 protocolFees
+    );
+
+    /**
+     * @dev Emitted when a new `clone` is created from an `original`.
+     */
+    event Cloned(address indexed clone, address indexed original);
+
     // Base Library functions \\
     function init(
         address _asset,
@@ -40,7 +93,7 @@ interface IBaseLibrary is IERC4626, IERC20Permit {
 
     function keeper() external view returns (address);
 
-    function performanceFee() external view returns (uint256);
+    function performanceFee() external view returns (uint16);
 
     function performanceFeeRecipient() external view returns (address);
 
