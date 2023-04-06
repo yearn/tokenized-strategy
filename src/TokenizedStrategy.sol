@@ -6,9 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import {DiamondHelper, IDiamond, IDiamondLoupe} from "../DiamondHelper.sol";
-
-import {IBaseStrategy} from "../interfaces/IBaseStrategy.sol";
+import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
 
 interface IFactory {
     function protocol_fee_config()
@@ -22,19 +20,19 @@ interface IRegistry {
 }
 
 /**
- * @title YearnV3 Base Library
+ * @title YearnV3 Tokenized Strategy
  * @author yearn.finance
  * @notice
- *  This library can be used by anyone wishing to easily build and deploy
- *  their own custom ERC4626 compiant one strategy Vault. This library
- *  would be used to hanle all logic, storage and mangement for the custom
- *  strategy. Any ERC4626, ERC20 or ERC2535 function calls to the implemenation
- *  would be forwarded throug a delegateCall to this library and so the
- *  implementation would only need to override a few simple functions that
- *  are focused entirely on the strategy specific needs to easily and cheaply
- *  deploy their own permisionless vault.
+ *  This TokenizedStrategy can be used by anyone wishing to easily build
+ *  and deploy their own custom ERC4626 compliant one strategy Vault.
+ *  This TokenizedStrategy contract is used to hanle all logic, storage
+ *  and mangement for the custom strategy. Any function calls to the
+ *  strategy that are not defined would be forwarded throug a delegateCall
+ *  to this contract. Any strategy only needs to override a few simple
+ *  functions that are focused entirely on the strategy specific needs
+ *  to easily and cheaply deploy their own permisionless vault.
  */
-library BaseLibrary {
+contract TokenizedStrategy {
     using Math for uint256;
     using SafeERC20 for ERC20;
 
@@ -128,15 +126,6 @@ library BaseLibrary {
     );
 
     /**
-     * @dev Emitted on the initialization of a new strategy.
-     */
-    event DiamondCut(
-        IDiamond.FacetCut[] _diamondCut,
-        address _init,
-        bytes _calldata
-    );
-
-    /**
      * @dev Emitted when a new `clone` is created from an `original`.
      */
     event Cloned(address indexed clone, address indexed original);
@@ -146,12 +135,12 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev The struct that will hold all the data for each implementation
-     * strategy that uses this library.
+     * @dev The struct that will hold all the data for each strategy that
+     * uses this implementation.
      *
      * This replaces all state variables for a traditional contract. This
-     * full struct will be initiliazed on the createion of the implemenation
-     * contract and continually updated and read from for the life of the contract.
+     * full struct will be initiliazed on the createion of the strategy
+     * and continually updated and read from for the life of the contract.
      *
      * We combine all the variables into one struct to limit the amount of times
      * custom storage slots need to be loaded during complex functions.
@@ -161,7 +150,7 @@ library BaseLibrary {
      * has no effect on gas usage.
      */
     // prettier-ignore
-    struct BaseStrategyData {
+    struct StrategyData {
         // The ERC20 compliant underlying asset that will be
         // used by the implementation contract. We can keep this
         // as and ERC20 instance because the implementation holds the
@@ -172,7 +161,7 @@ library BaseLibrary {
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals that `asset` and strategy use
-        bytes10 symbol; // The symbol of the token for the strategy.
+        bytes11 symbol; // The symbol of the token for the strategy.
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued
         uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
@@ -232,7 +221,7 @@ library BaseLibrary {
      *  Placed over all state changing functions for increased safety.
      */
     modifier nonReentrant() {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         // On the first call to nonReentrant, `entered` will be false
         require(!S.entered, "ReentrancyGuard: reentrant call");
 
@@ -262,7 +251,7 @@ library BaseLibrary {
      * address of the strategy so we need to specify the sender.
      */
     function isManagement(address _sender) public view {
-        require(_sender == _baseStrategyStorgage().management, "!Authorized");
+        require(_sender == _strategyStorgage().management, "!Authorized");
     }
 
     /**
@@ -274,7 +263,7 @@ library BaseLibrary {
      * address of the strategy so we need to specify the sender.
      */
     function isKeeperOrManagement(address _sender) public view {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         require(_sender == S.keeper || _sender == S.management, "!Authorized");
     }
 
@@ -286,20 +275,15 @@ library BaseLibrary {
      * for the `shutdown` variable as well.
      */
     function isShutdown() public view returns (bool) {
-        return _baseStrategyStorgage().shutdown;
+        return _strategyStorgage().shutdown;
     }
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    // Api version this library implements.
+    // Api version this TokenizedStrategy implements.
     string private constant API_VERSION = "3.1.0";
-
-    // The address of the helper contract for all ERC-2535 view functions.
-    // NOTE: holder address based on expected location during tests
-    address private constant diamondHelper =
-        0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06;
 
     // Used for fee calculations.
     uint256 private constant MAX_BPS = 10_000;
@@ -309,19 +293,19 @@ library BaseLibrary {
     // Address of the Vault factory that protocl fee config is retrieved from.
     // NOTE: This will be set to deployed factory. deterministic address for testing is used now
     address private constant FACTORY =
-        0x2a9e8fa175F45b235efDdD97d2727741EF4Eee63;
+        0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
 
     // Address of the registry used to track all deployed vaults and strategies
     // NOTE: holder address based on expected location during tests
     address private constant REGISTRY =
-        0x72384992222BE015DE0146a6D7E5dA0E19d2Ba49;
+        0x2e234DAe75C793f67A35089C9d99245E1C58470b;
 
     /**
      * @dev Custom storgage slot that will be used to store the
-     * `BaseStrategyData` struct that holds each strategies
+     * `StrategyData` struct that holds each strategies
      * specific storage variables.
      *
-     * Any storage updates done by the library actually update
+     * Any storage updates done by the TokenizedStrategy actually update
      * the storage of the calling contract. This variable points
      * to the specic location that will be used to store the
      * struct that holds all that data.
@@ -340,17 +324,13 @@ library BaseLibrary {
 
     /**
      * @dev will return the actaul storage slot where the strategy
-     * sepcific `BaseStrategyData` struct is stored for both read
+     * sepcific `StrategyData` struct is stored for both read
      * and write operations.
      *
      * This loads just the slot location, not the full struct
      * so it can be used in a gas effecient manner.
      */
-    function _baseStrategyStorgage()
-        private
-        pure
-        returns (BaseStrategyData storage S)
-    {
+    function _strategyStorgage() private pure returns (StrategyData storage S) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
         bytes32 slot = BASE_STRATEGY_STORAGE;
@@ -372,13 +352,11 @@ library BaseLibrary {
      * strategy to function. Any changes can be made post deployment
      * through external calls from `management`.
      *
-     * The function will also emit the `DiamondCut` event that will be
-     * emitted through the calling strategy as well as telling the
-     * registry a new strategy has been deployed for easy tracking
-     * purposes.
+     * The function will also tell the registry a new strategy has been
+     * deployed for easy tracking purposes.
      *
-     * This is called through a lowelevel call in the BaseStrategy so
-     * any reverts will return the "init failed" string.
+     * This is called through a lowelevel call in the BaseTokenizedStrategy
+     * so any reverts will return the "init failed" string.
      *
      * @param _asset Address of the underlying asset.
      * @param _name Name the strategy will use.
@@ -394,7 +372,7 @@ library BaseLibrary {
         address _keeper
     ) external {
         // Cache storage pointer
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
@@ -406,7 +384,7 @@ library BaseLibrary {
         IERC20Metadata a = IERC20Metadata(_asset);
         // This stores the symbol as bytes10 so it can be
         // packed in the struct with `asset` and `decimals`
-        S.symbol = bytes10(abi.encodePacked("ys", a.symbol()));
+        S.symbol = bytes11(abi.encodePacked("ys", a.symbol()));
         S.decimals = a.decimals();
         // Set initial chain id for permit replay protection
         S.INITIAL_CHAIN_ID = block.chainid;
@@ -429,17 +407,6 @@ library BaseLibrary {
         S.management = _management;
         // Set the keeper address
         S.keeper = _keeper;
-
-        // Emit the standard DiamondCut event with the values from our helper contract
-        emit DiamondCut(
-            // Struct containing the address of the library,
-            // the add enum and array of all function selectors.
-            DiamondHelper(diamondHelper).diamondCut(),
-            // Init address to call if applicable.
-            address(0),
-            // Call data to send the init address if applicable.
-            new bytes(0)
-        );
 
         // Tell the registry we have a new strategy deployed.
         IRegistry(REGISTRY).newStrategy(address(this), _asset);
@@ -621,7 +588,8 @@ library BaseLibrary {
      * corresponds to the msg.sender of a {deposit} call.
      */
     function maxDeposit(address _owner) public view returns (uint256) {
-        return IBaseStrategy(address(this)).availableDepositLimit(_owner);
+        return
+            IBaseTokenizedStrategy(address(this)).availableDepositLimit(_owner);
     }
 
     /**
@@ -630,7 +598,9 @@ library BaseLibrary {
      * of a {mint} call.
      */
     function maxMint(address _owner) public view returns (uint256 _maxMint) {
-        _maxMint = IBaseStrategy(address(this)).availableDepositLimit(_owner);
+        _maxMint = IBaseTokenizedStrategy(address(this)).availableDepositLimit(
+            _owner
+        );
         if (_maxMint != type(uint256).max) {
             _maxMint = convertToShares(_maxMint);
         }
@@ -644,9 +614,8 @@ library BaseLibrary {
     function maxWithdraw(
         address _owner
     ) public view returns (uint256 _maxWithdraw) {
-        _maxWithdraw = IBaseStrategy(address(this)).availableWithdrawLimit(
-            _owner
-        );
+        _maxWithdraw = IBaseTokenizedStrategy(address(this))
+            .availableWithdrawLimit(_owner);
         if (_maxWithdraw == type(uint256).max) {
             // Saves a min check if there is no withdrawal limit.
             _maxWithdraw = convertToAssets(balanceOf(_owner));
@@ -666,9 +635,8 @@ library BaseLibrary {
     function maxRedeem(
         address _owner
     ) public view returns (uint256 _maxRedeem) {
-        _maxRedeem = IBaseStrategy(address(this)).availableWithdrawLimit(
-            _owner
-        );
+        _maxRedeem = IBaseTokenizedStrategy(address(this))
+            .availableWithdrawLimit(_owner);
         // Conversion would overflow and saves a min check if there is no withdrawal limit.
         if (_maxRedeem == type(uint256).max) {
             _maxRedeem = balanceOf(_owner);
@@ -686,14 +654,14 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     function totalAssets() public view returns (uint256) {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         unchecked {
             return S.totalIdle + S.totalDebt;
         }
     }
 
     function totalSupply() public view returns (uint256) {
-        return _baseStrategyStorgage().totalSupply - _unlockedShares();
+        return _strategyStorgage().totalSupply - _unlockedShares();
     }
 
     /**
@@ -718,7 +686,7 @@ library BaseLibrary {
         );
 
         // Cache storage variables used more than once.
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         ERC20 _asset = S.asset;
 
         // Need to transfer before minting or ERC777s could reenter.
@@ -731,7 +699,7 @@ library BaseLibrary {
         uint256 beforeBalance = _asset.balanceOf(address(this));
 
         // Invest up to all loose funds.
-        IBaseStrategy(address(this)).invest(toInvest);
+        IBaseTokenizedStrategy(address(this)).invest(toInvest);
 
         // Always get the actual amount invested. We double check the
         // diff agianst toInvest for complete accuracy.
@@ -774,7 +742,7 @@ library BaseLibrary {
             _spendAllowance(owner, msg.sender, shares);
         }
 
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         // Expected beharvior is to need to free funds so we cache `_asset`.
         ERC20 _asset = S.asset;
 
@@ -787,7 +755,7 @@ library BaseLibrary {
 
             // Tell implementation to free what we need.
             unchecked {
-                IBaseStrategy(address(this)).freeFunds(assets - idle);
+                IBaseTokenizedStrategy(address(this)).freeFunds(assets - idle);
             }
 
             // Return the actual amount withdrawn. Adjust for potential overwithdraws.
@@ -863,7 +831,7 @@ library BaseLibrary {
         returns (uint256 profit, uint256 loss)
     {
         // Cache storage pointer since its used repeatedly.
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         uint256 oldTotalAssets;
         unchecked {
@@ -887,7 +855,8 @@ library BaseLibrary {
         // account for all funds including those potentially airdropped
         // by a trade factory. It is safe here to use asset.balanceOf()
         // instead of totalIdle because any profits are immediatly locked.
-        uint256 invested = IBaseStrategy(address(this)).totalInvested();
+        uint256 invested = IBaseTokenizedStrategy(address(this))
+            .totalInvested();
 
         uint256 performanceFees;
         unchecked {
@@ -1018,7 +987,7 @@ library BaseLibrary {
             // (this will mean less fees are charged after a change
             // in protocol_fees, but fees should not change frequently).
             uint256 secondsSinceLastReport = Math.min(
-                block.timestamp - _baseStrategyStorgage().lastReport,
+                block.timestamp - _strategyStorgage().lastReport,
                 block.timestamp - uint256(protocolFeeLastChange)
             );
 
@@ -1038,8 +1007,8 @@ library BaseLibrary {
         }
 
         // update variables (done here to keep _unlcokdedShares() as a view function)
-        if (_baseStrategyStorgage().fullProfitUnlockDate > block.timestamp) {
-            _baseStrategyStorgage().lastReport = uint128(block.timestamp);
+        if (_strategyStorgage().fullProfitUnlockDate > block.timestamp) {
+            _strategyStorgage().lastReport = uint128(block.timestamp);
         }
 
         _burn(address(this), unlcokdedShares);
@@ -1047,7 +1016,7 @@ library BaseLibrary {
 
     function _unlockedShares() private view returns (uint256 unlockedShares) {
         // should save 2 extra calls for most scenarios.
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         if (_fullProfitUnlockDate > block.timestamp) {
             unchecked {
@@ -1072,7 +1041,7 @@ library BaseLibrary {
      * @dev Both 'tendTrigger' and '_tend' will need to be overridden
      * for this to be used.
      *
-     * This will callback the internal '_tend' call in the BaseStrategy
+     * This will callback the internal '_tend' call in the BaseTokenizedStrategy
      * with the total current amount available to the strategy to invest.
      *
      * Keepers are expected to use protected relays in tend calls so this
@@ -1088,13 +1057,13 @@ library BaseLibrary {
      * A report() call will be needed to record the profit.
      */
     function tend() external nonReentrant onlyKeepers {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         // Expected Behavior is this will get used twice so we cache it
         uint256 _totalIdle = S.totalIdle;
         ERC20 _asset = S.asset;
 
         uint256 beforeBalance = _asset.balanceOf(address(this));
-        IBaseStrategy(address(this)).tendThis(_totalIdle);
+        IBaseTokenizedStrategy(address(this)).tendThis(_totalIdle);
         uint256 afterBalance = _asset.balanceOf(address(this));
 
         // Adjust storage according to the changes without adjusting totalAssets().
@@ -1128,8 +1097,8 @@ library BaseLibrary {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Get the api version for this Library.
-     * @return . The api version for this library
+     * @notice Get the api version for this TokenizedStrategy.
+     * @return . The api version for this TokenizedStrategy
      */
     function apiVersion() external pure returns (string memory) {
         return API_VERSION;
@@ -1140,7 +1109,7 @@ library BaseLibrary {
      * @return . The current amount of idle funds.
      */
     function totalIdle() external view returns (uint256) {
-        return _baseStrategyStorgage().totalIdle;
+        return _strategyStorgage().totalIdle;
     }
 
     /**
@@ -1148,7 +1117,7 @@ library BaseLibrary {
      * @return . The current amount of debt.
      */
     function totalDebt() external view returns (uint256) {
-        return _baseStrategyStorgage().totalDebt;
+        return _strategyStorgage().totalDebt;
     }
 
     /**
@@ -1156,7 +1125,7 @@ library BaseLibrary {
      * @return . Address of management
      */
     function management() external view returns (address) {
-        return _baseStrategyStorgage().management;
+        return _strategyStorgage().management;
     }
 
     /**
@@ -1164,11 +1133,16 @@ library BaseLibrary {
      * @return . Address of the keeper
      */
     function keeper() external view returns (address) {
-        return _baseStrategyStorgage().keeper;
+        return _strategyStorgage().keeper;
     }
 
+    /**
+     * @notice Get the current performance fee charged on profits.
+     * denominated in Basis Points wehere 10_000 == 100%
+     * @return . Current performance fee.
+     */
     function performanceFee() external view returns (uint16) {
-        return _baseStrategyStorgage().performanceFee;
+        return _strategyStorgage().performanceFee;
     }
 
     /**
@@ -1176,7 +1150,7 @@ library BaseLibrary {
      * @return . Address of performanceFeeRecipient
      */
     function performanceFeeRecipient() external view returns (address) {
-        return _baseStrategyStorgage().performanceFeeRecipient;
+        return _strategyStorgage().performanceFeeRecipient;
     }
 
     /**
@@ -1184,7 +1158,7 @@ library BaseLibrary {
      * @return . The full profit unlocking timestamp
      */
     function fullProfitUnlockDate() external view returns (uint256) {
-        return uint256(_baseStrategyStorgage().fullProfitUnlockDate);
+        return uint256(_strategyStorgage().fullProfitUnlockDate);
     }
 
     /**
@@ -1193,7 +1167,7 @@ library BaseLibrary {
      * @return . The current profit unlocking rate.
      */
     function profitUnlockingRate() external view returns (uint256) {
-        return _baseStrategyStorgage().profitUnlockingRate;
+        return _strategyStorgage().profitUnlockingRate;
     }
 
     /**
@@ -1201,7 +1175,7 @@ library BaseLibrary {
      * @return . The current profit max unlock time.
      */
     function profitMaxUnlockTime() external view returns (uint256) {
-        return _baseStrategyStorgage().profitMaxUnlockTime;
+        return _strategyStorgage().profitMaxUnlockTime;
     }
 
     /**
@@ -1209,7 +1183,7 @@ library BaseLibrary {
      * @return . The last report.
      */
     function lastReport() external view returns (uint256) {
-        return uint256(_baseStrategyStorgage().lastReport);
+        return uint256(_strategyStorgage().lastReport);
     }
 
     /**
@@ -1220,7 +1194,7 @@ library BaseLibrary {
      * @return . The price per share.
      */
     function pricePerShare() external view returns (uint256) {
-        return convertToAssets(10 ** _baseStrategyStorgage().decimals);
+        return convertToAssets(10 ** _strategyStorgage().decimals);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1237,7 +1211,7 @@ library BaseLibrary {
      */
     function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
-        _baseStrategyStorgage().management = _management;
+        _strategyStorgage().management = _management;
 
         emit UpdateManagement(_management);
     }
@@ -1249,7 +1223,7 @@ library BaseLibrary {
      * @param _keeper New address to set `keeper` to.
      */
     function setKeeper(address _keeper) external onlyManagement {
-        _baseStrategyStorgage().keeper = _keeper;
+        _strategyStorgage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
     }
@@ -1265,7 +1239,7 @@ library BaseLibrary {
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
-        _baseStrategyStorgage().performanceFee = _performanceFee;
+        _strategyStorgage().performanceFee = _performanceFee;
 
         emit UpdatePerformanceFee(_performanceFee);
     }
@@ -1282,8 +1256,7 @@ library BaseLibrary {
         address _performanceFeeRecipient
     ) external onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
-        _baseStrategyStorgage()
-            .performanceFeeRecipient = _performanceFeeRecipient;
+        _strategyStorgage().performanceFeeRecipient = _performanceFeeRecipient;
 
         emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
     }
@@ -1303,9 +1276,7 @@ library BaseLibrary {
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
         require(_profitMaxUnlockTime <= 31_556_952, "to long");
-        _baseStrategyStorgage().profitMaxUnlockTime = uint32(
-            _profitMaxUnlockTime
-        );
+        _strategyStorgage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
@@ -1323,52 +1294,9 @@ library BaseLibrary {
      * This is a one way switch and can never be set back once shutdown.
      */
     function shutdownStrategy() external onlyManagement {
-        _baseStrategyStorgage().shutdown = true;
+        _strategyStorgage().shutdown = true;
 
         emit StrategyShutdown();
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                    EXTERNAL ERC-2535 VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Gets all facet addresses and their four byte function selectors.
-     * @return facets_ Facet
-     */
-    function facets() external view returns (IDiamondLoupe.Facet[] memory) {
-        return DiamondHelper(diamondHelper).facets();
-    }
-
-    /**
-     * @notice Gets all the function selectors supported by a specific facet.
-     * @param _facet The facet address.
-     * @return facetFunctionSelectors_
-     */
-    function facetFunctionSelectors(
-        address _facet
-    ) external view returns (bytes4[] memory) {
-        return DiamondHelper(diamondHelper).facetFunctionSelectors(_facet);
-    }
-
-    /**
-     * @notice Get all the facet addresses used by a diamond.
-     * @return facetAddresses_
-     */
-    function facetAddresses() external view returns (address[] memory) {
-        return DiamondHelper(diamondHelper).facetAddresses();
-    }
-
-    /**
-     * @notice Gets the facet that supports the given selector.
-     * @dev If facet is not found return address(0).
-     * @param _functionSelector The function selector.
-     * @return facetAddress_ The facet address.
-     */
-    function facetAddress(
-        bytes4 _functionSelector
-    ) external view returns (address) {
-        return DiamondHelper(diamondHelper).facetAddress(_functionSelector);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1380,7 +1308,7 @@ library BaseLibrary {
      * @return . The name the strategy is using for its token.
      */
     function name() public view returns (string memory) {
-        return _baseStrategyStorgage().name;
+        return _strategyStorgage().name;
     }
 
     /**
@@ -1389,7 +1317,7 @@ library BaseLibrary {
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
-        return string(abi.encodePacked((_baseStrategyStorgage().symbol)));
+        return string(abi.encodePacked((_strategyStorgage().symbol)));
     }
 
     /**
@@ -1397,7 +1325,7 @@ library BaseLibrary {
      * @return . The decimals used for the strategy and `asset`.
      */
     function decimals() public view returns (uint8) {
-        return _baseStrategyStorgage().decimals;
+        return _strategyStorgage().decimals;
     }
 
     /**
@@ -1409,10 +1337,9 @@ library BaseLibrary {
      */
     function balanceOf(address account) public view returns (uint256) {
         if (account == address(this)) {
-            return
-                _baseStrategyStorgage().balances[account] - _unlockedShares();
+            return _strategyStorgage().balances[account] - _unlockedShares();
         }
-        return _baseStrategyStorgage().balances[account];
+        return _strategyStorgage().balances[account];
     }
 
     /**
@@ -1447,7 +1374,7 @@ library BaseLibrary {
         address owner,
         address spender
     ) public view returns (uint256) {
-        return _baseStrategyStorgage().allowances[owner][spender];
+        return _strategyStorgage().allowances[owner][spender];
     }
 
     /**
@@ -1589,7 +1516,7 @@ library BaseLibrary {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(to != address(this), "ERC20 transfer to strategy");
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         S.balances[from] -= amount;
         unchecked {
@@ -1611,7 +1538,7 @@ library BaseLibrary {
      */
     function _mint(address account, uint256 amount) private {
         require(account != address(0), "ERC20: mint to the zero address");
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         S.totalSupply += amount;
         unchecked {
@@ -1633,7 +1560,7 @@ library BaseLibrary {
      */
     function _burn(address account, uint256 amount) private {
         require(account != address(0), "ERC20: burn from the zero address");
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
 
         S.balances[account] -= amount;
         unchecked {
@@ -1659,7 +1586,7 @@ library BaseLibrary {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
-        _baseStrategyStorgage().allowances[owner][spender] = amount;
+        _strategyStorgage().allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
 
@@ -1703,7 +1630,7 @@ library BaseLibrary {
      * @return . the current nonce for the account.
      */
     function nonces(address _owner) external view returns (uint256) {
-        return _baseStrategyStorgage().nonces[_owner];
+        return _strategyStorgage().nonces[_owner];
     }
 
     /**
@@ -1735,7 +1662,7 @@ library BaseLibrary {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public {
+    ) external {
         require(deadline >= block.timestamp, "ERC20: PERMIT_DEADLINE_EXPIRED");
 
         // Unchecked because the only math done is incrementing
@@ -1754,7 +1681,7 @@ library BaseLibrary {
                                 owner,
                                 spender,
                                 value,
-                                _baseStrategyStorgage().nonces[owner]++,
+                                _strategyStorgage().nonces[owner]++,
                                 deadline
                             )
                         )
@@ -1784,7 +1711,7 @@ library BaseLibrary {
      * @return . The domain seperator that will be used for any {permit} calls.
      */
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
-        BaseStrategyData storage S = _baseStrategyStorgage();
+        StrategyData storage S = _strategyStorgage();
         return
             block.chainid == S.INITIAL_CHAIN_ID
                 ? S.INITIAL_DOMAIN_SEPARATOR
@@ -1807,7 +1734,7 @@ library BaseLibrary {
                     keccak256(
                         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
                     ),
-                    keccak256(bytes(_baseStrategyStorgage().name)),
+                    keccak256(bytes(_strategyStorgage().name)),
                     keccak256(bytes(API_VERSION)),
                     block.chainid,
                     address(this)
@@ -1822,12 +1749,13 @@ library BaseLibrary {
     /**
      * @notice Used to create a new clone of the calling stategy.
      * @dev This can be called through a normal delegate call directly
-     * to the library however that will leave all implementation
+     * to the TokenizedStrategy however that will leave all implementation
      * sepcific setup uncompleted.
      *
      * The recommended use for strategies that wish to utilize cloning
-     * is to declare a implemtation specific {clone} that will then call
-     * `BaseLibrary.clone(data)` so it can implement its own initiliaztion.
+     * is to declare a strategy specific {clone} that will then call
+     * `TokenizedStrategy.clone(data)` so it can implement its own
+     * initiliaztion.
      *
      * This can't be called through a strategy that is a clone. All
      * cloning must come through the original contract that can be
@@ -1847,7 +1775,7 @@ library BaseLibrary {
         address _performanceFeeRecipient,
         address _keeper
     ) external returns (address newStrategy) {
-        require(IBaseStrategy(address(this)).isOriginal(), "!clone");
+        require(IBaseTokenizedStrategy(address(this)).isOriginal(), "!clone");
         // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
         bytes20 addressBytes = bytes20(address(this));
 
@@ -1866,7 +1794,7 @@ library BaseLibrary {
             newStrategy := create(0, clone_code, 0x37)
         }
 
-        IBaseStrategy(newStrategy).initialize(
+        IBaseTokenizedStrategy(newStrategy).initialize(
             _asset,
             _name,
             _management,

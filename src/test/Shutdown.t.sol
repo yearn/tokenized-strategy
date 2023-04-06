@@ -4,8 +4,6 @@ pragma solidity ^0.8.18;
 import "forge-std/console.sol";
 import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
-import {BaseLibrary} from "../libraries/BaseLibrary.sol";
-
 contract ShutdownTest is Setup {
     function setUp() public override {
         super.setUp();
@@ -13,7 +11,11 @@ contract ShutdownTest is Setup {
 
     function test_shutdownStrategy(address _address, uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         assertTrue(!strategy.isShutdown());
 
@@ -22,7 +24,7 @@ contract ShutdownTest is Setup {
         assertTrue(!strategy.isShutdown());
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.StrategyShutdown();
+        emit StrategyShutdown();
 
         vm.prank(management);
         strategy.shutdownStrategy();
@@ -45,7 +47,11 @@ contract ShutdownTest is Setup {
         uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         assertTrue(!strategy.isShutdown());
 
@@ -54,7 +60,7 @@ contract ShutdownTest is Setup {
         assertTrue(!strategy.isShutdown());
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.StrategyShutdown();
+        emit StrategyShutdown();
 
         vm.prank(management);
         strategy.shutdownStrategy();
@@ -87,7 +93,11 @@ contract ShutdownTest is Setup {
         uint16 _lossFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(_address != address(0) && _address != address(strategy));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
         _lossFactor = uint16(bound(uint256(_lossFactor), 10, 5_000));
 
         uint256 loss = (_amount * _lossFactor) / MAX_BPS;
@@ -99,7 +109,7 @@ contract ShutdownTest is Setup {
         assertTrue(!strategy.isShutdown());
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit BaseLibrary.StrategyShutdown();
+        emit StrategyShutdown();
 
         vm.prank(management);
         strategy.shutdownStrategy();

@@ -14,17 +14,17 @@ import {MockFaultyStrategy} from "../mocks/MockFaultyStrategy.sol";
 import {MockRegistry} from "../mocks/MockRegistry.sol";
 import {MockFactory} from "../mocks/MockFactory.sol";
 
-import {DiamondHelper} from "../../DiamondHelper.sol";
-import {BaseLibrary} from "../../libraries/BaseLibrary.sol";
+import {TokenizedStrategy} from "../../TokenizedStrategy.sol";
+import {IEvents} from "../../interfaces/IEvents.sol";
 
-contract Setup is ExtendedTest {
+contract Setup is ExtendedTest, IEvents {
     // Contract instancees that we will use repeatedly.
     ERC20Mock public asset;
     IMockStrategy public strategy;
     MockFactory public mockFactory;
     MockRegistry public mockRegistry;
     MockYieldSource public yieldSource;
-    DiamondHelper public diamondHelper;
+    TokenizedStrategy public tokenizedStrategy;
 
     // Addresses for different roles we will use repeatedly.
     address public user = address(10);
@@ -43,18 +43,14 @@ contract Setup is ExtendedTest {
     uint256 public profitMaxUnlockTime = 10 days;
 
     function setUp() public virtual {
-        // deploy the selector helper first to get a deterministic location
-        bytes4[] memory selectors = getSelectors();
-        diamondHelper = new DiamondHelper(selectors);
-
-        // deploy the mock factory next for deterministic location
+        // Deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
 
-        // Finally deploy the mock registry for deterministic location
+        // Deploy the mock registry for deterministic location
         mockRegistry = new MockRegistry();
 
-        // Set the address of the library in the diamond Helper
-        diamondHelper.setLibrary(address(BaseLibrary));
+        // Finally deploy the implementation for deterministic location
+        tokenizedStrategy = new TokenizedStrategy();
 
         // create asset we will be using as the underlying asset
         asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
@@ -70,11 +66,10 @@ contract Setup is ExtendedTest {
         vm.label(address(asset), "asset");
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
-        vm.label(address(BaseLibrary), "library");
         vm.label(address(mockFactory), "mock Factory");
         vm.label(address(mockRegistry), "mock registry");
-        vm.label(address(diamondHelper), "Diamond heleper");
         vm.label(address(yieldSource), "Mock Yield Source");
+        vm.label(address(tokenizedStrategy), "tokenized Logic");
         vm.label(protocolFeeRecipient, "protocolFeeRecipient");
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
     }
@@ -181,7 +176,7 @@ contract Setup is ExtendedTest {
 
         // Check the event matches the expected values
         vm.expectEmit(true, true, true, true, address(_strategy));
-        emit BaseLibrary.Reported(profit, 0, _performanceFees, _protocolFees);
+        emit Reported(profit, 0, _performanceFees, _protocolFees);
 
         vm.prank(keeper);
         (uint256 _profit, uint256 _loss) = _strategy.report();
@@ -206,7 +201,7 @@ contract Setup is ExtendedTest {
         yieldSource.simulateLoss(loss);
         // Check the event matches the expected values
         vm.expectEmit(true, true, false, true, address(_strategy));
-        emit BaseLibrary.Reported(0, loss, _performanceFees, _protocolFees);
+        emit Reported(0, loss, _performanceFees, _protocolFees);
 
         vm.prank(keeper);
         (uint256 _profit, uint256 _loss) = _strategy.report();
@@ -270,75 +265,5 @@ contract Setup is ExtendedTest {
 
         _strategy.setFaultAmount(_fault);
         _strategy.setCallBack(_callBack);
-    }
-
-    // prettier-ignore
-    function getSelectors() public pure returns (bytes4[] memory selectors) {
-        string[60] memory _selectors = [
-            "0x3644e515",
-            "0xdd62ed3e",
-            "0x25829410",
-            "0x095ea7b3",
-            "0x38d52e0f",
-            "0x70a08231",
-            "0x5e04a4d6",
-            "0x07a2d13a",
-            "0xc6e6f592",
-            "0x313ce567",
-            "0xa457c2d7",
-            "0x6e553f65",
-            "0x1f931c1c",
-            "0xcdffacc6",
-            "0x52ef6b2c",
-            "0xadfca15e",
-            "0x7a0ed627",
-            "0x2d632692",
-            "0x39509351",
-            "0x2ecfe315",
-            "0x1d3b7227",
-            "0xec0c7e28",
-            "0xaced1661",
-            "0xc3535b52",
-            "0x88a8d602",
-            "0x402d267d",
-            "0xc63d75b6",
-            "0xd905777e",
-            "0xce96cb77",
-            "0x94bf804d",
-            "0x06fdde03",
-            "0x7ecebe00",
-            "0x87788782",
-            "0xed27f7c9",
-            "0xd505accf",
-            "0xef8b30f7",
-            "0xb3d7f6b9",
-            "0x4cdad506",
-            "0x0a28a477",
-            "0x99530b06",
-            "0x0952864e",
-            "0x5141eebb",
-            "0xba087652",
-            "0x2606a10b",
-            "0x748747e6",
-            "0xd4a22bde",
-            "0xaa290e6d",
-            "0x6a5f1aa2",
-            "0xdf69b22a",
-            "0x95d89b41",
-            "0x440368a3",
-            "0x01e1d114",
-            "0xfc7b9c18",
-            "0x9aa7df94",
-            "0x18160ddd",
-            "0xa9059cbb",
-            "0x23b872dd",
-            "0xb460af94",
-            "0xbf86d690",
-            "0xbe8f1668"
-        ];
-        selectors = new bytes4[](_selectors.length);
-        for (uint256 i; i < _selectors.length; ++i) {
-            selectors[i] = bytes4(bytes(_selectors[i]));
-        }
     }
 }

@@ -4,8 +4,6 @@ pragma solidity ^0.8.18;
 import "forge-std/console.sol";
 import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
-import {BaseLibrary} from "../libraries/BaseLibrary.sol";
-
 contract CutsomImplementationsTest is Setup {
     function setUp() public override {
         super.setUp();
@@ -18,11 +16,16 @@ contract CutsomImplementationsTest is Setup {
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
-        vm.assume(_address != address(0) && _address != address(strategy));
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
 
         strategy = IMockStrategy(setUpIlliquidStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
 
         setFees(0, 0);
 
@@ -82,16 +85,20 @@ contract CutsomImplementationsTest is Setup {
         uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+
+        strategy = IMockStrategy(setUpIlliquidStrategy());
+
         vm.assume(
             _allowed != address(0) &&
                 _allowed != address(strategy) &&
-                _allowed != _notAllowed
+                _allowed != _notAllowed &&
+                _allowed != address(yieldSource)
         );
         vm.assume(
-            _notAllowed != address(0) && _notAllowed != address(strategy)
+            _notAllowed != address(0) &&
+                _notAllowed != address(strategy) &&
+                _notAllowed != address(yieldSource)
         );
-
-        strategy = IMockStrategy(setUpIlliquidStrategy());
 
         setupWhitelist(_allowed);
 

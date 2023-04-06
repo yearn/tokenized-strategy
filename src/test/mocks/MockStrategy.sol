@@ -4,9 +4,9 @@ pragma solidity 0.8.18;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {MockYieldSource} from "./MockYieldSource.sol";
-import {BaseStrategy} from "../../BaseStrategy.sol";
+import {BaseTokenizedStrategy} from "../../BaseTokenizedStrategy.sol";
 
-contract MockStrategy is BaseStrategy {
+contract MockStrategy is BaseTokenizedStrategy {
     address public yieldSource;
     bool public trigger;
     bool public managed;
@@ -15,7 +15,7 @@ contract MockStrategy is BaseStrategy {
     constructor(
         address _asset,
         address _yieldSource
-    ) BaseStrategy(_asset, "Test Strategy") {
+    ) BaseTokenizedStrategy(_asset, "Test Strategy") {
         initialize(_asset, _yieldSource);
     }
 
@@ -79,7 +79,13 @@ contract MockStrategy is BaseStrategy {
         address _keeper,
         address _yieldSource
     ) public returns (address clone_) {
-        clone_ = BaseLibrary.clone(_asset, _name, _management, _pfr, _keeper);
+        clone_ = TokenizedStrategy.clone(
+            _asset,
+            _name,
+            _management,
+            _pfr,
+            _keeper
+        );
         MockStrategy(payable(clone_)).initialize(_asset, _yieldSource);
     }
 

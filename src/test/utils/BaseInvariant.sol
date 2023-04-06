@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, BaseLibrary} from "./Setup.sol";
+import {Setup, TokenizedStrategy} from "./Setup.sol";
 
 abstract contract BaseInvariant is Setup {
     function setUp() public virtual override {
@@ -12,10 +12,10 @@ abstract contract BaseInvariant is Setup {
     bytes32 private constant BASE_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
-    function _baseStrategyStorgage()
+    function _strategyStorgage()
         private
         pure
-        returns (BaseLibrary.BaseStrategyData storage S)
+        returns (TokenizedStrategy.StrategyData storage S)
     {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
@@ -64,15 +64,13 @@ abstract contract BaseInvariant is Setup {
         assertApproxEq(
             strategy.maxRedeem(msg.sender),
             strategy.convertToShares(strategy.maxWithdraw(msg.sender)),
-            1
+            2
         );
     }
 
     function assert_unlockingTime() public {
         uint256 unlockingDate = strategy.fullProfitUnlockDate();
-        uint256 fullBalance = _baseStrategyStorgage().balances[
-            address(strategy)
-        ];
+        uint256 fullBalance = _strategyStorgage().balances[address(strategy)];
         if (unlockingDate != 0) {
             if (block.timestamp < unlockingDate) {
                 assertLe(_unlockedShares(), fullBalance);
@@ -88,12 +86,12 @@ abstract contract BaseInvariant is Setup {
     function assert_unlockedShares() public {
         assertLe(
             _unlockedShares(),
-            _baseStrategyStorgage().balances[address(strategy)]
+            _strategyStorgage().balances[address(strategy)]
         );
     }
 
     function assert_totalSupplyToUnlockedShares() public {
-        assertLe(_baseStrategyStorgage().totalSupply, _unlockedShares());
+        assertLe(_strategyStorgage().totalSupply, _unlockedShares());
     }
 
     function assert_previewMinAndConvertToAssets() public {

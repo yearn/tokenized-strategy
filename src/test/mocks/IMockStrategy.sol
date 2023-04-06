@@ -2,10 +2,10 @@
 
 pragma solidity 0.8.18;
 
-import {IBaseLibrary} from "../../interfaces/IBaseLibrary.sol";
+import {ITokenizedStrategy} from "../../interfaces/ITokenizedStrategy.sol";
 
-// Interface to use during testing that implements the 4626 standard the Library functions and the Strategies immutable functions
-interface IMockStrategy is IBaseLibrary {
+// Interface to use during testing that implements the 4626 standard the implementation functions and the Strategies immutable functions
+interface IMockStrategy is ITokenizedStrategy {
     function initialize(
         address _asset,
         string memory name_,

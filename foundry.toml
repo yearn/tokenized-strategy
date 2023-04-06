@@ -12,7 +12,7 @@ fs_permissions = [{ access = "read", path = "./"}]
 
 [fuzz]
 runs = 10_000
-max_test_rejects = 100_000
+max_test_rejects = 1_000_000
 
 [invariant]
 runs = 100

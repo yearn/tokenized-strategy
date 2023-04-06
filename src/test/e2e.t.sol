@@ -4,8 +4,6 @@ pragma solidity ^0.8.18;
 import "forge-std/console.sol";
 import {Setup, ERC20Mock, MockYieldSource, IMockStrategy} from "./utils/Setup.sol";
 
-import {BaseLibrary} from "../libraries/BaseLibrary.sol";
-
 contract e2eTest is Setup {
     function setUp() public override {
         super.setUp();
@@ -28,7 +26,6 @@ contract e2eTest is Setup {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(
             _address != address(0) &&
-                _address != address(strategy) &&
                 _address != protocolFeeRecipient &&
                 _address != performanceFeeRecipient
         );
@@ -36,7 +33,7 @@ contract e2eTest is Setup {
 
         setFees(0, 0);
 
-        // Pick a random amount of strategies to add to the library between 5-10
+        // Pick a random amount of strategies to add between 5-10
         uint256 toMake = (_amount % 6) + 5;
         uint256 i;
 
@@ -44,6 +41,12 @@ contract e2eTest is Setup {
             asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
+
+            vm.assume(
+                _address != address(asset) &&
+                    _address != address(yieldSource) &&
+                    _address != address(newStrategy)
+            );
 
             vm.prank(management);
             newStrategy.setPerformanceFee(0);
@@ -126,7 +129,7 @@ contract e2eTest is Setup {
 
         setFees(0, 0);
 
-        // Pick a random amount of strategies to add to the library between 5-10
+        // Pick a random amount of strategies to add between 5-10
         uint256 toMake = (_amount % 6) + 5;
         uint256 i;
 
@@ -134,6 +137,12 @@ contract e2eTest is Setup {
             asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
+
+            vm.assume(
+                _address != address(asset) &&
+                    _address != address(yieldSource) &&
+                    _address != address(newStrategy)
+            );
 
             vm.prank(management);
             newStrategy.setPerformanceFee(0);
@@ -235,7 +244,7 @@ contract e2eTest is Setup {
 
         setFees(0, 0);
 
-        // Pick a random amount of strategies to add to the library between 5-10
+        // Pick a random amount of strategies to add between 5-10
         uint256 toMake = (_amount % 6) + 5;
         uint256 i;
 
@@ -243,6 +252,17 @@ contract e2eTest is Setup {
             asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
+
+            vm.assume(
+                _address != address(asset) &&
+                    _address != address(yieldSource) &&
+                    _address != address(newStrategy)
+            );
+            vm.assume(
+                _secondAddress != address(asset) &&
+                    _secondAddress != address(yieldSource) &&
+                    _secondAddress != address(newStrategy)
+            );
 
             vm.prank(management);
             newStrategy.setPerformanceFee(0);

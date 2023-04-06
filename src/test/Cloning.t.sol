@@ -4,8 +4,6 @@ pragma solidity ^0.8.18;
 import "forge-std/console.sol";
 import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
-import {BaseLibrary} from "../libraries/BaseLibrary.sol";
-
 contract CloningTest is Setup {
     function setUp() public override {
         super.setUp();
@@ -19,7 +17,7 @@ contract CloningTest is Setup {
 
         // We dont know what the cloned address will be so only check the strategy.
         vm.expectEmit(false, true, true, true, address(strategy));
-        emit BaseLibrary.Cloned(address(0), address(strategy));
+        emit Cloned(address(0), address(strategy));
         address clone = strategy.clone(address(asset), address(yieldSource));
         IMockStrategy clonedStrategy = IMockStrategy(clone);
 
@@ -29,6 +27,10 @@ contract CloningTest is Setup {
         assertEq(clonedStrategy.management(), address(this));
         assertEq(clonedStrategy.performanceFee(), 1_000);
         assertEq(clonedStrategy.performanceFeeRecipient(), address(this));
+
+        if (clone == _address) {
+            _address = management;
+        }
 
         // Deposit into the original and make sure it only changes that one
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -75,7 +77,7 @@ contract CloningTest is Setup {
 
         // We dont know what the cloned address will be so only check the strategy.
         vm.expectEmit(false, true, true, true, address(strategy));
-        emit BaseLibrary.Cloned(address(0), address(strategy));
+        emit Cloned(address(0), address(strategy));
         address clone = strategy._clone(
             address(asset),
             "Test Namez",
@@ -93,6 +95,10 @@ contract CloningTest is Setup {
         assertEq(clonedStrategy.performanceFee(), 1_000);
         assertEq(clonedStrategy.performanceFeeRecipient(), _pfr);
         assertEq(clonedStrategy.keeper(), _keeper);
+
+        if (clone == _address) {
+            _address = management;
+        }
 
         // Deposit into the original and make sure it only changes that one
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -172,7 +178,7 @@ contract CloningTest is Setup {
         // Otherwise would work fine
         // We dont know what the cloned address will be so only check the strategy.
         vm.expectEmit(false, true, true, true, address(strategy));
-        emit BaseLibrary.Cloned(address(0), address(strategy));
+        emit Cloned(address(0), address(strategy));
         strategy._clone(
             address(asset),
             "Test Namez",
