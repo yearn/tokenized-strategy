@@ -24,13 +24,14 @@ interface IRegistry {
  * @author yearn.finance
  * @notice
  *  This TokenizedStrategy can be used by anyone wishing to easily build
- *  and deploy their own custom ERC4626 compliant one strategy Vault.
- *  This TokenizedStrategy contract is used to hanle all logic, storage
- *  and mangement for the custom strategy. Any function calls to the
- *  strategy that are not defined would be forwarded throug a delegateCall
- *  to this contract. Any strategy only needs to override a few simple
- *  functions that are focused entirely on the strategy specific needs
- *  to easily and cheaply deploy their own permisionless vault.
+ *  and deploy their own custom ERC4626 compliant single strategy Vault.
+ *  This TokenizedStrategy contract is meant to be used as a proxy type
+ *  implementation contract that will hanle all logic, storage and
+ *  mangement for a custom strategy that inherits the `BaseTokenizedStrategy.
+ *  Any function calls to the strategy that are not defined would be forwarded
+ *  through a delegateCall to this contract. Any strategy only needs to override
+ *  a few simple functions that are focused entirely on the strategy specific
+ *  needs to easily and cheaply deploy their own permisionless vault.
  */
 contract TokenizedStrategy {
     using Math for uint256;
@@ -142,8 +143,8 @@ contract TokenizedStrategy {
      * full struct will be initiliazed on the createion of the strategy
      * and continually updated and read from for the life of the contract.
      *
-     * We combine all the variables into one struct to limit the amount of times
-     * custom storage slots need to be loaded during complex functions.
+     * We combine all the variables into one struct to limit the amount of
+     * times the custom storage slots need to be loaded during complex functions.
      *
      * Loading the corresponding storage slot for the struct does not
      * load any of the contents of the struct into memory. So the size
@@ -152,9 +153,9 @@ contract TokenizedStrategy {
     // prettier-ignore
     struct StrategyData {
         // The ERC20 compliant underlying asset that will be
-        // used by the implementation contract. We can keep this
-        // as and ERC20 instance because the implementation holds the
-        // addres of `asset` as a immutable variable to be 4626 compliant.
+        // used by the Strategy. We can keep this as and ERC20 
+        // instance because the `BaseTokenizedStrategy` holds the
+        // addres of `asset` as an immutable variable to be 4626 compliant.
         ERC20 asset;
         
 
@@ -218,7 +219,7 @@ contract TokenizedStrategy {
 
     /**
      * @dev Prevents a contract from calling itself, directly or indirectly.
-     *  Placed over all state changing functions for increased safety.
+     * Placed over all state changing functions for increased safety.
      */
     modifier nonReentrant() {
         StrategyData storage S = _strategyStorgage();
@@ -245,9 +246,9 @@ contract TokenizedStrategy {
 
     /**
      * @notice To check if a sender is the management for a specific strategy.
-     * @dev Is left public so that it can be used by the implementation.
+     * @dev Is left public so that it can be used by the Strategy.
      *
-     * When the implementations calls this the msg.sender would be the
+     * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
      */
     function isManagement(address _sender) public view {
@@ -257,9 +258,9 @@ contract TokenizedStrategy {
     /**
      * @notice To check if a sender is the keeper or management
      * for a specific strategy.
-     * @dev Is left public so that it can be used by the implementation.
+     * @dev Is left public so that it can be used by the Strategy.
      *
-     * When the implementations calls this the msg.sender would be the
+     * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
      */
     function isKeeperOrManagement(address _sender) public view {
@@ -269,7 +270,7 @@ contract TokenizedStrategy {
 
     /**
      * @notice To check if the strategy has been shutdown.
-     * @dev Is left public so that it can be used by the implementation.
+     * @dev Is left public so that it can be used by the Strategy.
      *
      * We don't revert here so this can be used for the external getter
      * for the `shutdown` variable as well.
@@ -312,7 +313,7 @@ contract TokenizedStrategy {
      *
      * We intentionally use a large string in order to get a high
      * storage slot that will allow for stratgists to use any
-     * amount of storage in the implementations without worrying
+     * amount of storage in their strategy without worrying
      * about collisions. This storage slot sits at roughly 1e77.
      */
     bytes32 private constant BASE_STRATEGY_STORAGE =
@@ -378,7 +379,7 @@ contract TokenizedStrategy {
         require(address(S.asset) == address(0));
         // Set the strategys underlying asset
         S.asset = ERC20(_asset);
-        // Set the Tokens name.
+        // Set the Strategy Tokens name.
         S.name = _name;
         // Set the symbol and decimals based off the `asset`.
         IERC20Metadata a = IERC20Metadata(_asset);
@@ -397,9 +398,9 @@ contract TokenizedStrategy {
         // Can't be address(0) or we will be burning fees.
         require(_performanceFeeRecipient != address(0));
         S.performanceFeeRecipient = _performanceFeeRecipient;
-        // Default to a 10% performance fee?
+        // Default to a 10% performance fee.
         S.performanceFee = 1_000;
-        // Set last report to this block
+        // Set last report to this block.
         S.lastReport = uint128(block.timestamp);
 
         // Set the default management address. Can't be 0.
@@ -753,7 +754,7 @@ contract TokenizedStrategy {
             // Cache before balance for diff checks.
             uint256 before = _asset.balanceOf(address(this));
 
-            // Tell implementation to free what we need.
+            // Tell Strategy to free what we need.
             unchecked {
                 IBaseTokenizedStrategy(address(this)).freeFunds(assets - idle);
             }
@@ -1749,7 +1750,7 @@ contract TokenizedStrategy {
     /**
      * @notice Used to create a new clone of the calling stategy.
      * @dev This can be called through a normal delegate call directly
-     * to the TokenizedStrategy however that will leave all implementation
+     * to the TokenizedStrategy however that will leave all Strategy
      * sepcific setup uncompleted.
      *
      * The recommended use for strategies that wish to utilize cloning

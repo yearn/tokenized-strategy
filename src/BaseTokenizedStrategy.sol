@@ -13,7 +13,7 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *  allowing anyone to easily build a fully permisionless ERC-4626 compliant
  *  Vault by inheriting this contract and overriding three simple functions.
  *  It utilizes an immutable proxy pattern that allows the BaseTokenizedStrategy
- *  to remain incredibly simple and small. All needed logic is held withen the
+ *  to remain incredibly simple and small. All standard logic is held withen the
  *  `TokenizedStrategy` and is reused over any n strategies all using the
  *  `fallback` function to delegatecall the implementation so that strategists
  *  can only be concerned with writing their strategy specific code.
@@ -21,15 +21,15 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *  This contract should be inherited and the three main abstract methods
  *  `_invest`, `_freeFunds` and `_totalInvested` implemented to adapt the
  *  Strategy to the particular needs it has to create a return. There are
- *  other optional methods that can be implemented to further customize
+ *  other optional methods that can be implemented to further customize of
  *  the strategy if desired.
  *
- *  All default storage for the strategy will controlled and updated by the
+ *  All default storage for the strategy is controlled and updated by the
  *  `TokenizedStrategy`. The implementation holds a storage struct that
  *  contains all needed global variables in a manual storage slot at roughly
  *  1e77. This means strategists can feel free to implement their own storage
  *  variables as they need with no concern of collisions. All global variables
- *  can be viewed within the implementation by a simple call using the
+ *  can be viewed within the Strategy by a simple call using the
  *  `TokenizedStrategy` variable. IE: TokenizedStrategy.globalVariable();.
  */
 abstract contract BaseTokenizedStrategy {
@@ -80,7 +80,7 @@ abstract contract BaseTokenizedStrategy {
      * through the fallback function, which will delegateCall this address.
      *
      * This address should be the same for every strategy, never be adjusted
-     * and always be checked before any integration with the implementation.
+     * and always be checked before any integration with the Strategy.
      */
     // NOTE: This is a holder address based on expected deterministic location for testing
     address public constant tokenizedStrategyAddress =
@@ -148,9 +148,9 @@ abstract contract BaseTokenizedStrategy {
         // initilize the strategies storage variables
         _init(_asset, _name, _management, _performanceFeeRecipient, _keeper);
 
-        // Store the tokenizedStrategyAddress at the standard implementation address
-        // storage slot so etherscan picks up the interface. This gets stored
-        // on initialization and never updated.
+        // Store the tokenizedStrategyAddress at the standard implementation
+        // address storage slot so etherscan picks up the interface. This gets
+        // stored on initialization and never updated.
         assembly {
             sstore(
                 // keccak256('eip1967.proxy.implementation' - 1)
@@ -183,7 +183,7 @@ abstract contract BaseTokenizedStrategy {
      * The amount of 'asset' that is already loose has already
      * been accounted for.
      *
-     * This function is called {withdraw} and {redeem} calls.
+     * This function is called during {withdraw} and {redeem} calls.
      * Meaning that unless a whitelist is implemented it will be
      * entirely permsionless and thus can be sandwhiched or otherwise
      * manipulated.
@@ -244,9 +244,9 @@ abstract contract BaseTokenizedStrategy {
      *       sandwhiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
-     * The TokenizedStrategy will do all needed debt and idle updates after this
-     * has finished and will have no effect on PPS of the strategy till
-     * report() is called.
+     * The TokenizedStrategy contract will do all needed debt and idle updates
+     * after this has finished and will have no effect on PPS of the strategy
+     * till report() is called.
      *
      * @param _totalIdle The current amount of idle funds that are available to invest.
      */
@@ -270,7 +270,7 @@ abstract contract BaseTokenizedStrategy {
      *
      * This function will be called before any deposit or mints to enforce
      * any limits desired by the strategist. This can be used for either a
-     * traditional deposit limit or for implementing a whitelist.
+     * traditional deposit limit or for implementing a whitelist etc.
      *
      *   EX:
      *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
@@ -279,7 +279,7 @@ abstract contract BaseTokenizedStrategy {
      * from shares to assets.
      *
      * @param . The address that is depositing into the strategy.
-     * @return . The avialable amount the `_owner can deposit in terms of `asset`
+     * @return . The avialable amount the `_owner` can deposit in terms of `asset`
      */
     function availableDepositLimit(
         address /*_owner*/
@@ -297,7 +297,7 @@ abstract contract BaseTokenizedStrategy {
      * or sandwhichable strategies. It should never be lower than `totalIdle`.
      *
      *   EX:
-     *       return BaseLibray.totalIdle();
+     *       return TokenIzedStrategy.totalIdle();
      *
      * This does not need to take into account the `_owner`'s share balance
      * or conversion rates from shares to assets.
@@ -447,7 +447,8 @@ abstract contract BaseTokenizedStrategy {
      * implementing a fallback function.
      *
      * NOTE: ETH should not be sent to the strategy unless
-     * designed for within the implementation
+     * designed for within the Strategy. There is no defualt
+     * way to remove eth incorrectly sent to a strategy.
      */
     receive() external payable {}
 }
