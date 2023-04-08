@@ -12,43 +12,20 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @notice Emitted whent the 'mangement' address is updtaed to 'newManagement'.
-     */
     event UpdateManagement(address indexed newManagement);
 
-    /**
-     * @notice Emitted whent the 'keeper' address is updtaed to 'newKeeper'.
-     */
     event UpdateKeeper(address indexed newKeeper);
 
-    /**
-     * @notice Emitted whent the 'performaneFee' is updtaed to 'newPerformanceFee'.
-     */
     event UpdatePerformanceFee(uint16 newPerformanceFee);
 
-    /**
-     * @notice Emitted whent the 'performanceFeeRecipient' address is
-     * updtaed to 'newPerformanceFeeRecipient'.
-     */
     event UpdatePerformanceFeeRecipient(
         address indexed newPerformanceFeeRecipient
     );
 
-    /**
-     * @notice Emitted whent the 'profitMaxUnlockTime' is updtaed to 'newProfitMaxUnlockTime'.
-     */
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 
-    /**
-     * @notice Emitted when a strategy is shutdown.
-     */
     event StrategyShutdown();
 
-    /**
-     * @dev Emitted when the strategy reports `profit` or `loss` and
-     * `performanceFees` and `protocolFees` are paid out.
-     */
     event Reported(
         uint256 profit,
         uint256 loss,
@@ -56,12 +33,12 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         uint256 protocolFees
     );
 
-    /**
-     * @dev Emitted when a new `clone` is created from an `original`.
-     */
     event Cloned(address indexed clone, address indexed original);
 
-    // Base Library functions \\
+    /*//////////////////////////////////////////////////////////////
+                           INITILIZATION
+    //////////////////////////////////////////////////////////////*/
+
     function init(
         address _asset,
         string memory _name,
@@ -70,17 +47,28 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         address _keeper
     ) external;
 
+    /*//////////////////////////////////////////////////////////////
+                            MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
     function isKeeperOrManagement(address _sender) external view;
 
     function isManagement(address _sender) external view;
 
     function isShutdown() external view returns (bool);
 
+    /*//////////////////////////////////////////////////////////////
+                        KEEPERS FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     function tend() external;
 
     function report() external returns (uint256 _profit, uint256 _loss);
 
-    // Getters \\
+    /*//////////////////////////////////////////////////////////////
+                            GETTERS
+    //////////////////////////////////////////////////////////////*/
+
     function apiVersion() external view returns (string memory);
 
     function pricePerShare() external view returns (uint256);
@@ -105,7 +93,9 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function lastReport() external view returns (uint256);
 
-    // Setters \\
+    /*//////////////////////////////////////////////////////////////
+                            SETTERS
+    //////////////////////////////////////////////////////////////*/
     function setManagement(address) external;
 
     function setKeeper(address _keeper) external;
@@ -120,7 +110,9 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function shutdownStrategy() external;
 
-    // ERC20 add ons
+    /*//////////////////////////////////////////////////////////////
+                           ERC20 ADD ONS
+    //////////////////////////////////////////////////////////////*/
 
     function decreaseAllowance(
         address spender,
@@ -132,7 +124,10 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         uint256 addedValue
     ) external returns (bool);
 
-    // Cloning
+    /*//////////////////////////////////////////////////////////////
+                            CLONING
+    //////////////////////////////////////////////////////////////*/
+
     function clone(
         address _asset,
         string memory _name,
