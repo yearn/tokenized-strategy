@@ -55,18 +55,18 @@ abstract contract BaseInvariant is Setup {
     function assert_unlockingTime() public {
         uint256 unlockingDate = strategy.fullProfitUnlockDate();
         uint256 balance = strategy.balanceOf(address(strategy));
-        uint256 _unlockedShares = _unlockedShares();
+        uint256 unlockedShares = _unlockedShares();
         if (unlockingDate != 0 && strategy.profitUnlockingRate() > 0) {
             if (block.timestamp == strategy.lastReport()) {
-                assertEq(_unlockedShares, 0);
+                assertEq(unlockedShares, 0);
                 assertGt(balance, 0);
             } else if (block.timestamp < unlockingDate) {
-                assertGt(_unlockedShares, 0);
+                assertGt(unlockedShares, 0);
                 assertGt(balance, 0);
             } else {
                 // We should have unlocked full balance
                 assertEq(balance, 0);
-                assertGt(_unlockedShares, 0);
+                assertGt(unlockedShares, 0);
             }
         } else {
             assertEq(balance, 0);
@@ -74,22 +74,19 @@ abstract contract BaseInvariant is Setup {
     }
 
     function assert_unlockedShares() public {
-        uint256 fullBalance =  uint256(vm.load(address(strategy), _strategyStorage().balanceOf(address(strategy))));
+        uint256 unlockedShares = _unlockedShares();
+        uint256 fullBalance = strategy.balanceOf(address(strategy)) +
+            unlockedShares;
         uint256 unlockingDate = strategy.fullProfitUnlockDate();
-        if (unlockingDate != 0 && strategy.profitUnlockingRate() > 0 && block.timestamp < unlockingDate) {
-            assertLt(
-                _unlockedShares(),
-                fullBalance
-            );
+        if (
+            unlockingDate != 0 &&
+            strategy.profitUnlockingRate() > 0 &&
+            block.timestamp < unlockingDate
+        ) {
+            assertLt(unlockedShares, fullBalance);
         } else {
-            assertEq(
-                _unlockedShares(),
-                fullBalance
-            );
-            assertEq(
-                strategy.balanceOf(address(strategy)),
-                0
-            );
+            assertEq(unlockedShares, fullBalance);
+            assertEq(strategy.balanceOf(address(strategy)), 0);
         }
     }
 

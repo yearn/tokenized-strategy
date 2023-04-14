@@ -42,7 +42,7 @@ contract Setup is ExtendedTest, IEvents {
     uint256 public minFuzzAmount = 10_000;
     uint256 public profitMaxUnlockTime = 10 days;
 
-    bytes32 private constant BASE_STRATEGY_STORAGE =
+    bytes32 public constant BASE_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
     function setUp() public virtual {

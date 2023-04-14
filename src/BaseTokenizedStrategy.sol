@@ -26,7 +26,7 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *
  *  All default storage for the strategy is controlled and updated by the
  *  `TokenizedStrategy`. The implementation holds a storage struct that
- *  contains all needed global variables in a manual storage slot. This 
+ *  contains all needed global variables in a manual storage slot. This
  *  means strategists can feel free to implement their own custom storage
  *  variables as they need with no concern of collisions. All global variables
  *  can be viewed within the Strategy by a simple call using the
