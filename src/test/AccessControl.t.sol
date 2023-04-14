@@ -213,6 +213,28 @@ contract AccesssControlTest is Setup {
         assertEq(strategy.management(), _management);
     }
 
+    function test_initializeTokenizedStrategy_reverts(
+        address _address,
+        string memory name_
+    ) public {
+        vm.assume(_address != address(0));
+
+        assertEq(tokenizedStrategy.management(), address(0));
+        assertEq(tokenizedStrategy.keeper(), address(0));
+
+        vm.expectRevert();
+        tokenizedStrategy.init(
+            address(asset),
+            name_,
+            _address,
+            _address,
+            _address
+        );
+
+        assertEq(tokenizedStrategy.management(), address(0));
+        assertEq(tokenizedStrategy.keeper(), address(0));
+    }
+
     function test_accessControl_invest(
         address _address,
         uint256 _amount

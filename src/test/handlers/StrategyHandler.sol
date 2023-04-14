@@ -55,6 +55,7 @@ contract StrategyHandler is ExtendedTest {
 
         asset = setup.asset();
         strategy = setup.strategy();
+        skip(10);
     }
 
     function deposit(uint256 _amount) public createActor countCall("deposit") {

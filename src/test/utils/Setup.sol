@@ -42,6 +42,9 @@ contract Setup is ExtendedTest, IEvents {
     uint256 public minFuzzAmount = 10_000;
     uint256 public profitMaxUnlockTime = 10 days;
 
+    bytes32 private constant BASE_STRATEGY_STORAGE =
+        bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
+
     function setUp() public virtual {
         // Deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
@@ -265,5 +268,18 @@ contract Setup is ExtendedTest, IEvents {
 
         _strategy.setFaultAmount(_fault);
         _strategy.setCallBack(_callBack);
+    }
+
+    function _strategyStorage()
+        internal
+        pure
+        returns (TokenizedStrategy.StrategyData storage S)
+    {
+        // Since STORAGE_SLOT is a constant, we have to put a variable
+        // on the stack to access it from an inline assembly block.
+        bytes32 slot = BASE_STRATEGY_STORAGE;
+        assembly {
+            S.slot := slot
+        }
     }
 }

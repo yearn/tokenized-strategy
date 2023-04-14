@@ -222,7 +222,7 @@ contract TokenizedStrategy {
      * Placed over all state changing functions for increased safety.
      */
     modifier nonReentrant() {
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
         // On the first call to nonReentrant, `entered` will be false
         require(!S.entered, "ReentrancyGuard: reentrant call");
 
@@ -252,7 +252,7 @@ contract TokenizedStrategy {
      * address of the strategy so we need to specify the sender.
      */
     function isManagement(address _sender) public view {
-        require(_sender == _strategyStorgage().management, "!Authorized");
+        require(_sender == _strategyStorage().management, "!Authorized");
     }
 
     /**
@@ -264,7 +264,7 @@ contract TokenizedStrategy {
      * address of the strategy so we need to specify the sender.
      */
     function isKeeperOrManagement(address _sender) public view {
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
         require(_sender == S.keeper || _sender == S.management, "!Authorized");
     }
 
@@ -276,7 +276,7 @@ contract TokenizedStrategy {
      * for the `shutdown` variable as well.
      */
     function isShutdown() public view returns (bool) {
-        return _strategyStorgage().shutdown;
+        return _strategyStorage().shutdown;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -311,10 +311,10 @@ contract TokenizedStrategy {
      * to the specic location that will be used to store the
      * struct that holds all that data.
      *
-     * We intentionally use a large string in order to get a high
+     * We use a custom string in order to get a random
      * storage slot that will allow for stratgists to use any
      * amount of storage in their strategy without worrying
-     * about collisions. This storage slot sits at roughly 1e77.
+     * about collisions.
      */
     bytes32 private constant BASE_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
@@ -331,7 +331,7 @@ contract TokenizedStrategy {
      * This loads just the slot location, not the full struct
      * so it can be used in a gas effecient manner.
      */
-    function _strategyStorgage() private pure returns (StrategyData storage S) {
+    function _strategyStorage() private pure returns (StrategyData storage S) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
         bytes32 slot = BASE_STRATEGY_STORAGE;
@@ -373,7 +373,7 @@ contract TokenizedStrategy {
         address _keeper
     ) external {
         // Cache storage pointer
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
 
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
@@ -655,14 +655,14 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     function totalAssets() public view returns (uint256) {
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
         unchecked {
             return S.totalIdle + S.totalDebt;
         }
     }
 
     function totalSupply() public view returns (uint256) {
-        return _strategyStorgage().totalSupply - _unlockedShares();
+        return _strategyStorage().totalSupply - _unlockedShares();
     }
 
     /**
@@ -687,7 +687,7 @@ contract TokenizedStrategy {
         );
 
         // Cache storage variables used more than once.
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
         ERC20 _asset = S.asset;
 
         // Need to transfer before minting or ERC777s could reenter.
@@ -743,7 +743,7 @@ contract TokenizedStrategy {
             _spendAllowance(owner, msg.sender, shares);
         }
 
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
         // Expected beharvior is to need to free funds so we cache `_asset`.
         ERC20 _asset = S.asset;
 
@@ -832,7 +832,7 @@ contract TokenizedStrategy {
         returns (uint256 profit, uint256 loss)
     {
         // Cache storage pointer since its used repeatedly.
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
 
         uint256 oldTotalAssets;
         unchecked {
@@ -988,7 +988,7 @@ contract TokenizedStrategy {
             // (this will mean less fees are charged after a change
             // in protocol_fees, but fees should not change frequently).
             uint256 secondsSinceLastReport = Math.min(
-                block.timestamp - _strategyStorgage().lastReport,
+                block.timestamp - _strategyStorage().lastReport,
                 block.timestamp - uint256(protocolFeeLastChange)
             );
 
@@ -1008,8 +1008,8 @@ contract TokenizedStrategy {
         }
 
         // update variables (done here to keep _unlcokdedShares() as a view function)
-        if (_strategyStorgage().fullProfitUnlockDate > block.timestamp) {
-            _strategyStorgage().lastReport = uint128(block.timestamp);
+        if (_strategyStorage().fullProfitUnlockDate > block.timestamp) {
+            _strategyStorage().lastReport = uint128(block.timestamp);
         }
 
         _burn(address(this), unlcokdedShares);
@@ -1017,7 +1017,7 @@ contract TokenizedStrategy {
 
     function _unlockedShares() private view returns (uint256 unlockedShares) {
         // should save 2 extra calls for most scenarios.
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
         uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         if (_fullProfitUnlockDate > block.timestamp) {
             unchecked {
@@ -1058,7 +1058,7 @@ contract TokenizedStrategy {
      * A report() call will be needed to record the profit.
      */
     function tend() external nonReentrant onlyKeepers {
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
         // Expected Behavior is this will get used twice so we cache it
         uint256 _totalIdle = S.totalIdle;
         ERC20 _asset = S.asset;
@@ -1110,7 +1110,7 @@ contract TokenizedStrategy {
      * @return . The current amount of idle funds.
      */
     function totalIdle() external view returns (uint256) {
-        return _strategyStorgage().totalIdle;
+        return _strategyStorage().totalIdle;
     }
 
     /**
@@ -1118,7 +1118,7 @@ contract TokenizedStrategy {
      * @return . The current amount of debt.
      */
     function totalDebt() external view returns (uint256) {
-        return _strategyStorgage().totalDebt;
+        return _strategyStorage().totalDebt;
     }
 
     /**
@@ -1126,7 +1126,7 @@ contract TokenizedStrategy {
      * @return . Address of management
      */
     function management() external view returns (address) {
-        return _strategyStorgage().management;
+        return _strategyStorage().management;
     }
 
     /**
@@ -1134,7 +1134,7 @@ contract TokenizedStrategy {
      * @return . Address of the keeper
      */
     function keeper() external view returns (address) {
-        return _strategyStorgage().keeper;
+        return _strategyStorage().keeper;
     }
 
     /**
@@ -1143,7 +1143,7 @@ contract TokenizedStrategy {
      * @return . Current performance fee.
      */
     function performanceFee() external view returns (uint16) {
-        return _strategyStorgage().performanceFee;
+        return _strategyStorage().performanceFee;
     }
 
     /**
@@ -1151,7 +1151,7 @@ contract TokenizedStrategy {
      * @return . Address of performanceFeeRecipient
      */
     function performanceFeeRecipient() external view returns (address) {
-        return _strategyStorgage().performanceFeeRecipient;
+        return _strategyStorage().performanceFeeRecipient;
     }
 
     /**
@@ -1159,7 +1159,7 @@ contract TokenizedStrategy {
      * @return . The full profit unlocking timestamp
      */
     function fullProfitUnlockDate() external view returns (uint256) {
-        return uint256(_strategyStorgage().fullProfitUnlockDate);
+        return uint256(_strategyStorage().fullProfitUnlockDate);
     }
 
     /**
@@ -1168,7 +1168,7 @@ contract TokenizedStrategy {
      * @return . The current profit unlocking rate.
      */
     function profitUnlockingRate() external view returns (uint256) {
-        return _strategyStorgage().profitUnlockingRate;
+        return _strategyStorage().profitUnlockingRate;
     }
 
     /**
@@ -1176,7 +1176,7 @@ contract TokenizedStrategy {
      * @return . The current profit max unlock time.
      */
     function profitMaxUnlockTime() external view returns (uint256) {
-        return _strategyStorgage().profitMaxUnlockTime;
+        return _strategyStorage().profitMaxUnlockTime;
     }
 
     /**
@@ -1184,7 +1184,7 @@ contract TokenizedStrategy {
      * @return . The last report.
      */
     function lastReport() external view returns (uint256) {
-        return uint256(_strategyStorgage().lastReport);
+        return uint256(_strategyStorage().lastReport);
     }
 
     /**
@@ -1195,7 +1195,7 @@ contract TokenizedStrategy {
      * @return . The price per share.
      */
     function pricePerShare() external view returns (uint256) {
-        return convertToAssets(10 ** _strategyStorgage().decimals);
+        return convertToAssets(10 ** _strategyStorage().decimals);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1212,7 +1212,7 @@ contract TokenizedStrategy {
      */
     function setManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
-        _strategyStorgage().management = _management;
+        _strategyStorage().management = _management;
 
         emit UpdateManagement(_management);
     }
@@ -1224,7 +1224,7 @@ contract TokenizedStrategy {
      * @param _keeper New address to set `keeper` to.
      */
     function setKeeper(address _keeper) external onlyManagement {
-        _strategyStorgage().keeper = _keeper;
+        _strategyStorage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
     }
@@ -1240,7 +1240,7 @@ contract TokenizedStrategy {
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
         require(_performanceFee < MAX_BPS, "MAX BPS");
-        _strategyStorgage().performanceFee = _performanceFee;
+        _strategyStorage().performanceFee = _performanceFee;
 
         emit UpdatePerformanceFee(_performanceFee);
     }
@@ -1257,7 +1257,7 @@ contract TokenizedStrategy {
         address _performanceFeeRecipient
     ) external onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
-        _strategyStorgage().performanceFeeRecipient = _performanceFeeRecipient;
+        _strategyStorage().performanceFeeRecipient = _performanceFeeRecipient;
 
         emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
     }
@@ -1277,7 +1277,7 @@ contract TokenizedStrategy {
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
         require(_profitMaxUnlockTime <= 31_556_952, "to long");
-        _strategyStorgage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
+        _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
@@ -1295,7 +1295,7 @@ contract TokenizedStrategy {
      * This is a one way switch and can never be set back once shutdown.
      */
     function shutdownStrategy() external onlyManagement {
-        _strategyStorgage().shutdown = true;
+        _strategyStorage().shutdown = true;
 
         emit StrategyShutdown();
     }
@@ -1309,7 +1309,7 @@ contract TokenizedStrategy {
      * @return . The name the strategy is using for its token.
      */
     function name() public view returns (string memory) {
-        return _strategyStorgage().name;
+        return _strategyStorage().name;
     }
 
     /**
@@ -1318,7 +1318,7 @@ contract TokenizedStrategy {
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
-        return string(abi.encodePacked((_strategyStorgage().symbol)));
+        return string(abi.encodePacked((_strategyStorage().symbol)));
     }
 
     /**
@@ -1326,7 +1326,7 @@ contract TokenizedStrategy {
      * @return . The decimals used for the strategy and `asset`.
      */
     function decimals() public view returns (uint8) {
-        return _strategyStorgage().decimals;
+        return _strategyStorage().decimals;
     }
 
     /**
@@ -1338,9 +1338,9 @@ contract TokenizedStrategy {
      */
     function balanceOf(address account) public view returns (uint256) {
         if (account == address(this)) {
-            return _strategyStorgage().balances[account] - _unlockedShares();
+            return _strategyStorage().balances[account] - _unlockedShares();
         }
-        return _strategyStorgage().balances[account];
+        return _strategyStorage().balances[account];
     }
 
     /**
@@ -1375,7 +1375,7 @@ contract TokenizedStrategy {
         address owner,
         address spender
     ) public view returns (uint256) {
-        return _strategyStorgage().allowances[owner][spender];
+        return _strategyStorage().allowances[owner][spender];
     }
 
     /**
@@ -1517,7 +1517,7 @@ contract TokenizedStrategy {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(to != address(this), "ERC20 transfer to strategy");
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
 
         S.balances[from] -= amount;
         unchecked {
@@ -1539,7 +1539,7 @@ contract TokenizedStrategy {
      */
     function _mint(address account, uint256 amount) private {
         require(account != address(0), "ERC20: mint to the zero address");
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
 
         S.totalSupply += amount;
         unchecked {
@@ -1561,7 +1561,7 @@ contract TokenizedStrategy {
      */
     function _burn(address account, uint256 amount) private {
         require(account != address(0), "ERC20: burn from the zero address");
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
 
         S.balances[account] -= amount;
         unchecked {
@@ -1587,7 +1587,7 @@ contract TokenizedStrategy {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
-        _strategyStorgage().allowances[owner][spender] = amount;
+        _strategyStorage().allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
 
@@ -1631,7 +1631,7 @@ contract TokenizedStrategy {
      * @return . the current nonce for the account.
      */
     function nonces(address _owner) external view returns (uint256) {
-        return _strategyStorgage().nonces[_owner];
+        return _strategyStorage().nonces[_owner];
     }
 
     /**
@@ -1682,7 +1682,7 @@ contract TokenizedStrategy {
                                 owner,
                                 spender,
                                 value,
-                                _strategyStorgage().nonces[owner]++,
+                                _strategyStorage().nonces[owner]++,
                                 deadline
                             )
                         )
@@ -1712,7 +1712,7 @@ contract TokenizedStrategy {
      * @return . The domain seperator that will be used for any {permit} calls.
      */
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
-        StrategyData storage S = _strategyStorgage();
+        StrategyData storage S = _strategyStorage();
         return
             block.chainid == S.INITIAL_CHAIN_ID
                 ? S.INITIAL_DOMAIN_SEPARATOR
@@ -1735,7 +1735,7 @@ contract TokenizedStrategy {
                     keccak256(
                         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
                     ),
-                    keccak256(bytes(_strategyStorgage().name)),
+                    keccak256(bytes(_strategyStorage().name)),
                     keccak256(bytes(API_VERSION)),
                     block.chainid,
                     address(this)
@@ -1804,5 +1804,17 @@ contract TokenizedStrategy {
         );
 
         emit Cloned(newStrategy, address(this));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev On contract creation we set `asset` for this contract to address(1).
+     * This prevents it from ever being intialized in the future.
+     */
+    constructor() {
+        _strategyStorage().asset = ERC20(address(1));
     }
 }
