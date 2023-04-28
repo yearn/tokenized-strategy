@@ -413,7 +413,7 @@ abstract contract BaseTokenizedStrategy {
     }
 
     // exeute a function on the TokenizedStrategy and return any value.
-    fallback() external payable {
+    fallback() external {
         // load our target address
         address _tokenizedStrategyAddress = tokenizedStrategyAddress;
         // Execute external function using delegatecall and return any value.
@@ -441,14 +441,4 @@ abstract contract BaseTokenizedStrategy {
             }
         }
     }
-
-    /**
-     * We are forced to have a receive function do to
-     * implementing a fallback function.
-     *
-     * NOTE: ETH should not be sent to the strategy unless
-     * designed for within the Strategy. There is no defualt
-     * way to remove eth incorrectly sent to a strategy.
-     */
-    receive() external payable {}
 }
