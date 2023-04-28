@@ -500,15 +500,12 @@ contract TokenizedStrategy {
     function convertToShares(uint256 assets) public view returns (uint256) {
         // Saves an extra SLOAD if totalAssets() is non-zero.
         uint256 _totalAssets = totalAssets();
+        uint256 _totalSupply = totalSupply();
 
-        return
-            _totalAssets == 0
-                ? assets
-                : assets.mulDiv(
-                    totalSupply(),
-                    _totalAssets,
-                    Math.Rounding.Down
-                );
+        // If assets are 0 but supply is not PPS = 0.
+        if (_totalAssets == 0) return _totalSupply == 0 ? assets : 0;
+
+        return assets.mulDiv(_totalSupply, _totalAssets, Math.Rounding.Down);
     }
 
     /**
@@ -566,11 +563,12 @@ contract TokenizedStrategy {
     function previewWithdraw(uint256 assets) public view returns (uint256) {
         // Saves an extra SLOAD if totalAssets() is non-zero.
         uint256 _totalAssets = totalAssets();
+        uint256 _totalSupply = totalSupply();
 
-        return
-            _totalAssets == 0
-                ? assets
-                : assets.mulDiv(totalSupply(), _totalAssets, Math.Rounding.Up);
+        // If assets are 0 but supply is not, then PPS = 0.
+        if (_totalAssets == 0) return _totalSupply == 0 ? assets : 0;
+
+        return assets.mulDiv(_totalSupply, _totalAssets, Math.Rounding.Up);
     }
 
     /**
@@ -589,6 +587,8 @@ contract TokenizedStrategy {
      * corresponds to the msg.sender of a {deposit} call.
      */
     function maxDeposit(address _owner) public view returns (uint256) {
+        if (_strategyStorage().shutdown) return 0;
+
         return
             IBaseTokenizedStrategy(address(this)).availableDepositLimit(_owner);
     }
@@ -599,6 +599,8 @@ contract TokenizedStrategy {
      * of a {mint} call.
      */
     function maxMint(address _owner) public view returns (uint256 _maxMint) {
+        if (_strategyStorage().shutdown) return 0;
+
         _maxMint = IBaseTokenizedStrategy(address(this)).availableDepositLimit(
             _owner
         );
@@ -918,7 +920,7 @@ contract TokenizedStrategy {
             // Scoped to avoid stack to deep errors
             uint256 totalLockedShares = S.balances[address(this)];
             uint32 _profitMaxUnlockTime = S.profitMaxUnlockTime;
-            if (totalLockedShares > 0 && _profitMaxUnlockTime > 0) {
+            if (totalLockedShares > 0) {
                 uint256 remainingTime;
                 uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
                 if (_fullProfitUnlockDate > block.timestamp) {
