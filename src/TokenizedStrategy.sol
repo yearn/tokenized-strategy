@@ -1257,6 +1257,7 @@ contract TokenizedStrategy {
         address _performanceFeeRecipient
     ) external onlyManagement {
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
+        require(_performanceFeeRecipient != address(this), "Can't be self");
         _strategyStorage().performanceFeeRecipient = _performanceFeeRecipient;
 
         emit UpdatePerformanceFeeRecipient(_performanceFeeRecipient);
@@ -1276,6 +1277,7 @@ contract TokenizedStrategy {
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
+        require(_profitMaxUnlockTime > 0, "to short");
         require(_profitMaxUnlockTime <= 31_556_952, "to long");
         _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
