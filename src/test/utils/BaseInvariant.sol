@@ -9,24 +9,8 @@ abstract contract BaseInvariant is Setup {
         super.setUp();
     }
 
-    bytes32 private constant BASE_STRATEGY_STORAGE =
-        bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
-
-    function _strategyStorgage()
-        private
-        pure
-        returns (TokenizedStrategy.StrategyData storage S)
-    {
-        // Since STORAGE_SLOT is a constant, we have to put a variable
-        // on the stack to access it from an inline assembly block.
-        bytes32 slot = BASE_STRATEGY_STORAGE;
-        assembly {
-            S.slot := slot
-        }
-    }
-
     // Simple version used by the straegy to calculate what should be unlocked shares
-    function _unlockedShares() private view returns (uint256 unlockedShares) {
+    function _unlockedShares() internal view returns (uint256 unlockedShares) {
         uint256 _fullProfitUnlockDate = strategy.fullProfitUnlockDate();
         if (_fullProfitUnlockDate > block.timestamp) {
             unlockedShares =
@@ -70,28 +54,40 @@ abstract contract BaseInvariant is Setup {
 
     function assert_unlockingTime() public {
         uint256 unlockingDate = strategy.fullProfitUnlockDate();
-        uint256 fullBalance = _strategyStorgage().balances[address(strategy)];
-        if (unlockingDate != 0) {
-            if (block.timestamp < unlockingDate) {
-                assertLe(_unlockedShares(), fullBalance);
+        uint256 balance = strategy.balanceOf(address(strategy));
+        uint256 unlockedShares = _unlockedShares();
+        if (unlockingDate != 0 && strategy.profitUnlockingRate() > 0) {
+            if (block.timestamp == strategy.lastReport()) {
+                assertEq(unlockedShares, 0);
+                assertGt(balance, 0);
+            } else if (block.timestamp < unlockingDate) {
+                assertGt(unlockedShares, 0);
+                assertGt(balance, 0);
             } else {
                 // We should have unlocked full balance
-                assertEq(strategy.balanceOf(address(strategy)), 0);
+                assertEq(balance, 0);
+                assertGt(unlockedShares, 0);
             }
         } else {
-            assertEq(fullBalance, 0);
+            assertEq(balance, 0);
         }
     }
 
     function assert_unlockedShares() public {
-        assertLe(
-            _unlockedShares(),
-            _strategyStorgage().balances[address(strategy)]
-        );
-    }
-
-    function assert_totalSupplyToUnlockedShares() public {
-        assertLe(_strategyStorgage().totalSupply, _unlockedShares());
+        uint256 unlockedShares = _unlockedShares();
+        uint256 fullBalance = strategy.balanceOf(address(strategy)) +
+            unlockedShares;
+        uint256 unlockingDate = strategy.fullProfitUnlockDate();
+        if (
+            unlockingDate != 0 &&
+            strategy.profitUnlockingRate() > 0 &&
+            block.timestamp < unlockingDate
+        ) {
+            assertLt(unlockedShares, fullBalance);
+        } else {
+            assertEq(unlockedShares, fullBalance);
+            assertEq(strategy.balanceOf(address(strategy)), 0);
+        }
     }
 
     function assert_previewMinAndConvertToAssets() public {

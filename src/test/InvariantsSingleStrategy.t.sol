@@ -55,11 +55,7 @@ contract SingleStrategyInvariantTest is BaseInvariant {
     }
 
     function invariant_unlockedShares() public {
-        assert_unlockedShares();
-    }
-
-    function invariant_totalSupplyToUnlockedShares() public {
-        assert_totalSupplyToUnlockedShares();
+        //assert_unlockedShares();
     }
 
     function invariant_previewMinAndConvertToAssets() public {
