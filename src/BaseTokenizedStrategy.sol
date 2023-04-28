@@ -95,7 +95,7 @@ abstract contract BaseTokenizedStrategy {
      *       i.e. uint256 totalAssets = TokenizedStrategy.totalAssets()
      *
      * Using address(this) will mean any calls using this variable will lead
-     * to a static call to itself. Which will hit the fallback function and
+     * to a call to itself. Which will hit the fallback function and
      * delegateCall that to the actual TokenizedStrategy.
      */
     ITokenizedStrategy internal TokenizedStrategy;
