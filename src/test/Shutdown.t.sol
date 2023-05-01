@@ -30,6 +30,8 @@ contract ShutdownTest is Setup {
         strategy.shutdownStrategy();
 
         assertTrue(strategy.isShutdown());
+        assertEq(strategy.maxMint(_address), 0);
+        assertEq(strategy.madDeposit(_address), 0);
 
         asset.mint(_address, _amount);
         vm.prank(_address);
@@ -66,6 +68,8 @@ contract ShutdownTest is Setup {
         strategy.shutdownStrategy();
 
         assertTrue(strategy.isShutdown());
+        assertEq(strategy.maxMint(_address), 0);
+        assertEq(strategy.madDeposit(_address), 0);
 
         asset.mint(_address, _amount);
         vm.prank(_address);
