@@ -277,7 +277,7 @@ abstract contract BaseTokenizedStrategy {
      *
      * This does not need to take into account any conversion rates
      * from shares to assets. But should know that any non max uint256
-     * amounts may be converted to shares. So it is recommended to keep 
+     * amounts may be converted to shares. So it is recommended to keep
      * custom amounts low enough as not to cause overflow when multiplied
      * by `totalSupply`.
      *
