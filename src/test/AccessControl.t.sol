@@ -47,7 +47,9 @@ contract AccesssControlTest is Setup {
 
     function test_setPerformanceFeeRecipient(address _address) public {
         vm.assume(
-            _address != performanceFeeRecipient && _address != address(0)
+            _address != performanceFeeRecipient &&
+                _address != address(0) &&
+                _address != address(strategy)
         );
 
         vm.expectEmit(true, true, true, true, address(strategy));
@@ -61,7 +63,7 @@ contract AccesssControlTest is Setup {
 
     function test_setProfitMaxUnlockTime(uint32 _amount) public {
         // Must be less than 1 year
-        uint256 amount = bound(uint256(_amount), 0, 31_556_952);
+        uint256 amount = bound(uint256(_amount), 1, 31_556_952);
 
         vm.expectEmit(true, true, true, true, address(strategy));
         emit UpdateProfitMaxUnlockTime(amount);
@@ -131,13 +133,17 @@ contract AccesssControlTest is Setup {
     function test_settingPerformanceFeeRecipient_reverts(
         address _address
     ) public {
-        vm.assume(_address != management);
+        vm.assume(_address != management && _address != address(strategy));
 
         address _performanceFeeRecipient = strategy.performanceFeeRecipient();
 
         vm.prank(_address);
         vm.expectRevert("!Authorized");
         strategy.setPerformanceFeeRecipient(address(69));
+
+        vm.prank(management);
+        vm.expectRevert("Can't be self");
+        strategy.setPerformanceFeeRecipient(address(strategy));
 
         assertEq(strategy.performanceFeeRecipient(), _performanceFeeRecipient);
     }
@@ -148,7 +154,7 @@ contract AccesssControlTest is Setup {
         uint256 _badAmount
     ) public {
         // Must be less than 1 year
-        uint256 amount = bound(uint256(_amount), 0, 31_556_952);
+        uint256 amount = bound(uint256(_amount), 1, 31_556_952);
         _badAmount = bound(_badAmount, 31_556_952 + 1, type(uint256).max);
         vm.assume(_address != management);
 
@@ -164,6 +170,11 @@ contract AccesssControlTest is Setup {
         vm.prank(management);
         vm.expectRevert("to long");
         strategy.setProfitMaxUnlockTime(_badAmount);
+
+        // Can't be 0
+        vm.prank(management);
+        vm.expectRevert("to short");
+        strategy.setProfitMaxUnlockTime(0);
 
         assertEq(strategy.profitMaxUnlockTime(), profitMaxUnlockTime);
     }

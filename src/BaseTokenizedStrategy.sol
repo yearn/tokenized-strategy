@@ -95,7 +95,7 @@ abstract contract BaseTokenizedStrategy {
      *       i.e. uint256 totalAssets = TokenizedStrategy.totalAssets()
      *
      * Using address(this) will mean any calls using this variable will lead
-     * to a static call to itself. Which will hit the fallback function and
+     * to a call to itself. Which will hit the fallback function and
      * delegateCall that to the actual TokenizedStrategy.
      */
     ITokenizedStrategy internal TokenizedStrategy;
@@ -276,7 +276,10 @@ abstract contract BaseTokenizedStrategy {
      *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
      *
      * This does not need to take into account any conversion rates
-     * from shares to assets.
+     * from shares to assets. But should know that any non max uint256
+     * amounts may be converted to shares. So it is recommended to keep
+     * custom amounts low enough as not to cause overflow when multiplied
+     * by `totalSupply`.
      *
      * @param . The address that is depositing into the strategy.
      * @return . The avialable amount the `_owner` can deposit in terms of `asset`
@@ -413,7 +416,7 @@ abstract contract BaseTokenizedStrategy {
     }
 
     // exeute a function on the TokenizedStrategy and return any value.
-    fallback() external payable {
+    fallback() external {
         // load our target address
         address _tokenizedStrategyAddress = tokenizedStrategyAddress;
         // Execute external function using delegatecall and return any value.
@@ -441,14 +444,4 @@ abstract contract BaseTokenizedStrategy {
             }
         }
     }
-
-    /**
-     * We are forced to have a receive function do to
-     * implementing a fallback function.
-     *
-     * NOTE: ETH should not be sent to the strategy unless
-     * designed for within the Strategy. There is no defualt
-     * way to remove eth incorrectly sent to a strategy.
-     */
-    receive() external payable {}
 }
