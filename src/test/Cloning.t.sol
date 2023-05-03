@@ -64,13 +64,11 @@ contract CloningTest is Setup {
         address _address,
         uint256 _amount,
         address _mangement,
-        address _pfr,
         address _keeper
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
         vm.assume(_mangement != address(0) && _mangement != address(strategy));
-        vm.assume(_pfr != address(0) && _pfr != address(strategy));
         vm.assume(_keeper != address(0) && _keeper != address(strategy));
 
         assertTrue(strategy.isOriginal());
@@ -82,7 +80,7 @@ contract CloningTest is Setup {
             address(asset),
             "Test Namez",
             _mangement,
-            _pfr,
+            performanceFeeRecipient,
             _keeper,
             address(yieldSource)
         );
@@ -93,7 +91,10 @@ contract CloningTest is Setup {
         assertEq(clonedStrategy.asset(), address(asset));
         assertEq(clonedStrategy.management(), _mangement);
         assertEq(clonedStrategy.performanceFee(), 1_000);
-        assertEq(clonedStrategy.performanceFeeRecipient(), _pfr);
+        assertEq(
+            clonedStrategy.performanceFeeRecipient(),
+            performanceFeeRecipient
+        );
         assertEq(clonedStrategy.keeper(), _keeper);
 
         if (clone == _address) {
