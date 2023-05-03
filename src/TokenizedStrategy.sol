@@ -397,6 +397,8 @@ contract TokenizedStrategy {
         // Set address to receive performance fees.
         // Can't be address(0) or we will be burning fees.
         require(_performanceFeeRecipient != address(0));
+        // Can't mint shares to its self because of profit locking.
+        require(_performanceFeeRecipient != address(this));
         S.performanceFeeRecipient = _performanceFeeRecipient;
         // Default to a 10% performance fee.
         S.performanceFee = 1_000;
