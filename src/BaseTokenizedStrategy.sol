@@ -84,7 +84,7 @@ abstract contract BaseTokenizedStrategy {
      */
     // NOTE: This is a holder address based on expected deterministic location for testing
     address public constant tokenizedStrategyAddress =
-        0xF62849F9A0B5Bf2913b396098F7c7019b51A820a;
+        0x2e234DAe75C793f67A35089C9d99245E1C58470b;
 
     /**
      * This variable is set to address(this) during initialization of each strategy.

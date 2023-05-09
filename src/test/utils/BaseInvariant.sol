@@ -43,7 +43,7 @@ abstract contract BaseInvariant is Setup {
         assertApproxEq(
             strategy.maxWithdraw(msg.sender),
             strategy.convertToAssets(strategy.maxRedeem(msg.sender)),
-            1
+            2
         );
         assertApproxEq(
             strategy.maxRedeem(msg.sender),

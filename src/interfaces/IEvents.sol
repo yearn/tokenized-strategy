@@ -93,6 +93,16 @@ interface IEvents {
     );
 
     /**
+     * @dev Emitted on the initialization of any new `strategy` that uses `asset`
+     * with this specific `apiVersion`.
+     */
+    event NewTokenizedStrategy(
+        address indexed strategy,
+        address indexed asset,
+        string apiVersion
+    );
+
+    /**
      * @dev Emitted when a new `clone` is created from an `original`.
      */
     event Cloned(address indexed clone, address indexed original);

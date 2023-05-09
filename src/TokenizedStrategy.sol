@@ -4,20 +4,9 @@ pragma solidity 0.8.18;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
+import {IFactory} from "./interfaces/IFactory.sol";
 import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
-
-interface IFactory {
-    function protocol_fee_config()
-        external
-        view
-        returns (uint16, uint32, address);
-}
-
-interface IRegistry {
-    function newStrategy(address _strategy, address _asset) external;
-}
 
 /**
  * @title YearnV3 Tokenized Strategy
@@ -124,6 +113,16 @@ contract TokenizedStrategy {
         uint256 loss,
         uint256 performanceFees,
         uint256 protocolFees
+    );
+
+    /**
+     * @dev Emitted on the initialization of any new `strategy` that uses `asset`
+     * with this specific `apiVersion`.
+     */
+    event NewTokenizedStrategy(
+        address indexed strategy,
+        address indexed asset,
+        string apiVersion
     );
 
     /**
@@ -296,11 +295,6 @@ contract TokenizedStrategy {
     address private constant FACTORY =
         0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
 
-    // Address of the registry used to track all deployed vaults and strategies
-    // NOTE: holder address based on expected location during tests
-    address private constant REGISTRY =
-        0x2e234DAe75C793f67A35089C9d99245E1C58470b;
-
     /**
      * @dev Custom storgage slot that will be used to store the
      * `StrategyData` struct that holds each strategies
@@ -353,8 +347,8 @@ contract TokenizedStrategy {
      * strategy to function. Any changes can be made post deployment
      * through external calls from `management`.
      *
-     * The function will also tell the registry a new strategy has been
-     * deployed for easy tracking purposes.
+     * The function will also emit an event that off chain indexers can
+     * look for to track any new deployments using this TokenizedStrategy.
      *
      * This is called through a lowelevel call in the BaseTokenizedStrategy
      * so any reverts will return the "init failed" string.
@@ -377,13 +371,14 @@ contract TokenizedStrategy {
 
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
+        // Cache the asset instance for multiple uses
+        ERC20 a = ERC20(_asset);
         // Set the strategys underlying asset
-        S.asset = ERC20(_asset);
+        S.asset = a;
         // Set the Strategy Tokens name.
         S.name = _name;
         // Set the symbol and decimals based off the `asset`.
-        IERC20Metadata a = IERC20Metadata(_asset);
-        // This stores the symbol as bytes10 so it can be
+        // This stores the symbol as bytes11 so it can be
         // packed in the struct with `asset` and `decimals`
         S.symbol = bytes11(abi.encodePacked("ys", a.symbol()));
         S.decimals = a.decimals();
@@ -411,8 +406,8 @@ contract TokenizedStrategy {
         // Set the keeper address
         S.keeper = _keeper;
 
-        // Tell the registry we have a new strategy deployed.
-        IRegistry(REGISTRY).newStrategy(address(this), _asset);
+        // Emit event to signal a new strategy has been initialized.
+        emit NewTokenizedStrategy(address(this), _asset, API_VERSION);
     }
 
     /*//////////////////////////////////////////////////////////////
