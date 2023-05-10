@@ -111,8 +111,8 @@ contract TokenizedStrategy {
     event Reported(
         uint256 profit,
         uint256 loss,
-        uint256 performanceFees,
-        uint256 protocolFees
+        uint256 protocolFees,
+        uint256 performanceFees
     );
 
     /**
@@ -916,8 +916,8 @@ contract TokenizedStrategy {
         {
             // Scoped to avoid stack to deep errors
             uint256 totalLockedShares = S.balances[address(this)];
-            uint32 _profitMaxUnlockTime = S.profitMaxUnlockTime;
             if (totalLockedShares > 0) {
+                uint32 _profitMaxUnlockTime = S.profitMaxUnlockTime;
                 uint256 remainingTime;
                 uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
                 if (_fullProfitUnlockDate > block.timestamp) {
@@ -959,12 +959,21 @@ contract TokenizedStrategy {
 
         S.lastReport = uint128(block.timestamp);
 
+        // If we had an overall loss we need to adjust the actual fees issued
+        // based on new PPS post all minting and locking.
+        if (loss + totalFees >= profit) {
+            totalFees = convertToAssets(
+                performanceFeeShares + protocolFeeShares
+            );
+            performanceFees = convertToAssets(performanceFeeShares);
+        }
+
         // Emit event with info
         emit Reported(
             profit,
             loss,
-            performanceFees,
-            totalFees - performanceFees // Protocol fees
+            totalFees - performanceFees, // Protocol fees
+            performanceFees
         );
     }
 

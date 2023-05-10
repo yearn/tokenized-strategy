@@ -221,7 +221,7 @@ contract FaultyStrategy is Setup {
 
         storeCallBackVariables(_amount);
 
-        createAndCheckLoss(strategy, profit, 0, 0);
+        createAndCheckLoss(strategy, profit, 0, true);
     }
 
     function test_tendViewReentrancy(address _address, uint256 _amount) public {

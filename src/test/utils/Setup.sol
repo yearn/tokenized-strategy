@@ -173,7 +173,7 @@ contract Setup is ExtendedTest, IEvents {
 
         // Check the event matches the expected values
         vm.expectEmit(true, true, true, true, address(_strategy));
-        emit Reported(profit, 0, _performanceFees, _protocolFees);
+        emit Reported(profit, 0, _protocolFees, _performanceFees);
 
         vm.prank(keeper);
         (uint256 _profit, uint256 _loss) = _strategy.report();
@@ -191,14 +191,14 @@ contract Setup is ExtendedTest, IEvents {
         IMockStrategy _strategy,
         uint256 loss,
         uint256 _protocolFees,
-        uint256 _performanceFees
+        bool _checkFees
     ) public {
         uint256 startingAssets = _strategy.totalAssets();
 
         yieldSource.simulateLoss(loss);
         // Check the event matches the expected values
-        vm.expectEmit(true, true, false, true, address(_strategy));
-        emit Reported(0, loss, _performanceFees, _protocolFees);
+        vm.expectEmit(true, true, true, _checkFees, address(_strategy));
+        emit Reported(0, loss, _protocolFees, 0);
 
         vm.prank(keeper);
         (uint256 _profit, uint256 _loss) = _strategy.report();
