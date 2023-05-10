@@ -672,7 +672,7 @@ contract TokenizedStrategy {
      *
      * We do all external calls before updating any internal
      * values to prevent view re-entrancy issues from the token
-     * transfers or the _invest() calls.
+     * transfers or the _deployFunds() calls.
      */
     function _deposit(
         address receiver,
@@ -693,26 +693,26 @@ contract TokenizedStrategy {
         _asset.safeTransferFrom(msg.sender, address(this), assets);
 
         // We will deposit up to current idle plus the new amount added
-        uint256 toInvest = S.totalIdle + assets;
+        uint256 toDeploy = S.totalIdle + assets;
 
-        // Cache for post {invest} checks.
+        // Cache for post {deployFunds} checks.
         uint256 beforeBalance = _asset.balanceOf(address(this));
 
-        // Invest up to all loose funds.
-        IBaseTokenizedStrategy(address(this)).invest(toInvest);
+        // Deploy up to all loose funds.
+        IBaseTokenizedStrategy(address(this)).deployFunds(toDeploy);
 
-        // Always get the actual amount invested. We double check the
-        // diff agianst toInvest for complete accuracy.
-        uint256 invested = Math.min(
+        // Always get the actual amount deployed. We double check the
+        // diff agianst toDeploy for complete accuracy.
+        uint256 deployed = Math.min(
             beforeBalance - _asset.balanceOf(address(this)),
-            toInvest
+            toDeploy
         );
 
         // Adjust total Assets.
-        S.totalDebt += invested;
+        S.totalDebt += deployed;
         unchecked {
             // Cant't underflow due to previous min check.
-            S.totalIdle = toInvest - invested;
+            S.totalIdle = toDeploy - deployed;
         }
 
         // mint shares
@@ -1051,11 +1051,11 @@ contract TokenizedStrategy {
      * for this to be used.
      *
      * This will callback the internal '_tend' call in the BaseTokenizedStrategy
-     * with the total current amount available to the strategy to invest.
+     * with the total current amount available to the strategy to deploy.
      *
      * Keepers are expected to use protected relays in tend calls so this
      * can be used for illiquid or manipulatable strategies to compound
-     * rewards, perform maintence or invest/withdraw funds.
+     * rewards, perform maintence or deposit/withdraw funds.
      *
      * All accounting for totalDebt and totalIdle updates will be done
      * here post '_tend'.
@@ -1078,14 +1078,14 @@ contract TokenizedStrategy {
         // Adjust storage according to the changes without adjusting totalAssets().
         if (beforeBalance > afterBalance) {
             // Idle funds were deposited.
-            uint256 invested = Math.min(
+            uint256 deposited = Math.min(
                 beforeBalance - afterBalance,
                 _totalIdle
             );
 
             unchecked {
-                S.totalIdle -= invested;
-                S.totalDebt += invested;
+                S.totalIdle -= deposited;
+                S.totalDebt += deposited;
             }
         } else if (afterBalance > beforeBalance) {
             // We default to use any funds freed as idle for cheaper withdraw/redeems.

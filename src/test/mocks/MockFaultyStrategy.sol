@@ -30,7 +30,7 @@ contract MockFaultyStrategy is BaseTokenizedStrategy {
         pappa = msg.sender;
     }
 
-    function _invest(uint256 _amount) internal override {
+    function _deployFunds(uint256 _amount) internal override {
         if (doCallBack) {
             callBack(_amount);
         }

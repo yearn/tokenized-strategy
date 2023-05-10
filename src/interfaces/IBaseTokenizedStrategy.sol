@@ -24,7 +24,7 @@ interface IBaseTokenizedStrategy {
         address _owner
     ) external view returns (uint256);
 
-    function invest(uint256 _assets) external;
+    function deployFunds(uint256 _assets) external;
 
     function freeFunds(uint256 _amount) external;
 

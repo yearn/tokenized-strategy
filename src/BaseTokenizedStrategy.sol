@@ -19,7 +19,7 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *  can only be concerned with writing their strategy specific code.
  *
  *  This contract should be inherited and the three main abstract methods
- *  `_invest`, `_freeFunds` and `_totalInvested` implemented to adapt the
+ *  `_deployFunds`, `_freeFunds` and `_totalInvested` implemented to adapt the
  *  Strategy to the particular needs it has to create a return. There are
  *  other optional methods that can be implemented to further customize of
  *  the strategy if desired.
@@ -165,7 +165,7 @@ abstract contract BaseTokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Should invest up to '_amount' of 'asset'.
+     * @dev Should deploy up to '_amount' of 'asset' in the yield source.
      *
      * This function is called at the end of a {deposit} or {mint}
      * call. Meaning that unless a whitelist is implemented it will
@@ -175,7 +175,7 @@ abstract contract BaseTokenizedStrategy {
      * @param _amount The amount of 'asset' that the strategy should attemppt
      * to deposit in the yield source.
      */
-    function _invest(uint256 _amount) internal virtual;
+    function _deployFunds(uint256 _amount) internal virtual;
 
     /**
      * @dev Will attempt to free the '_amount' of 'asset'.
@@ -248,7 +248,7 @@ abstract contract BaseTokenizedStrategy {
      * after this has finished and will have no effect on PPS of the strategy
      * till report() is called.
      *
-     * @param _totalIdle The current amount of idle funds that are available to invest.
+     * @param _totalIdle The current amount of idle funds that are available to deploy.
      */
     function _tend(uint256 _totalIdle) internal virtual {}
 
@@ -319,9 +319,9 @@ abstract contract BaseTokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Should invest up to '_amount' of 'asset'.
+     * @notice Should deploy up to '_amount' of 'asset' in yield source.
      * @dev Callback for the TokenizedStrategy to call during a {deposit}
-     * or {mint} to tell the strategy it can invest funds.
+     * or {mint} to tell the strategy it can deploy funds.
      *
      * Since this can only be called after a {deposit} or {mint}
      * delegateCall to the TokenizedStrategy msg.sender == address(this).
@@ -332,8 +332,8 @@ abstract contract BaseTokenizedStrategy {
      * @param _amount The amount of 'asset' that the strategy should
      * attemppt to deposit in the yield source.
      */
-    function invest(uint256 _amount) external onlySelf {
-        _invest(_amount);
+    function deployFunds(uint256 _amount) external onlySelf {
+        _deployFunds(_amount);
     }
 
     /**
@@ -377,7 +377,7 @@ abstract contract BaseTokenizedStrategy {
      * the TokenizedStrategy so it can do the neccesary accounting.
 
      * @param _totalIdle The amount of current idle funds that can be 
-     * invested during the tend
+     * deployed during the tend
      */
     function tendThis(uint256 _totalIdle) external onlySelf {
         _tend(_totalIdle);

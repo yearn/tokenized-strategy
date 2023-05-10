@@ -246,7 +246,7 @@ contract AccesssControlTest is Setup {
         assertEq(tokenizedStrategy.keeper(), address(0));
     }
 
-    function test_accessControl_invest(
+    function test_accessControl_deployFunds(
         address _address,
         uint256 _amount
     ) public {
@@ -258,16 +258,16 @@ contract AccesssControlTest is Setup {
         // doesnt work from random address
         vm.prank(_address);
         vm.expectRevert("!Authorized");
-        strategy.invest(_amount);
+        strategy.deployFunds(_amount);
 
         vm.prank(management);
         vm.expectRevert("!Authorized");
-        strategy.invest(_amount);
+        strategy.deployFunds(_amount);
 
         assertEq(asset.balanceOf(address(yieldSource)), 0);
 
         vm.prank(address(strategy));
-        strategy.invest(_amount);
+        strategy.deployFunds(_amount);
 
         // make sure we deposited into the funds
         assertEq(asset.balanceOf(address(yieldSource)), _amount, "!out");
