@@ -8,6 +8,8 @@ interface IBaseTokenizedStrategy {
 
     function isOriginal() external view returns (bool);
 
+    function asset() external view returns (address);
+
     function initialize(
         address _asset,
         string memory name_,
