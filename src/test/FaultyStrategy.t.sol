@@ -37,12 +37,12 @@ contract FaultyStrategy is Setup {
 
         configureFaultyStrategy(_faultAmount, false);
 
-        // We need to allow the strategy to invest more than it should
+        // We need to allow the strategy to deploy Funds more than it should
         asset.mint(address(strategy), _faultAmount);
 
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        // These should all be right even though the amount invested was actually more
+        // These should all be right even though the amount deployed was actually more
         checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         assertEq(asset.balanceOf(address(yieldSource)), _amount + _faultAmount);
@@ -98,7 +98,7 @@ contract FaultyStrategy is Setup {
         assertEq(asset.balanceOf(address(strategy)), _faultAmount);
     }
 
-    function test_investViewReentrancy(
+    function test_deployFundsViewReentrancy(
         address _address,
         uint256 _amount,
         uint16 _profitFactor
@@ -246,7 +246,7 @@ contract FaultyStrategy is Setup {
         strategy.tend();
     }
 
-    function test_investReentrancy_reverts(
+    function test_deployFundsReentrancy_reverts(
         address _address,
         uint256 _amount
     ) public {

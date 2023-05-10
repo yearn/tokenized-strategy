@@ -42,7 +42,7 @@ interface IMockStrategy is ITokenizedStrategy {
 
     function freeFunds(uint256 _amount) external;
 
-    function totalInvested() external returns (uint256);
+    function harvestAndReport() external returns (uint256);
 
     function tendThis(uint256 _totalIdle) external;
 

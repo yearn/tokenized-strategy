@@ -850,27 +850,27 @@ contract TokenizedStrategy {
         _burnUnlockedShares();
 
         // Tell the strategy to report the real total assets it has.
-        // It should do all reward selling and reinvesting now and
-        // account for invested and loose `asset` so we can accuratly
+        // It should do all reward selling and redepositing now and
+        // account for deployed and loose `asset` so we can accuratly
         // account for all funds including those potentially airdropped
         // by a trade factory. It is safe here to use asset.balanceOf()
         // instead of totalIdle because any profits are immediatly locked.
-        uint256 invested = IBaseTokenizedStrategy(address(this))
-            .totalInvested();
+        uint256 newTotalAssets = IBaseTokenizedStrategy(address(this))
+            .harvestAndReport();
 
         uint256 performanceFees;
         unchecked {
             // Calculate profit/loss.
-            if (invested > oldTotalAssets) {
+            if (newTotalAssets > oldTotalAssets) {
                 // We have a profit
-                profit = invested - oldTotalAssets;
+                profit = newTotalAssets - oldTotalAssets;
 
                 // Asses performance fees.
                 performanceFees = (profit * S.performanceFee) / MAX_BPS;
                 totalFees += performanceFees;
             } else {
                 // We have a loss.
-                loss = oldTotalAssets - invested;
+                loss = oldTotalAssets - newTotalAssets;
             }
         }
 
@@ -951,11 +951,11 @@ contract TokenizedStrategy {
         }
 
         // Update storage we use the actual loose here since it should have
-        // been accounted for in `totalInvested` and any airdropped amounts
+        // been accounted for in `harvestAndReport` and any airdropped amounts
         // would have been locked to prevent PPS manipulation.
         uint256 newIdle = S.asset.balanceOf(address(this));
         S.totalIdle = newIdle;
-        S.totalDebt = invested - newIdle;
+        S.totalDebt = newTotalAssets - newIdle;
 
         S.lastReport = uint128(block.timestamp);
 

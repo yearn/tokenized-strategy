@@ -19,8 +19,8 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *  can only be concerned with writing their strategy specific code.
  *
  *  This contract should be inherited and the three main abstract methods
- *  `_deployFunds`, `_freeFunds` and `_totalInvested` implemented to adapt the
- *  Strategy to the particular needs it has to create a return. There are
+ *  `_deployFunds`, `_freeFunds` and `_harvestAndReport` implemented to adapt
+ *  the Strategy to the particular needs it has to create a return. There are
  *  other optional methods that can be implemented to further customize of
  *  the strategy if desired.
  *
@@ -201,27 +201,31 @@ abstract contract BaseTokenizedStrategy {
     function _freeFunds(uint256 _amount) internal virtual;
 
     /**
-     * @dev Internal non-view function to harvest all rewards, reinvest
-     * and return the accurate amount of funds currently held by the Strategy.
+     * @dev Internal function to harvest all rewards, redeploy any idle
+     * funds and return an accurate accounting of all funds currently
+     * held by the Strategy.
      *
      * This should do any needed harvesting, rewards selling, accrual,
-     * reinvesting etc. to get the most accurate view of current assets.
+     * redepositing etc. to get the most accurate view of current assets.
      *
-     * All applicable assets including loose assets should be accounted
-     * for in this function.
+     * NOTE: All applicable assets including loose assets should be
+     * accounted for in this function.
      *
      * Care should be taken when relying on oracles or swap values rather
      * than actual amounts as all Strategy profit/loss accounting will
      * be done based on this returned value.
      *
      * This can still be called post a shutdown, a strategist can check
-     * `TokenizedStrategy.isShutdown()` to decide if funds should be reinvested
-     * or simply realize any profits/losses.
+     * `TokenizedStrategy.isShutdown()` to decide if funds should be
+     * redeployed or simply realize any profits/losses.
      *
-     * @return _invested A trusted and accurate account for the total
-     * amount of 'asset' the strategy currently holds.
+     * @return _totalAssets A trusted and accurate account for the total
+     * amount of 'asset' the strategy currently holds including idle funds.
      */
-    function _totalInvested() internal virtual returns (uint256 _invested);
+    function _harvestAndReport()
+        internal
+        virtual
+        returns (uint256 _totalAssets);
 
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
@@ -359,11 +363,15 @@ abstract contract BaseTokenizedStrategy {
      * This can only be called after a report() delegateCall to the
      * TokenizedStrategy so msg.sender == address(this).
      *
-     * @return _invested A trusted and accurate account for the total
-     * amount of 'asset' the strategy currently holds.
+     * @return _totalAssets A trusted and accurate account for the total
+     * amount of 'asset' the strategy currently holds including idle funds.
      */
-    function totalInvested() external onlySelf returns (uint256 _invested) {
-        return _totalInvested();
+    function harvestAndReport()
+        external
+        onlySelf
+        returns (uint256 _totalAssets)
+    {
+        return _harvestAndReport();
     }
 
     /**

@@ -5,7 +5,7 @@ import {ITokenizedStrategy, IERC4626} from "./ITokenizedStrategy.sol";
 import {IBaseTokenizedStrategy} from "./IBaseTokenizedStrategy.sol";
 
 interface IStrategy is IBaseTokenizedStrategy, ITokenizedStrategy {
-    // Need to override the `asset` function since 
+    // Need to override the `asset` function since
     // its defined in both interfaces inherited.
     function asset()
         external
