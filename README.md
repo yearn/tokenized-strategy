@@ -41,6 +41,7 @@ make size
 ```
 
 5. Run tests
+NOTE: Tests will take a significant period of time since the fuzzer is set to 10,000 runs.
 ```sh
 make test
 ```
