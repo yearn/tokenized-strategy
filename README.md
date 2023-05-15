@@ -84,6 +84,8 @@ To print out the storage layout of any contract (e.g 'test/MockStrategy.sol')
 make inspect contract=MockStrategy
 ```
 
+## To make contributions please follow the [Contribution Guidelines](https://github.com/yearn/tokenized-strategy/bloc/master/CONTRIBUTING.md)
+
 # Resources
 
 - [Getting help on Foundry](https://github.com/gakonst/foundry#getting-help)
