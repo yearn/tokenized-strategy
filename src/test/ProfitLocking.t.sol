@@ -942,13 +942,8 @@ contract ProfitLockingTest is Setup {
             _amount,
             protocolFee
         );
-        uint256 expectedPerformanceFee = (loss * performanceFee) / MAX_BPS;
-        createAndCheckLoss(
-            strategy,
-            loss,
-            expectedProtocolFee,
-            expectedPerformanceFee
-        );
+
+        createAndCheckLoss(strategy, loss, expectedProtocolFee, true);
 
         assertRelApproxEq(
             strategy.pricePerShare(),
@@ -1025,14 +1020,13 @@ contract ProfitLockingTest is Setup {
             _amount,
             protocolFee
         );
-        uint256 expectedPerformanceFee = (loss * performanceFee) / MAX_BPS;
-        uint256 totalExpectedFees = expectedPerformanceFee +
-            expectedProtocolFee;
+
+        uint256 totalExpectedFees = expectedProtocolFee;
         createAndCheckLoss(
             strategy,
             loss,
             expectedProtocolFee,
-            expectedPerformanceFee
+            false // Dont check protocol fees with overall loss
         );
 
         assertRelApproxEq(
@@ -1159,12 +1153,7 @@ contract ProfitLockingTest is Setup {
 
         // We will not burn the difference between the remaining buffer and shares it will take post profit to cover it
         uint256 toNotBurn = loss - strategy.convertToShares(loss);
-        createAndCheckLoss(
-            strategy,
-            loss,
-            secondExpectedProtocolFee,
-            expectedPerformanceFee
-        );
+        createAndCheckLoss(strategy, loss, secondExpectedProtocolFee, true);
 
         // We should have burned the full buffer
         assertApproxEq(
@@ -1274,7 +1263,7 @@ contract ProfitLockingTest is Setup {
             strategy,
             loss,
             secondExpectedProtocolFee,
-            expectedPerformanceFee
+            false // Dont check protocol fees with overall loss
         );
 
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime / 2, 0);

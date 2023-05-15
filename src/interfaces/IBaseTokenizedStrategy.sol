@@ -8,6 +8,8 @@ interface IBaseTokenizedStrategy {
 
     function isOriginal() external view returns (bool);
 
+    function asset() external view returns (address);
+
     function initialize(
         address _asset,
         string memory name_,
@@ -24,11 +26,11 @@ interface IBaseTokenizedStrategy {
         address _owner
     ) external view returns (uint256);
 
-    function invest(uint256 _assets) external;
+    function deployFunds(uint256 _assets) external;
 
     function freeFunds(uint256 _amount) external;
 
-    function totalInvested() external returns (uint256);
+    function harvestAndReport() external returns (uint256);
 
     function tendThis(uint256 _totalIdle) external;
 

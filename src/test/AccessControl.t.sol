@@ -246,7 +246,7 @@ contract AccesssControlTest is Setup {
         assertEq(tokenizedStrategy.keeper(), address(0));
     }
 
-    function test_accessControl_invest(
+    function test_accessControl_deployFunds(
         address _address,
         uint256 _amount
     ) public {
@@ -258,16 +258,16 @@ contract AccesssControlTest is Setup {
         // doesnt work from random address
         vm.prank(_address);
         vm.expectRevert("!Authorized");
-        strategy.invest(_amount);
+        strategy.deployFunds(_amount);
 
         vm.prank(management);
         vm.expectRevert("!Authorized");
-        strategy.invest(_amount);
+        strategy.deployFunds(_amount);
 
         assertEq(asset.balanceOf(address(yieldSource)), 0);
 
         vm.prank(address(strategy));
-        strategy.invest(_amount);
+        strategy.deployFunds(_amount);
 
         // make sure we deposited into the funds
         assertEq(asset.balanceOf(address(yieldSource)), _amount, "!out");
@@ -280,7 +280,7 @@ contract AccesssControlTest is Setup {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
-        // deposit into the vault and should invest funds
+        // deposit into the vault and should deploy funds
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
         // assure the deposit worked correctly
@@ -307,14 +307,14 @@ contract AccesssControlTest is Setup {
         assertEq(asset.balanceOf(address(strategy)), _amount, "!out");
     }
 
-    function test_accessControl_totalInvested(
+    function test_accessControl_harvestAndReport(
         address _address,
         uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
-        // deposit into the vault and should invest funds
+        // deposit into the vault and should deploy funds
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
         // assure the deposit worked correctly
@@ -324,15 +324,15 @@ contract AccesssControlTest is Setup {
         // doesnt work from random address
         vm.prank(_address);
         vm.expectRevert("!Authorized");
-        strategy.totalInvested();
+        strategy.harvestAndReport();
 
         // doesnt work from management either
         vm.prank(management);
         vm.expectRevert("!Authorized");
-        strategy.totalInvested();
+        strategy.harvestAndReport();
 
         vm.prank(address(strategy));
-        uint256 amountOut = strategy.totalInvested();
+        uint256 amountOut = strategy.harvestAndReport();
 
         assertEq(amountOut, _amount, "!out");
     }

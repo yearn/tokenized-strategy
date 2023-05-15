@@ -88,8 +88,18 @@ interface IEvents {
     event Reported(
         uint256 profit,
         uint256 loss,
-        uint256 performanceFees,
-        uint256 protocolFees
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
+
+    /**
+     * @dev Emitted on the initialization of any new `strategy` that uses `asset`
+     * with this specific `apiVersion`.
+     */
+    event NewTokenizedStrategy(
+        address indexed strategy,
+        address indexed asset,
+        string apiVersion
     );
 
     /**

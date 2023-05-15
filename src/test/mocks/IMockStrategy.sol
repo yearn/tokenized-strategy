@@ -38,11 +38,11 @@ interface IMockStrategy is ITokenizedStrategy {
         address _owner
     ) external view returns (uint256);
 
-    function invest(uint256 _assets) external;
+    function deployFunds(uint256 _assets) external;
 
     function freeFunds(uint256 _amount) external;
 
-    function totalInvested() external returns (uint256);
+    function harvestAndReport() external returns (uint256);
 
     function tendThis(uint256 _totalIdle) external;
 

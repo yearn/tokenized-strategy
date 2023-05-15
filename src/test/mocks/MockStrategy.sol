@@ -25,7 +25,7 @@ contract MockStrategy is BaseTokenizedStrategy {
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
     }
 
-    function _invest(uint256 _amount) internal override {
+    function _deployFunds(uint256 _amount) internal override {
         MockYieldSource(yieldSource).deposit(_amount);
     }
 
@@ -33,7 +33,7 @@ contract MockStrategy is BaseTokenizedStrategy {
         MockYieldSource(yieldSource).withdraw(_amount);
     }
 
-    function _totalInvested() internal override returns (uint256) {
+    function _harvestAndReport() internal override returns (uint256) {
         uint256 balance = ERC20(asset).balanceOf(address(this));
         if (balance > 0) {
             MockYieldSource(yieldSource).deposit(balance);
