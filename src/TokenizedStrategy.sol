@@ -290,7 +290,8 @@ contract TokenizedStrategy {
     // Used for profit unlocking rate calculations.
     uint256 private constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
-    // Address of the Vault factory that protocl fee config is retrieved from.
+    // Address of the previously deployed Vault factory that the
+    // protocl fee config is retrieved from.
     // NOTE: This will be set to deployed factory. deterministic address for testing is used now
     address private constant FACTORY =
         0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
@@ -680,8 +681,12 @@ contract TokenizedStrategy {
         uint256 shares
     ) private {
         require(receiver != address(this), "ERC4626: mint to self");
+        // Saves a redundant "shutdown" check to manually retreive deposit limit.
         require(
-            assets <= maxDeposit(msg.sender),
+            assets <=
+                IBaseTokenizedStrategy(address(this)).availableDepositLimit(
+                    msg.sender
+                ),
             "ERC4626: deposit more than max"
         );
 
