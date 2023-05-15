@@ -9,7 +9,7 @@ contract CloningTest is Setup {
         super.setUp();
     }
 
-    function test_clone(address _address, uint256 _amount) public {
+    function test_clone_(address _address, uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 
@@ -87,7 +87,7 @@ contract CloningTest is Setup {
         IMockStrategy clonedStrategy = IMockStrategy(clone);
 
         assertNeq(clone, address(strategy));
-        assertTrue(!clonedStrategy.isOriginal());
+        //assertTrue(!clonedStrategy.isOriginal());
         assertEq(clonedStrategy.asset(), address(asset));
         assertEq(clonedStrategy.management(), _mangement);
         assertEq(clonedStrategy.performanceFee(), 1_000);

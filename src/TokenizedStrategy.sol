@@ -8,6 +8,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IFactory} from "./interfaces/IFactory.sol";
 import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
 
+import "forge-std/console.sol";
+
 /**
  * @title YearnV3 Tokenized Strategy
  * @author yearn.finance
@@ -1785,6 +1787,65 @@ contract TokenizedStrategy {
      * @return newStrategy The address of the new clone.
      */
     function clone(
+        address _asset,
+        string memory _name,
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
+    ) external returns (address newStrategy) {
+        // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
+        address _target = address(this);
+        bytes32 salt = bytes32(0);
+        //bytes memory code = address(this).code;
+        assembly {
+            // Size of the contract to replicate
+            let size := extcodesize(_target)
+            // Memory location to store the bytecode
+            let code := mload(0x40)
+            // new "memory end" including padding
+            mstore(0x40, add(code, and(add(add(size, 0x20), 0x1f), not(0x1f))))
+            // store length in memory
+            mstore(code, size)
+            // actually retrieve the code, this needs assembly
+            extcodecopy(_target, add(code, 0x20), 0, size)
+            // Create the new instance
+            newStrategy := create2(0, add(code, 0x20), mload(code), salt)
+        }
+        
+        IBaseTokenizedStrategy(newStrategy).initialize(
+            _asset,
+            _name,
+            _management,
+            _performanceFeeRecipient,
+            _keeper
+        );
+
+        emit Cloned(newStrategy, address(this));
+    }
+
+    /**
+     * @notice Used to create a new clone of the calling stategy.
+     * @dev This can be called through a normal delegate call directly
+     * to the TokenizedStrategy however that will leave all Strategy
+     * sepcific setup uncompleted.
+     *
+     * The recommended use for strategies that wish to utilize cloning
+     * is to declare a strategy specific {clone} that will then call
+     * `TokenizedStrategy.clone(data)` so it can implement its own
+     * initiliaztion.
+     *
+     * This can't be called through a strategy that is a clone. All
+     * cloning must come through the original contract that can be
+     * viewed by the `isOriginal` variable in all strategies.
+     *
+     * @param _asset Address of the underlying asset.
+     * @param _name Name the strategy will use.
+     * @param _management Address to set as the strategies `management`.
+     * @param _performanceFeeRecipient Address to receive performance fees.
+     * @param _keeper Address to set as strategies `keeper`.
+     * @return newStrategy The address of the new clone.
+     */
+    function clones(
         address _asset,
         string memory _name,
         address _management,
