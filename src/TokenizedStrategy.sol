@@ -125,11 +125,6 @@ contract TokenizedStrategy {
         string apiVersion
     );
 
-    /**
-     * @dev Emitted when a new `clone` is created from an `original`.
-     */
-    event Cloned(address indexed clone, address indexed original);
-
     /*//////////////////////////////////////////////////////////////
                         STORAGE STRUCT
     //////////////////////////////////////////////////////////////*/
@@ -283,7 +278,7 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     // Api version this TokenizedStrategy implements.
-    string private constant API_VERSION = "3.1.0";
+    string private constant API_VERSION = "3.0.1-beta";
 
     // Used for fee calculations.
     uint256 private constant MAX_BPS = 10_000;
@@ -342,7 +337,7 @@ contract TokenizedStrategy {
     /**
      * @notice Used to initialize storage for a newly deployed strategy.
      * @dev This should be called atomically whenever a new strategy is
-     * deployed or cloned, and can only be called once for each strategy.
+     * deployed and can only be called once for each strategy.
      *
      * This will set all the default storage that must be set for a
      * strategy to function. Any changes can be made post deployment
