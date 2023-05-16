@@ -104,9 +104,6 @@ abstract contract BaseTokenizedStrategy {
                                STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    // Bool for cloning that will only be true for non-clones.
-    bool public isOriginal = true;
-
     // Underlying asset the Strategy is earning yield on.
     address public asset;
 

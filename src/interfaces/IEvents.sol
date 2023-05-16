@@ -101,9 +101,4 @@ interface IEvents {
         address indexed asset,
         string apiVersion
     );
-
-    /**
-     * @dev Emitted when a new `clone` is created from an `original`.
-     */
-    event Cloned(address indexed clone, address indexed original);
 }

@@ -1759,69 +1759,6 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            CLONING
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Used to create a new clone of the calling stategy.
-     * @dev This can be called through a normal delegate call directly
-     * to the TokenizedStrategy however that will leave all Strategy
-     * sepcific setup uncompleted.
-     *
-     * The recommended use for strategies that wish to utilize cloning
-     * is to declare a strategy specific {clone} that will then call
-     * `TokenizedStrategy.clone(data)` so it can implement its own
-     * initiliaztion.
-     *
-     * This can't be called through a strategy that is a clone. All
-     * cloning must come through the original contract that can be
-     * viewed by the `isOriginal` variable in all strategies.
-     *
-     * @param _asset Address of the underlying asset.
-     * @param _name Name the strategy will use.
-     * @param _management Address to set as the strategies `management`.
-     * @param _performanceFeeRecipient Address to receive performance fees.
-     * @param _keeper Address to set as strategies `keeper`.
-     * @return newStrategy The address of the new clone.
-     */
-    function clone(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _performanceFeeRecipient,
-        address _keeper
-    ) external returns (address newStrategy) {
-        require(IBaseTokenizedStrategy(address(this)).isOriginal(), "!clone");
-        // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
-        bytes20 addressBytes = bytes20(address(this));
-
-        assembly {
-            // EIP-1167 bytecode
-            let clone_code := mload(0x40)
-            mstore(
-                clone_code,
-                0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000
-            )
-            mstore(add(clone_code, 0x14), addressBytes)
-            mstore(
-                add(clone_code, 0x28),
-                0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000
-            )
-            newStrategy := create(0, clone_code, 0x37)
-        }
-
-        IBaseTokenizedStrategy(newStrategy).initialize(
-            _asset,
-            _name,
-            _management,
-            _performanceFeeRecipient,
-            _keeper
-        );
-
-        emit Cloned(newStrategy, address(this));
-    }
-
-    /*//////////////////////////////////////////////////////////////
                             DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 

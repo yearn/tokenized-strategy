@@ -6,8 +6,6 @@ interface IBaseTokenizedStrategy {
                             IMMUTABLE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function isOriginal() external view returns (bool);
-
     function asset() external view returns (address);
 
     function initialize(

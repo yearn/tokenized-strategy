@@ -56,39 +56,6 @@ contract MockStrategy is BaseTokenizedStrategy {
         trigger = _trigger;
     }
 
-    function clone(
-        address _asset,
-        address _yieldSource
-    ) external returns (address) {
-        return
-            _clone(
-                _asset,
-                "Test Clone",
-                msg.sender,
-                msg.sender,
-                msg.sender,
-                _yieldSource
-            );
-    }
-
-    function _clone(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _pfr,
-        address _keeper,
-        address _yieldSource
-    ) public returns (address clone_) {
-        clone_ = TokenizedStrategy.clone(
-            _asset,
-            _name,
-            _management,
-            _pfr,
-            _keeper
-        );
-        MockStrategy(clone_).initialize(_asset, _yieldSource);
-    }
-
     function onlyLetManagers() public onlyManagement {
         managed = true;
     }
