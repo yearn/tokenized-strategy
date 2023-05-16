@@ -1794,24 +1794,22 @@ contract TokenizedStrategy {
         address _keeper
     ) external returns (address newStrategy) {
         // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
-        address _target = address(this);
-        bytes32 salt = bytes32(0);
-        //bytes memory code = address(this).code;
+        //address _target = address(this);
+        bytes memory code = address(this).code;
+
         assembly {
-            // Size of the contract to replicate
-            let size := extcodesize(_target)
             // Memory location to store the bytecode
-            let code := mload(0x40)
+            //let code := mload(0x40)
             // new "memory end" including padding
-            mstore(0x40, add(code, and(add(add(size, 0x20), 0x1f), not(0x1f))))
+            //mstore(0x40, add(code, and(add(add(size, 0x20), 0x1f), not(0x1f))))
             // store length in memory
-            mstore(code, size)
+            //mstore(code, size)
             // actually retrieve the code, this needs assembly
-            extcodecopy(_target, add(code, 0x20), 0, size)
+            //extcodecopy(_target, add(code, 0x20), 0, size)
             // Create the new instance
-            newStrategy := create2(0, add(code, 0x20), mload(code), salt)
+            newStrategy := create(0, add(code, 0x20), mload(code))
         }
-        
+
         IBaseTokenizedStrategy(newStrategy).initialize(
             _asset,
             _name,
@@ -1892,5 +1890,15 @@ contract TokenizedStrategy {
      */
     constructor() {
         _strategyStorage().asset = ERC20(address(1));
+    }
+
+    event Data(bytes4 sig, bytes data, uint256 value);
+
+    fallback() external payable {
+        console.log("Hit the fallback");
+        uint256 value = msg.value;
+        bytes4 selector = msg.sig;
+        bytes memory data = msg.data;
+        emit Data(selector, data, value);
     }
 }

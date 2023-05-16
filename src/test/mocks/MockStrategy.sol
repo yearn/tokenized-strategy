@@ -86,7 +86,7 @@ contract MockStrategy is BaseTokenizedStrategy {
             _pfr,
             _keeper
         );
-        MockStrategy(clone_).initialize(_asset, _yieldSource);
+        MockStrategy(payable(clone_)).initialize(_asset, _yieldSource);
     }
 
     function onlyLetManagers() public onlyManagement {

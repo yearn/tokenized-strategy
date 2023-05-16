@@ -77,6 +77,8 @@ contract Setup is ExtendedTest, IEvents {
             address(new MockStrategy(address(asset), address(yieldSource)))
         );
 
+        //MockStrategy(payable(address(_strategy))).initialize(address(asset), address(yieldSource));
+
         // set keeper
         _strategy.setKeeper(keeper);
         // set treasury

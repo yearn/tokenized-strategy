@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 // TokenizedStrategy interface used for internal view delegateCalls.
 import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
+import "forge-std/console.sol";
 
 /**
  * @title YearnV3 Base Tokenized Strategy
@@ -424,7 +425,8 @@ abstract contract BaseTokenizedStrategy {
     }
 
     // exeute a function on the TokenizedStrategy and return any value.
-    fallback() external {
+    fallback() external payable {
+        console.log("Hit the base fallback");
         // load our target address
         address _tokenizedStrategyAddress = tokenizedStrategyAddress;
         // Execute external function using delegatecall and return any value.
