@@ -106,7 +106,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set protocol fee to 100 bps so there will always be fees charged over a 10 day period with minFuzzAmount
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -178,14 +178,16 @@ contract ProfitLockingTest is Setup {
             totalExpectedFees
         );
 
-        assertGt(strategy.pricePerShare(), wad, "pps decreased");
+        if (totalExpectedFees > 0) {
+            assertGt(strategy.pricePerShare(), wad, "pps decreased");
 
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(
-            totalExpectedFees,
-            protocolFeeRecipient,
-            protocolFeeRecipient
-        );
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                totalExpectedFees,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
@@ -307,7 +309,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set perf fee to 10% protcol fee to 100 bps
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 1_000;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -379,14 +381,16 @@ contract ProfitLockingTest is Setup {
             totalExpectedFees
         );
 
-        assertGt(strategy.pricePerShare(), wad, "pps decreased");
+        if (expectedPerformanceFee > 0) {
+            assertGt(strategy.pricePerShare(), wad, "pps decreased");
 
-        vm.prank(performanceFeeRecipient);
-        strategy.redeem(
-            expectedPerformanceFee,
-            performanceFeeRecipient,
-            performanceFeeRecipient
-        );
+            vm.prank(performanceFeeRecipient);
+            strategy.redeem(
+                expectedPerformanceFee,
+                performanceFeeRecipient,
+                performanceFeeRecipient
+            );
+        }
 
         expectedAssetsForFees = strategy.convertToAssets(expectedProtocolFee);
         checkStrategyTotals(
@@ -397,12 +401,14 @@ contract ProfitLockingTest is Setup {
             expectedProtocolFee
         );
 
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(
-            expectedProtocolFee,
-            protocolFeeRecipient,
-            protocolFeeRecipient
-        );
+        if (expectedProtocolFee > 0) {
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                expectedProtocolFee,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
@@ -527,7 +533,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set fees
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -608,6 +614,8 @@ contract ProfitLockingTest is Setup {
             newAmount - profit + totalExpectedFees + secondExpectedSharesForFees
         );
 
+        assertGt(strategy.pricePerShare(), wad, "pps decreased");
+
         vm.prank(_address);
         strategy.redeem(newAmount - profit, _address, _address);
 
@@ -623,11 +631,16 @@ contract ProfitLockingTest is Setup {
             totalExpectedFees + secondExpectedSharesForFees
         );
 
-        assertGt(strategy.pricePerShare(), wad, "pps decreased");
-
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(balance, protocolFeeRecipient, protocolFeeRecipient);
+        if (balance > 0) {
+            assertGt(strategy.pricePerShare(), wad, "pps decreased");
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                balance,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
@@ -775,7 +788,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set fees
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 1_000;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -876,8 +889,14 @@ contract ProfitLockingTest is Setup {
         assertGt(strategy.pricePerShare(), wad, "pps decreased");
 
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(balance, protocolFeeRecipient, protocolFeeRecipient);
+        if (balance > 0) {
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                balance,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         balance = strategy.balanceOf(performanceFeeRecipient);
         vm.prank(performanceFeeRecipient);
@@ -982,7 +1001,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set all fees to 0
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -1044,8 +1063,14 @@ contract ProfitLockingTest is Setup {
         strategy.redeem(_amount, _address, _address);
 
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(balance, protocolFeeRecipient, protocolFeeRecipient);
+        if (balance > 0) {
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                balance,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
@@ -1165,7 +1190,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set all fees to 0
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         setFees(protocolFee, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
         // Increase time to simulate interest being earned
@@ -1242,8 +1267,14 @@ contract ProfitLockingTest is Setup {
         strategy.redeem(_amount, _address, _address);
 
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(balance, protocolFeeRecipient, protocolFeeRecipient);
+        if (balance > 0) {
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                balance,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
