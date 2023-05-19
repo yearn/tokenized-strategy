@@ -227,17 +227,6 @@ contract Setup is ExtendedTest, IEvents {
         );
     }
 
-    function getExpectedProtocolFee(
-        uint256 _amount,
-        uint16 _fee
-    ) public view returns (uint256) {
-        uint256 timePassed = Math.min(
-            block.timestamp - strategy.lastReport(),
-            block.timestamp - mockFactory.lastChange()
-        );
-        return (_amount * _fee * timePassed) / MAX_BPS / 31_556_952;
-    }
-
     function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
         mockFactory.setFee(_protocolFee);
         vm.prank(management);

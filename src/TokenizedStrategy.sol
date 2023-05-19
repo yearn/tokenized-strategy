@@ -844,13 +844,6 @@ contract TokenizedStrategy {
             oldTotalAssets = S.totalIdle + S.totalDebt;
         }
 
-        // Calculate protocol fees before we burn shares and
-        // potentially update lastReport.
-        (
-            uint256 totalFees,
-            address protocolFeesRecipient
-        ) = _assessProtocolFees(oldTotalAssets);
-
         // Burn unlocked shares.
         _burnUnlockedShares();
 
@@ -863,7 +856,7 @@ contract TokenizedStrategy {
         uint256 newTotalAssets = IBaseTokenizedStrategy(address(this))
             .harvestAndReport();
 
-        uint256 performanceFees;
+        uint256 totalFees;
         unchecked {
             // Calculate profit/loss.
             if (newTotalAssets > oldTotalAssets) {
@@ -871,26 +864,36 @@ contract TokenizedStrategy {
                 profit = newTotalAssets - oldTotalAssets;
 
                 // Asses performance fees.
-                performanceFees = (profit * S.performanceFee) / MAX_BPS;
-                totalFees += performanceFees;
+                totalFees = (profit * S.performanceFee) / MAX_BPS;
             } else {
                 // We have a loss.
                 loss = oldTotalAssets - newTotalAssets;
             }
         }
 
+        uint256 protocolFees;
+        address protocolFeesRecipient;
+        // If performance fees are 0 so will protocol fees.
+        if (totalFees > 0) {
+            // Calculate protocol fees based on the performance Fees.
+            (protocolFees, protocolFeesRecipient) = _assessProtocolFees(
+                totalFees
+            );
+            totalFees += protocolFees;
+        }
+
         // We need to get the shares to issue for the fees at
         // current PPS before any minting or burning.
-        uint256 performanceFeeShares = convertToShares(performanceFees);
-        uint256 protocolFeeShares;
+        uint256 performanceFeeShares;
         unchecked {
-            protocolFeeShares = convertToShares(totalFees - performanceFees);
+            performanceFeeShares = convertToShares(totalFees - protocolFees);
         }
+        uint256 protocolFeeShares = convertToShares(protocolFees);
+
         uint256 sharesToLock;
         if (loss + totalFees >= profit) {
-            // We have a net loss.
-            // Will try and unlock the difference between between the gain and the loss
-            // to prevent any PPS decline post report.
+            // We have a net loss. Will try and unlock the difference between
+            // between the gain and the loss to prevent any PPS decline post report.
             uint256 sharesToBurn = Math.min(
                 convertToShares((loss + totalFees) - profit),
                 S.balances[address(this)]
@@ -970,47 +973,33 @@ contract TokenizedStrategy {
             totalFees = convertToAssets(
                 performanceFeeShares + protocolFeeShares
             );
-            performanceFees = convertToAssets(performanceFeeShares);
+            protocolFees = convertToAssets(protocolFeeShares);
         }
 
         // Emit event with info
         emit Reported(
             profit,
             loss,
-            totalFees - performanceFees, // Protocol fees
-            performanceFees
+            protocolFees, // Protocol fees
+            totalFees - protocolFees // Performance Fees
         );
     }
 
     function _assessProtocolFees(
-        uint256 _oldTotalAssets
+        uint256 _performanceFees
     )
         private
         view
         returns (uint256 protocolFees, address protocolFeesRecipient)
     {
-        (
-            uint16 protocolFeeBps,
-            uint32 protocolFeeLastChange,
-            address _protocolFeesRecipient
-        ) = IFactory(FACTORY).protocol_fee_config();
+        (uint16 protocolFeeBps, address _protocolFeesRecipient) = IFactory(
+            FACTORY
+        ).protocol_fee_config();
 
         if (protocolFeeBps > 0) {
             protocolFeesRecipient = _protocolFeesRecipient;
-            // Charge fees since last report OR last fee change
-            // (this will mean less fees are charged after a change
-            // in protocol_fees, but fees should not change frequently).
-            uint256 secondsSinceLastReport = Math.min(
-                block.timestamp - _strategyStorage().lastReport,
-                block.timestamp - uint256(protocolFeeLastChange)
-            );
 
-            protocolFees =
-                (_oldTotalAssets *
-                    uint256(protocolFeeBps) *
-                    secondsSinceLastReport) /
-                31_556_952 / // Seconds per year
-                MAX_BPS;
+            protocolFees = (_performanceFees * protocolFeeBps) / MAX_BPS;
         }
     }
 

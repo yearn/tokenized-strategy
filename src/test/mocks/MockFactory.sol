@@ -2,12 +2,10 @@ pragma solidity 0.8.18;
 
 contract MockFactory {
     uint16 public feeBps;
-    uint32 public lastChange;
     address public recipient;
 
     constructor(uint16 bps, address treasury) {
         feeBps = bps;
-        lastChange = uint32(block.timestamp);
         recipient = treasury;
     }
 
@@ -17,14 +15,9 @@ contract MockFactory {
 
     function setFee(uint16 bps) public {
         feeBps = bps;
-        lastChange = uint32(block.timestamp);
     }
 
-    function protocol_fee_config()
-        external
-        view
-        returns (uint16, uint32, address)
-    {
-        return (feeBps, lastChange, recipient);
+    function protocol_fee_config() external view returns (uint16, address) {
+        return (feeBps, recipient);
     }
 }
