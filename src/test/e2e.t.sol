@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, ERC20Mock, MockYieldSource, IMockStrategy} from "./utils/Setup.sol";
+import {Setup, ERC20Mock, MockYieldSource, IMockStrategy, TokenizedStrategy} from "./utils/Setup.sol";
 
 contract e2eTest is Setup {
     function setUp() public override {
@@ -48,8 +48,7 @@ contract e2eTest is Setup {
                     _address != address(newStrategy)
             );
 
-            vm.prank(management);
-            newStrategy.setPerformanceFee(0);
+            setPerformanceFeeToZero(address(newStrategy));
 
             // Depsit a unique amount for each one
             uint256 toDeposit = _amount + i;
@@ -144,8 +143,7 @@ contract e2eTest is Setup {
                     _address != address(newStrategy)
             );
 
-            vm.prank(management);
-            newStrategy.setPerformanceFee(0);
+            setPerformanceFeeToZero(address(newStrategy));
 
             // Depsit a unique amount for each one
             uint256 toDeposit = _amount + i;
@@ -264,8 +262,7 @@ contract e2eTest is Setup {
                     _secondAddress != address(newStrategy)
             );
 
-            vm.prank(management);
-            newStrategy.setPerformanceFee(0);
+            setPerformanceFeeToZero(address(newStrategy));
 
             // Depsit a unique amount for each one
             uint256 toDeposit = _amount + i;

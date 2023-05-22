@@ -229,9 +229,38 @@ contract Setup is ExtendedTest, IEvents {
 
     function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
         mockFactory.setFee(_protocolFee);
-        vm.prank(management);
 
-        strategy.setPerformanceFee(_performanceFee);
+        // If 0 is passed for testing purposes we manually override
+        // the minimum set in the TokenizedStrategy.
+        if (_performanceFee == 0) {
+            setPerformanceFeeToZero(address(strategy));
+        } else {
+            vm.prank(management);
+            strategy.setPerformanceFee(_performanceFee);
+        }
+    }
+
+    // For easier calculations we may want to set the performance fee
+    // to 0 in some tests which is underneath the minimum. So we do it manually.
+    function setPerformanceFeeToZero(address _strategy) public {
+        bytes32 slot;
+        TokenizedStrategy.StrategyData storage S = _strategyStorage();
+
+        assembly {
+            slot := add(S.slot, 12)
+        }
+
+        // Manually set the storage slot that holds the perfomance fee to 0
+        vm.store(_strategy, slot, bytes32(0));
+
+        // Reset the other variables packed in that same slot that were also
+        // set to 0.
+        vm.prank(management);
+        IMockStrategy(_strategy).setPerformanceFeeRecipient(
+            performanceFeeRecipient
+        );
+        vm.prank(management);
+        IMockStrategy(_strategy).setProfitMaxUnlockTime(10 days);
     }
 
     function setupWhitelist(address _address) public {
