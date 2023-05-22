@@ -250,17 +250,28 @@ contract Setup is ExtendedTest, IEvents {
             slot := add(S.slot, 12)
         }
 
-        // Manually set the storage slot that holds the perfomance fee to 0
-        vm.store(_strategy, slot, bytes32(0));
+        // Performance fee is packed in a slot with other variables so we need
+        // to maintain the same variables packed in the slot
 
-        // Reset the other variables packed in that same slot that were also
-        // set to 0.
-        vm.prank(management);
-        IMockStrategy(_strategy).setPerformanceFeeRecipient(
-            performanceFeeRecipient
+        // profitMaxUnlock time is a uint32 at the most significant spot.
+        bytes32 data = bytes4(
+            uint32(IMockStrategy(_strategy).profitMaxUnlockTime())
         );
-        vm.prank(management);
-        IMockStrategy(_strategy).setProfitMaxUnlockTime(10 days);
+        // Free up space for the uint16 of performancFee
+        data = data >> 16;
+        // Store 0 in the performance fee spot.
+        data |= bytes2(0);
+        // Shit 160 bits for an address
+        data = data >> 160;
+        // Store the strategies peformance fee recipient
+        data |= bytes20(
+            uint160(IMockStrategy(_strategy).performanceFeeRecipient())
+        );
+        // Shift the remainder of padding.
+        data = data >> 48;
+
+        // Manually set the storage slot that holds the perfomance fee to 0
+        vm.store(_strategy, slot, data);
     }
 
     function setupWhitelist(address _address) public {

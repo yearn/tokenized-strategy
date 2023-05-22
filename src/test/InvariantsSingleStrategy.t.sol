@@ -11,7 +11,7 @@ contract SingleStrategyInvariantTest is BaseInvariant {
     function setUp() public override {
         super.setUp();
 
-        setFees(10, 1_000);
+        setFees(100, 1_000);
 
         strategyHandler = new StrategyHandler();
 
