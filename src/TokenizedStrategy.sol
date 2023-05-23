@@ -816,9 +816,9 @@ contract TokenizedStrategy {
      * over the `maxProfitUnlockTime` each second based on the
      * calculated `profitUnlockingRate`.
      *
-     * Any 'loss' or fees greater than 'profit' will attempted to be
-     * offset with any remaining locked shares from the last report
-     * in order to reduce any negative impact to PPS.
+     * Any 'loss' will attempted to be offset with any remaining 
+     * locked shares from the last report in order to reduce any 
+     * negative impact to PPS.
      *
      * Will then recalculate the new time to unlock profits over and the
      * rate based on a weighted average of any remaining time from the
@@ -879,7 +879,6 @@ contract TokenizedStrategy {
             (protocolFees, protocolFeesRecipient) = _assessProtocolFees(
                 totalFees
             );
-            totalFees += protocolFees;
         }
 
         // We need to get the shares to issue for the fees at
@@ -891,11 +890,11 @@ contract TokenizedStrategy {
         uint256 protocolFeeShares = convertToShares(protocolFees);
 
         uint256 sharesToLock;
-        if (loss + totalFees >= profit) {
+        if (loss > 0) {
             // We have a net loss. Will try and unlock the difference between
             // between the gain and the loss to prevent any PPS decline post report.
             uint256 sharesToBurn = Math.min(
-                convertToShares((loss + totalFees) - profit),
+                convertToShares(loss),
                 S.balances[address(this)]
             );
 
@@ -966,15 +965,6 @@ contract TokenizedStrategy {
         S.totalDebt = newTotalAssets - newIdle;
 
         S.lastReport = uint128(block.timestamp);
-
-        // If we had an overall loss we need to adjust the actual fees issued
-        // based on new PPS post all minting and locking.
-        if (loss + totalFees >= profit) {
-            totalFees = convertToAssets(
-                performanceFeeShares + protocolFeeShares
-            );
-            protocolFees = convertToAssets(protocolFeeShares);
-        }
 
         // Emit event with info
         emit Reported(

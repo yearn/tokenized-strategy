@@ -321,6 +321,9 @@ contract ProfitLockingTest is Setup {
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
         uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
             MAX_BPS;
+        
+        // Adjust what the percormance fee expects to get when there is a protocol fee.
+        expectedPerformanceFee = expectedPerformanceFee - expectedProtocolFee;
 
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
@@ -799,7 +802,11 @@ contract ProfitLockingTest is Setup {
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
         uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
-            MAX_BPS;
+            MAX_BPS;        
+        // Adjust what the percormance fee expects to get when there is a protocol fee.
+        expectedPerformanceFee = expectedPerformanceFee - expectedProtocolFee;
+
+
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
 
