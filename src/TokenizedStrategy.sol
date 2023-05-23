@@ -475,11 +475,13 @@ contract TokenizedStrategy {
         uint256 shares,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 assets) {
+    ) external nonReentrant returns (uint256) {
+        uint256 assets;
         // Check for rounding error.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
-        _withdraw(receiver, owner, assets, shares);
+        // We need to return the actual amount withdrawn in case of a loss.
+        return _withdraw(receiver, owner, assets, shares);
     }
 
     /**
@@ -735,7 +737,7 @@ contract TokenizedStrategy {
         address owner,
         uint256 assets,
         uint256 shares
-    ) private {
+    ) private returns (uint256) {
         require(shares <= maxRedeem(owner), "ERC4626: withdraw more than max");
 
         if (msg.sender != owner) {
@@ -790,6 +792,9 @@ contract TokenizedStrategy {
         _asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
+
+        // Return the actual amount of assets withdrawn.
+        return assets;
     }
 
     /*//////////////////////////////////////////////////////////////

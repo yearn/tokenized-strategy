@@ -108,13 +108,11 @@ abstract contract BaseTokenizedStrategy {
     address public asset;
 
     constructor(address _asset, string memory _name) {
-        initialize(_asset, _name, msg.sender, msg.sender, msg.sender);
+        _initialize(_asset, _name, msg.sender, msg.sender, msg.sender);
     }
 
     /**
-     * @notice Used to intialize the strategy on deployment or after cloning.
-     * @dev This can only be called once. It will be called automatically
-     * by the implementation during a cloning.
+     * @notice Used to intialize the strategy on deployment.
      *
      * This will set the `TokenizedStrategy` variable for easy internal view
      * calls to the implementation. As well as initializing the
@@ -126,13 +124,13 @@ abstract contract BaseTokenizedStrategy {
      * @param _performanceFeeRecipient Address to receive performance fees.
      * @param _keeper Address to set as strategies `keeper`.
      */
-    function initialize(
+    function _initialize(
         address _asset,
         string memory _name,
         address _management,
         address _performanceFeeRecipient,
         address _keeper
-    ) public {
+    ) internal {
         // make sure we have not been initialized
         require(asset == address(0), "!init");
 
