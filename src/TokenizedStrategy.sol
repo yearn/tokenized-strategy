@@ -816,8 +816,8 @@ contract TokenizedStrategy {
      * over the `maxProfitUnlockTime` each second based on the
      * calculated `profitUnlockingRate`.
      *
-     * Any 'loss' will attempted to be offset with any remaining 
-     * locked shares from the last report in order to reduce any 
+     * Any 'loss' will attempted to be offset with any remaining
+     * locked shares from the last report in order to reduce any
      * negative impact to PPS.
      *
      * Will then recalculate the new time to unlock profits over and the
@@ -857,66 +857,71 @@ contract TokenizedStrategy {
             .harvestAndReport();
 
         uint256 totalFees;
-        unchecked {
-            // Calculate profit/loss.
-            if (newTotalAssets > oldTotalAssets) {
-                // We have a profit
+        uint256 protocolFees;
+        uint256 sharesToLock;
+        // Calculate profit/loss.
+        if (newTotalAssets > oldTotalAssets) {
+            // We have a profit
+            unchecked {
                 profit = newTotalAssets - oldTotalAssets;
-
                 // Asses performance fees.
                 totalFees = (profit * S.performanceFee) / MAX_BPS;
-            } else {
-                // We have a loss.
-                loss = oldTotalAssets - newTotalAssets;
             }
-        }
 
-        uint256 protocolFees;
-        address protocolFeesRecipient;
-        // If performance fees are 0 so will protocol fees.
-        if (totalFees > 0) {
-            // Calculate protocol fees based on the performance Fees.
-            (protocolFees, protocolFeesRecipient) = _assessProtocolFees(
-                totalFees
-            );
-        }
+            address protocolFeesRecipient;
+            uint256 performanceFeeShares;
+            uint256 protocolFeeShares;
+            // If performance fees are 0 so will protocol fees.
+            if (totalFees > 0) {
+                // Calculate protocol fees based on the performance Fees.
+                (protocolFees, protocolFeesRecipient) = _assessProtocolFees(
+                    totalFees
+                );
 
-        // We need to get the shares to issue for the fees at
-        // current PPS before any minting or burning.
-        uint256 performanceFeeShares;
-        unchecked {
-            performanceFeeShares = convertToShares(totalFees - protocolFees);
-        }
-        uint256 protocolFeeShares = convertToShares(protocolFees);
-
-        uint256 sharesToLock;
-        if (loss > 0) {
-            // We have a net loss. Will try and unlock the difference between
-            // between the gain and the loss to prevent any PPS decline post report.
-            uint256 sharesToBurn = Math.min(
-                convertToShares(loss),
-                S.balances[address(this)]
-            );
-
-            if (sharesToBurn > 0) {
-                _burn(address(this), sharesToBurn);
+                // We need to get the shares to issue for the fees at
+                // current PPS before any minting or burning.
+                unchecked {
+                    performanceFeeShares = convertToShares(
+                        totalFees - protocolFees
+                    );
+                }
+                protocolFeeShares = convertToShares(protocolFees);
             }
-        } else {
+
             // we have a net profit
             // lock (profit - fees)
             unchecked {
                 sharesToLock = convertToShares(profit - totalFees);
             }
             _mint(address(this), sharesToLock);
-        }
 
-        // Mint fees shares.
-        if (performanceFeeShares > 0) {
-            _mint(S.performanceFeeRecipient, performanceFeeShares);
-        }
+            // Mint fees shares.
+            if (performanceFeeShares > 0) {
+                _mint(S.performanceFeeRecipient, performanceFeeShares);
+            }
 
-        if (protocolFeeShares > 0) {
-            _mint(protocolFeesRecipient, protocolFeeShares);
+            if (protocolFeeShares > 0) {
+                _mint(protocolFeesRecipient, protocolFeeShares);
+            }
+        } else {
+            // We have a loss.
+            unchecked {
+                loss = oldTotalAssets - newTotalAssets;
+            }
+
+            // Check in case else was due to being equal.
+            if (loss > 0) {
+                // We have a net loss. Will try and unlock the difference between
+                // between the gain and the loss to prevent any PPS decline post report.
+                uint256 sharesToBurn = Math.min(
+                    convertToShares(loss),
+                    S.balances[address(this)]
+                );
+
+                if (sharesToBurn > 0) {
+                    _burn(address(this), sharesToBurn);
+                }
+            }
         }
 
         // Update unlocking rate and time to fully unlocked
