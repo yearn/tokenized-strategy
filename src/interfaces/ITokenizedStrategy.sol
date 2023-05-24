@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0
-
 pragma solidity 0.8.18;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -32,8 +31,6 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         uint256 performanceFees,
         uint256 protocolFees
     );
-
-    event Cloned(address indexed clone, address indexed original);
 
     /*//////////////////////////////////////////////////////////////
                            INITILIZATION
@@ -123,16 +120,4 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         address spender,
         uint256 addedValue
     ) external returns (bool);
-
-    /*//////////////////////////////////////////////////////////////
-                            CLONING
-    //////////////////////////////////////////////////////////////*/
-
-    function clone(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _performanceFeeRecipient,
-        address _keeper
-    ) external returns (address newStrategy);
 }

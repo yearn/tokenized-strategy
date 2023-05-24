@@ -190,40 +190,6 @@ contract AccesssControlTest is Setup {
         assertTrue(!strategy.isShutdown());
     }
 
-    function test_reInitialize_reverts(
-        address _address,
-        string memory name_,
-        string memory symbol_
-    ) public {
-        string memory _name = strategy.name();
-        string memory _symbol = strategy.symbol();
-        address _management = strategy.management();
-
-        vm.assume(
-            uint256(keccak256(abi.encode(_name))) !=
-                uint256(keccak256(abi.encode(name_)))
-        );
-        vm.assume(
-            uint256(keccak256(abi.encode(_symbol))) !=
-                uint256(keccak256(abi.encode(symbol_)))
-        );
-        vm.assume(_address != _management);
-
-        vm.prank(management);
-        vm.expectRevert("!init");
-        strategy.initialize(
-            address(asset),
-            name_,
-            _address,
-            _address,
-            _address
-        );
-
-        assertEq(strategy.name(), _name);
-        assertEq(strategy.symbol(), _symbol);
-        assertEq(strategy.management(), _management);
-    }
-
     function test_initializeTokenizedStrategy_reverts(
         address _address,
         string memory name_

@@ -125,11 +125,6 @@ contract TokenizedStrategy {
         string apiVersion
     );
 
-    /**
-     * @dev Emitted when a new `clone` is created from an `original`.
-     */
-    event Cloned(address indexed clone, address indexed original);
-
     /*//////////////////////////////////////////////////////////////
                         STORAGE STRUCT
     //////////////////////////////////////////////////////////////*/
@@ -283,7 +278,7 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     // Api version this TokenizedStrategy implements.
-    string private constant API_VERSION = "3.1.0";
+    string private constant API_VERSION = "3.0.1-beta";
 
     // Used for fee calculations.
     uint256 private constant MAX_BPS = 10_000;
@@ -342,7 +337,7 @@ contract TokenizedStrategy {
     /**
      * @notice Used to initialize storage for a newly deployed strategy.
      * @dev This should be called atomically whenever a new strategy is
-     * deployed or cloned, and can only be called once for each strategy.
+     * deployed and can only be called once for each strategy.
      *
      * This will set all the default storage that must be set for a
      * strategy to function. Any changes can be made post deployment
@@ -480,11 +475,13 @@ contract TokenizedStrategy {
         uint256 shares,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 assets) {
+    ) external nonReentrant returns (uint256) {
+        uint256 assets;
         // Check for rounding error.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
-        _withdraw(receiver, owner, assets, shares);
+        // We need to return the actual amount withdrawn in case of a loss.
+        return _withdraw(receiver, owner, assets, shares);
     }
 
     /**
@@ -740,7 +737,7 @@ contract TokenizedStrategy {
         address owner,
         uint256 assets,
         uint256 shares
-    ) private {
+    ) private returns (uint256) {
         require(shares <= maxRedeem(owner), "ERC4626: withdraw more than max");
 
         if (msg.sender != owner) {
@@ -795,6 +792,9 @@ contract TokenizedStrategy {
         _asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
+
+        // Return the actual amount of assets withdrawn.
+        return assets;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1756,69 +1756,6 @@ contract TokenizedStrategy {
                     address(this)
                 )
             );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            CLONING
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Used to create a new clone of the calling stategy.
-     * @dev This can be called through a normal delegate call directly
-     * to the TokenizedStrategy however that will leave all Strategy
-     * sepcific setup uncompleted.
-     *
-     * The recommended use for strategies that wish to utilize cloning
-     * is to declare a strategy specific {clone} that will then call
-     * `TokenizedStrategy.clone(data)` so it can implement its own
-     * initiliaztion.
-     *
-     * This can't be called through a strategy that is a clone. All
-     * cloning must come through the original contract that can be
-     * viewed by the `isOriginal` variable in all strategies.
-     *
-     * @param _asset Address of the underlying asset.
-     * @param _name Name the strategy will use.
-     * @param _management Address to set as the strategies `management`.
-     * @param _performanceFeeRecipient Address to receive performance fees.
-     * @param _keeper Address to set as strategies `keeper`.
-     * @return newStrategy The address of the new clone.
-     */
-    function clone(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _performanceFeeRecipient,
-        address _keeper
-    ) external returns (address newStrategy) {
-        require(IBaseTokenizedStrategy(address(this)).isOriginal(), "!clone");
-        // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
-        bytes20 addressBytes = bytes20(address(this));
-
-        assembly {
-            // EIP-1167 bytecode
-            let clone_code := mload(0x40)
-            mstore(
-                clone_code,
-                0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000
-            )
-            mstore(add(clone_code, 0x14), addressBytes)
-            mstore(
-                add(clone_code, 0x28),
-                0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000
-            )
-            newStrategy := create(0, clone_code, 0x37)
-        }
-
-        IBaseTokenizedStrategy(newStrategy).initialize(
-            _asset,
-            _name,
-            _management,
-            _performanceFeeRecipient,
-            _keeper
-        );
-
-        emit Cloned(newStrategy, address(this));
     }
 
     /*//////////////////////////////////////////////////////////////

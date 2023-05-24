@@ -14,22 +14,6 @@ interface IMockStrategy is ITokenizedStrategy {
         address _keeper
     ) external;
 
-    function clone(
-        address _asset,
-        address _yieldSource
-    ) external returns (address clone);
-
-    function _clone(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _pfr,
-        address _keeper,
-        address _yieldSource
-    ) external returns (address clone);
-
-    function isOriginal() external view returns (bool);
-
     function availableDepositLimit(
         address _owner
     ) external view returns (uint256);
