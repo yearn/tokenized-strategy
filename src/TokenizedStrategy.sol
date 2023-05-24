@@ -1740,7 +1740,7 @@ contract TokenizedStrategy {
      * the current chain id is not the same as the origin al.
      *
      */
-    function _computeDomainSeparator() internal view returns (bytes32) {
+    function _computeDomainSeparator() private view returns (bytes32) {
         return
             keccak256(
                 abi.encode(
