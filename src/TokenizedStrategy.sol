@@ -161,7 +161,6 @@ contract TokenizedStrategy {
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals that `asset` and strategy use
-        bytes11 symbol; // The symbol of the token for the strategy.
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued
         uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
@@ -373,16 +372,13 @@ contract TokenizedStrategy {
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
         // Cache the asset instance for multiple uses
-        ERC20 a = ERC20(_asset);
+        //ERC20 a = ERC20(_asset);
         // Set the strategys underlying asset
-        S.asset = a;
+        S.asset = ERC20(_asset);
         // Set the Strategy Tokens name.
         S.name = _name;
-        // Set the symbol and decimals based off the `asset`.
-        // This stores the symbol as bytes11 so it can be
-        // packed in the struct with `asset` and `decimals`
-        S.symbol = bytes11(abi.encodePacked("ys", a.symbol()));
-        S.decimals = a.decimals();
+        // Set decimals based off the `asset`.
+        S.decimals = ERC20(_asset).decimals();
         // Set initial chain id for permit replay protection
         S.INITIAL_CHAIN_ID = block.chainid;
         // Set the inital domain seperator for permit functions
@@ -1329,11 +1325,12 @@ contract TokenizedStrategy {
 
     /**
      * @notice Returns the symbol of the token.
-     * @dev Should be some iteration of 'ys + asset symbol'
+     * @dev Will be 'ys + asset symbol'.
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
-        return string(abi.encodePacked((_strategyStorage().symbol)));
+        return
+            string(abi.encodePacked("ys", _strategyStorage().asset.symbol()));
     }
 
     /**
