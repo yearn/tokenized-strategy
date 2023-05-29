@@ -844,9 +844,6 @@ contract TokenizedStrategy {
             oldTotalAssets = S.totalIdle + S.totalDebt;
         }
 
-        // Burn unlocked shares.
-        _burnUnlockedShares();
-
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and redepositing now and
         // account for deployed and loose `asset` so we can accuratly
@@ -856,12 +853,15 @@ contract TokenizedStrategy {
         uint256 newTotalAssets = IBaseTokenizedStrategy(address(this))
             .harvestAndReport();
 
+        // Burn unlocked shares.
+        _burnUnlockedShares();
+
         uint256 totalFees;
         uint256 protocolFees;
         uint256 sharesToLock;
         // Calculate profit/loss.
         if (newTotalAssets > oldTotalAssets) {
-            // We have a profit
+            // We have a profit.
             unchecked {
                 profit = newTotalAssets - oldTotalAssets;
                 // Asses performance fees.
@@ -885,7 +885,9 @@ contract TokenizedStrategy {
                         totalFees - protocolFees
                     );
                 }
-                protocolFeeShares = convertToShares(protocolFees);
+                if (protocolFees > 0) {
+                    protocolFeeShares = convertToShares(protocolFees);
+                }
             }
 
             // we have a net profit
@@ -911,8 +913,8 @@ contract TokenizedStrategy {
 
             // Check in case else was due to being equal.
             if (loss > 0) {
-                // We have a net loss. Will try and unlock the difference between
-                // between the gain and the loss to prevent any PPS decline post report.
+                // We will try and burn shares from any pending profit still unlocking
+                // to offset the loss to prevent any PPS decline post report.
                 uint256 sharesToBurn = Math.min(
                     convertToShares(loss),
                     S.balances[address(this)]
