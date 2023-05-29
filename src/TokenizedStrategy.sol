@@ -160,9 +160,9 @@ contract TokenizedStrategy {
 
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
-        uint8 decimals; // The amount of decimals that `asset` and strategy use
+        uint8 decimals; // The amount of decimals that `asset` and strategy use.
         string name; // The name of the token for the strategy.
-        uint256 totalSupply; // The total amount of shares currently issued
+        uint256 totalSupply; // The total amount of shares currently issued.
         uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
         bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain seperator used for permits on the intitial chain.
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
@@ -174,10 +174,10 @@ contract TokenizedStrategy {
         // We manually track idle instead of relying on asset.balanceOf(address(this))
         // to prevent PPS manipulation through airdrops.
         uint256 totalIdle; // The total amount of loose `asset` the strategy holds.
-        uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy
+        uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy.
         
 
-        // Variables for profit reporting and locking
+        // Variables for profit reporting and locking.
         // We use uint128 for time stamps which is 1,025 years in the future.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
         uint128 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
@@ -371,8 +371,7 @@ contract TokenizedStrategy {
 
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
-        // Cache the asset instance for multiple uses
-        //ERC20 a = ERC20(_asset);
+
         // Set the strategys underlying asset
         S.asset = ERC20(_asset);
         // Set the Strategy Tokens name.
