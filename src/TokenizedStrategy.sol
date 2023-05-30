@@ -16,11 +16,12 @@ import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
  *  and deploy their own custom ERC4626 compliant single strategy Vault.
  *  This TokenizedStrategy contract is meant to be used as a proxy type
  *  implementation contract that will hanle all logic, storage and
- *  mangement for a custom strategy that inherits the `BaseTokenizedStrategy.
- *  Any function calls to the strategy that are not defined would be forwarded
- *  through a delegateCall to this contract. Any strategy only needs to override
- *  a few simple functions that are focused entirely on the strategy specific
- *  needs to easily and cheaply deploy their own permisionless vault.
+ *  mangement for a custom strategy that inherits the `BaseTokenizedStrategy`.
+ *  Any function calls to the strategy that are not defined withen that
+ *  strategy will be forwarded through a delegateCall to this contract.
+ *  A strategy only needs to override a few simple functions that are
+ *  focused entirely on the strategy specific needs to easily and cheaply
+ *  deploy their own permisionless 4626 compliant vault.
  */
 contract TokenizedStrategy {
     using Math for uint256;
@@ -152,9 +153,10 @@ contract TokenizedStrategy {
     // prettier-ignore
     struct StrategyData {
         // The ERC20 compliant underlying asset that will be
-        // used by the Strategy. We can keep this as and ERC20 
-        // instance because the `BaseTokenizedStrategy` holds the
-        // addres of `asset` as an immutable variable to be 4626 compliant.
+        // used by the Strategy. We can keep this as an ERC20 
+        // instance because the `BaseTokenizedStrategy` holds 
+        // the addres of `asset` as an immutable variable to
+        // meet the 4626 standard.
         ERC20 asset;
         
 
@@ -1323,7 +1325,7 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Returns the symbol of the token.
+     * @notice Returns the symbol of the strategies token.
      * @dev Will be 'ys + asset symbol'.
      * @return . The symbol the strategy is using for its tokens.
      */
