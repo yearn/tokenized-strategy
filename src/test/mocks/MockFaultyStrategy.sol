@@ -30,7 +30,7 @@ contract MockFaultyStrategy is BaseTokenizedStrategy {
         pappa = msg.sender;
     }
 
-    function _invest(uint256 _amount) internal override {
+    function _deployFunds(uint256 _amount) internal override {
         if (doCallBack) {
             callBack(_amount);
         }
@@ -42,7 +42,7 @@ contract MockFaultyStrategy is BaseTokenizedStrategy {
         MockYieldSource(yieldSource).withdraw(_amount + fault);
     }
 
-    function _totalInvested() internal override returns (uint256) {
+    function _harvestAndReport() internal override returns (uint256) {
         uint256 balance = ERC20(asset).balanceOf(address(this));
         if (balance > 0) {
             MockYieldSource(yieldSource).deposit(balance);

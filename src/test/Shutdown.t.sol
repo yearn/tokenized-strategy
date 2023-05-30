@@ -131,7 +131,7 @@ contract ShutdownTest is Setup {
         checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         // Make sure report still works and we can report a final loss
-        createAndCheckLoss(strategy, loss, 0, 0);
+        createAndCheckLoss(strategy, loss, 0, true);
 
         checkStrategyTotals(
             strategy,

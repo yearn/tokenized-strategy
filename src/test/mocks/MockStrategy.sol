@@ -25,7 +25,7 @@ contract MockStrategy is BaseTokenizedStrategy {
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
     }
 
-    function _invest(uint256 _amount) internal override {
+    function _deployFunds(uint256 _amount) internal override {
         MockYieldSource(yieldSource).deposit(_amount);
     }
 
@@ -33,7 +33,7 @@ contract MockStrategy is BaseTokenizedStrategy {
         MockYieldSource(yieldSource).withdraw(_amount);
     }
 
-    function _totalInvested() internal override returns (uint256) {
+    function _harvestAndReport() internal override returns (uint256) {
         uint256 balance = ERC20(asset).balanceOf(address(this));
         if (balance > 0) {
             MockYieldSource(yieldSource).deposit(balance);
@@ -54,39 +54,6 @@ contract MockStrategy is BaseTokenizedStrategy {
 
     function setTrigger(bool _trigger) external {
         trigger = _trigger;
-    }
-
-    function clone(
-        address _asset,
-        address _yieldSource
-    ) external returns (address) {
-        return
-            _clone(
-                _asset,
-                "Test Clone",
-                msg.sender,
-                msg.sender,
-                msg.sender,
-                _yieldSource
-            );
-    }
-
-    function _clone(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _pfr,
-        address _keeper,
-        address _yieldSource
-    ) public returns (address clone_) {
-        clone_ = TokenizedStrategy.clone(
-            _asset,
-            _name,
-            _management,
-            _pfr,
-            _keeper
-        );
-        MockStrategy(clone_).initialize(_asset, _yieldSource);
     }
 
     function onlyLetManagers() public onlyManagement {

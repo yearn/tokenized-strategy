@@ -43,12 +43,13 @@ abstract contract BaseInvariant is Setup {
         assertApproxEq(
             strategy.maxWithdraw(msg.sender),
             strategy.convertToAssets(strategy.maxRedeem(msg.sender)),
-            1
+            2
         );
+        // Rounding down twice would give us a diff of 3 wei.
         assertApproxEq(
             strategy.maxRedeem(msg.sender),
             strategy.convertToShares(strategy.maxWithdraw(msg.sender)),
-            2
+            3
         );
     }
 

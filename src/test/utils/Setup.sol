@@ -11,7 +11,6 @@ import {IMockStrategy} from "../mocks/IMockStrategy.sol";
 import {MockStrategy, MockYieldSource} from "../mocks/MockStrategy.sol";
 import {MockIlliquidStrategy} from "../mocks/MockIlliquidStrategy.sol";
 import {MockFaultyStrategy} from "../mocks/MockFaultyStrategy.sol";
-import {MockRegistry} from "../mocks/MockRegistry.sol";
 import {MockFactory} from "../mocks/MockFactory.sol";
 
 import {TokenizedStrategy} from "../../TokenizedStrategy.sol";
@@ -22,7 +21,6 @@ contract Setup is ExtendedTest, IEvents {
     ERC20Mock public asset;
     IMockStrategy public strategy;
     MockFactory public mockFactory;
-    MockRegistry public mockRegistry;
     MockYieldSource public yieldSource;
     TokenizedStrategy public tokenizedStrategy;
 
@@ -49,9 +47,6 @@ contract Setup is ExtendedTest, IEvents {
         // Deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
 
-        // Deploy the mock registry for deterministic location
-        mockRegistry = new MockRegistry();
-
         // Finally deploy the implementation for deterministic location
         tokenizedStrategy = new TokenizedStrategy();
 
@@ -70,7 +65,6 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
         vm.label(address(mockFactory), "mock Factory");
-        vm.label(address(mockRegistry), "mock registry");
         vm.label(address(yieldSource), "Mock Yield Source");
         vm.label(address(tokenizedStrategy), "tokenized Logic");
         vm.label(protocolFeeRecipient, "protocolFeeRecipient");
@@ -179,7 +173,7 @@ contract Setup is ExtendedTest, IEvents {
 
         // Check the event matches the expected values
         vm.expectEmit(true, true, true, true, address(_strategy));
-        emit Reported(profit, 0, _performanceFees, _protocolFees);
+        emit Reported(profit, 0, _protocolFees, _performanceFees);
 
         vm.prank(keeper);
         (uint256 _profit, uint256 _loss) = _strategy.report();
@@ -197,14 +191,14 @@ contract Setup is ExtendedTest, IEvents {
         IMockStrategy _strategy,
         uint256 loss,
         uint256 _protocolFees,
-        uint256 _performanceFees
+        bool _checkFees
     ) public {
         uint256 startingAssets = _strategy.totalAssets();
 
         yieldSource.simulateLoss(loss);
         // Check the event matches the expected values
-        vm.expectEmit(true, true, false, true, address(_strategy));
-        emit Reported(0, loss, _performanceFees, _protocolFees);
+        vm.expectEmit(true, true, true, _checkFees, address(_strategy));
+        emit Reported(0, loss, _protocolFees, 0);
 
         vm.prank(keeper);
         (uint256 _profit, uint256 _loss) = _strategy.report();

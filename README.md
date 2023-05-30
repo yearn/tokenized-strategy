@@ -41,6 +41,7 @@ make size
 ```
 
 5. Run tests
+NOTE: Tests will take a significant period of time since the fuzzer is set to 10,000 runs.
 ```sh
 make test
 ```
@@ -82,6 +83,8 @@ To print out the storage layout of any contract (e.g 'test/MockStrategy.sol')
 ```sh
 make inspect contract=MockStrategy
 ```
+
+### To make contributions please follow the [Contribution Guidelines](https://github.com/yearn/tokenized-strategy/blob/master/CONTRIBUTING.md)
 
 # Resources
 
