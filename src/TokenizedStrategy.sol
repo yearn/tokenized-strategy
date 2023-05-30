@@ -989,10 +989,12 @@ contract TokenizedStrategy {
         view
         returns (uint256 protocolFees, address protocolFeesRecipient)
     {
+        // Get the config from the factory.
         (uint16 protocolFeeBps, address _protocolFeesRecipient) = IFactory(
             FACTORY
         ).protocol_fee_config();
 
+        // Check if there is a protocol fee to charge.
         if (protocolFeeBps > 0) {
             protocolFeesRecipient = _protocolFeesRecipient;
 
