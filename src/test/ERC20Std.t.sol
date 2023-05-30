@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.18;
+pragma solidity 0.8.18;
 
 import "forge-std/console.sol";
 import {Setup, MockStrategy, IMockStrategy} from "./utils/Setup.sol";
@@ -20,11 +20,7 @@ contract ERC20BaseTest is Setup {
         assertEq(strategy.name(), "Test Strategy");
         assertEq(
             strategy.symbol(),
-            string(
-                abi.encodePacked(
-                    bytes11(abi.encodePacked("ys", asset.symbol()))
-                )
-            )
+            string(abi.encodePacked("ys", asset.symbol()))
         );
         assertEq(strategy.decimals(), 18);
     }

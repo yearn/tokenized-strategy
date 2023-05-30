@@ -16,11 +16,12 @@ import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
  *  and deploy their own custom ERC4626 compliant single strategy Vault.
  *  This TokenizedStrategy contract is meant to be used as a proxy type
  *  implementation contract that will hanle all logic, storage and
- *  mangement for a custom strategy that inherits the `BaseTokenizedStrategy.
- *  Any function calls to the strategy that are not defined would be forwarded
- *  through a delegateCall to this contract. Any strategy only needs to override
- *  a few simple functions that are focused entirely on the strategy specific
- *  needs to easily and cheaply deploy their own permisionless vault.
+ *  mangement for a custom strategy that inherits the `BaseTokenizedStrategy`.
+ *  Any function calls to the strategy that are not defined withen that
+ *  strategy will be forwarded through a delegateCall to this contract.
+ *  A strategy only needs to override a few simple functions that are
+ *  focused entirely on the strategy specific needs to easily and cheaply
+ *  deploy their own permisionless 4626 compliant vault.
  */
 contract TokenizedStrategy {
     using Math for uint256;
@@ -152,18 +153,18 @@ contract TokenizedStrategy {
     // prettier-ignore
     struct StrategyData {
         // The ERC20 compliant underlying asset that will be
-        // used by the Strategy. We can keep this as and ERC20 
-        // instance because the `BaseTokenizedStrategy` holds the
-        // addres of `asset` as an immutable variable to be 4626 compliant.
+        // used by the Strategy. We can keep this as an ERC20 
+        // instance because the `BaseTokenizedStrategy` holds 
+        // the addres of `asset` as an immutable variable to
+        // meet the 4626 standard.
         ERC20 asset;
         
 
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
-        uint8 decimals; // The amount of decimals that `asset` and strategy use
-        bytes11 symbol; // The symbol of the token for the strategy.
+        uint8 decimals; // The amount of decimals that `asset` and strategy use.
         string name; // The name of the token for the strategy.
-        uint256 totalSupply; // The total amount of shares currently issued
+        uint256 totalSupply; // The total amount of shares currently issued.
         uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
         bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain seperator used for permits on the intitial chain.
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
@@ -175,10 +176,10 @@ contract TokenizedStrategy {
         // We manually track idle instead of relying on asset.balanceOf(address(this))
         // to prevent PPS manipulation through airdrops.
         uint256 totalIdle; // The total amount of loose `asset` the strategy holds.
-        uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy
+        uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy.
         
 
-        // Variables for profit reporting and locking
+        // Variables for profit reporting and locking.
         // We use uint128 for time stamps which is 1,025 years in the future.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
         uint128 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
@@ -372,17 +373,13 @@ contract TokenizedStrategy {
 
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
-        // Cache the asset instance for multiple uses
-        ERC20 a = ERC20(_asset);
+
         // Set the strategys underlying asset
-        S.asset = a;
+        S.asset = ERC20(_asset);
         // Set the Strategy Tokens name.
         S.name = _name;
-        // Set the symbol and decimals based off the `asset`.
-        // This stores the symbol as bytes11 so it can be
-        // packed in the struct with `asset` and `decimals`
-        S.symbol = bytes11(abi.encodePacked("ys", a.symbol()));
-        S.decimals = a.decimals();
+        // Set decimals based off the `asset`.
+        S.decimals = ERC20(_asset).decimals();
         // Set initial chain id for permit replay protection
         S.INITIAL_CHAIN_ID = block.chainid;
         // Set the inital domain seperator for permit functions
@@ -1316,12 +1313,13 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Returns the symbol of the token.
-     * @dev Should be some iteration of 'ys + asset symbol'
+     * @notice Returns the symbol of the strategies token.
+     * @dev Will be 'ys + asset symbol'.
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
-        return string(abi.encodePacked((_strategyStorage().symbol)));
+        return
+            string(abi.encodePacked("ys", _strategyStorage().asset.symbol()));
     }
 
     /**
@@ -1731,7 +1729,7 @@ contract TokenizedStrategy {
      * the current chain id is not the same as the origin al.
      *
      */
-    function _computeDomainSeparator() internal view returns (bytes32) {
+    function _computeDomainSeparator() private view returns (bytes32) {
         return
             keccak256(
                 abi.encode(
