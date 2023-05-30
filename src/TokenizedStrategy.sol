@@ -1235,12 +1235,12 @@ contract TokenizedStrategy {
      * @dev Can only be called by the current `management`.
      *
      * Denominated in Baseis Points. So 100% == 10_000.
-     * Cannot set greateer or equal to 10_000.
+     * Cannot set greater than to 5_000 (50%).
      *
      * @param _performanceFee New performance fee.
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
-        require(_performanceFee < MAX_BPS, "MAX BPS");
+        require(_performanceFee <= 5_000, "MAX FEE");
         _strategyStorage().performanceFee = _performanceFee;
 
         emit UpdatePerformanceFee(_performanceFee);

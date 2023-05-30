@@ -34,7 +34,7 @@ contract AccesssControlTest is Setup {
     }
 
     function test_setPerformanceFee(uint16 _amount) public {
-        _amount = uint16(bound(_amount, 0, 9_999));
+        _amount = uint16(bound(_amount, 0, 5_000));
 
         vm.expectEmit(true, true, true, true, address(strategy));
         emit UpdatePerformanceFee(_amount);
@@ -114,7 +114,7 @@ contract AccesssControlTest is Setup {
         address _address,
         uint16 _amount
     ) public {
-        _amount = uint16(bound(_amount, 0, 9_999));
+        _amount = uint16(bound(_amount, 0, 5_000));
         vm.assume(_address != management);
 
         uint256 _performanceFee = strategy.performanceFee();
@@ -126,8 +126,8 @@ contract AccesssControlTest is Setup {
         assertEq(strategy.performanceFee(), _performanceFee);
 
         vm.prank(management);
-        vm.expectRevert("MAX BPS");
-        strategy.setPerformanceFee(uint16(_amount + MAX_BPS));
+        vm.expectRevert("MAX FEE");
+        strategy.setPerformanceFee(uint16(_amount + 5_000));
     }
 
     function test_settingPerformanceFeeRecipient_reverts(
