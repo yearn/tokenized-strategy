@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.18;
+pragma solidity 0.8.18;
 
 import "forge-std/console.sol";
 import {Setup} from "./utils/Setup.sol";
@@ -321,6 +321,9 @@ contract ProfitLockingTest is Setup {
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
         uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
             MAX_BPS;
+
+        // Adjust what the percormance fee expects to get when there is a protocol fee.
+        expectedPerformanceFee = expectedPerformanceFee - expectedProtocolFee;
 
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
@@ -800,6 +803,9 @@ contract ProfitLockingTest is Setup {
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
         uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
             MAX_BPS;
+        // Adjust what the percormance fee expects to get when there is a protocol fee.
+        expectedPerformanceFee = expectedPerformanceFee - expectedProtocolFee;
+
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
 

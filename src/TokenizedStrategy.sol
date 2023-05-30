@@ -16,11 +16,12 @@ import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
  *  and deploy their own custom ERC4626 compliant single strategy Vault.
  *  This TokenizedStrategy contract is meant to be used as a proxy type
  *  implementation contract that will hanle all logic, storage and
- *  mangement for a custom strategy that inherits the `BaseTokenizedStrategy.
- *  Any function calls to the strategy that are not defined would be forwarded
- *  through a delegateCall to this contract. Any strategy only needs to override
- *  a few simple functions that are focused entirely on the strategy specific
- *  needs to easily and cheaply deploy their own permisionless vault.
+ *  mangement for a custom strategy that inherits the `BaseTokenizedStrategy`.
+ *  Any function calls to the strategy that are not defined withen that
+ *  strategy will be forwarded through a delegateCall to this contract.
+ *  A strategy only needs to override a few simple functions that are
+ *  focused entirely on the strategy specific needs to easily and cheaply
+ *  deploy their own permisionless 4626 compliant vault.
  */
 contract TokenizedStrategy {
     using Math for uint256;
@@ -152,18 +153,18 @@ contract TokenizedStrategy {
     // prettier-ignore
     struct StrategyData {
         // The ERC20 compliant underlying asset that will be
-        // used by the Strategy. We can keep this as and ERC20 
-        // instance because the `BaseTokenizedStrategy` holds the
-        // addres of `asset` as an immutable variable to be 4626 compliant.
+        // used by the Strategy. We can keep this as an ERC20 
+        // instance because the `BaseTokenizedStrategy` holds 
+        // the addres of `asset` as an immutable variable to
+        // meet the 4626 standard.
         ERC20 asset;
         
 
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
-        uint8 decimals; // The amount of decimals that `asset` and strategy use
-        bytes11 symbol; // The symbol of the token for the strategy.
+        uint8 decimals; // The amount of decimals that `asset` and strategy use.
         string name; // The name of the token for the strategy.
-        uint256 totalSupply; // The total amount of shares currently issued
+        uint256 totalSupply; // The total amount of shares currently issued.
         uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
         bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain seperator used for permits on the intitial chain.
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
@@ -175,10 +176,10 @@ contract TokenizedStrategy {
         // We manually track idle instead of relying on asset.balanceOf(address(this))
         // to prevent PPS manipulation through airdrops.
         uint256 totalIdle; // The total amount of loose `asset` the strategy holds.
-        uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy
+        uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy.
         
 
-        // Variables for profit reporting and locking
+        // Variables for profit reporting and locking.
         // We use uint128 for time stamps which is 1,025 years in the future.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
         uint128 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
@@ -376,17 +377,13 @@ contract TokenizedStrategy {
 
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
-        // Cache the asset instance for multiple uses
-        ERC20 a = ERC20(_asset);
+
         // Set the strategys underlying asset
-        S.asset = a;
+        S.asset = ERC20(_asset);
         // Set the Strategy Tokens name.
         S.name = _name;
-        // Set the symbol and decimals based off the `asset`.
-        // This stores the symbol as bytes11 so it can be
-        // packed in the struct with `asset` and `decimals`
-        S.symbol = bytes11(abi.encodePacked("ys", a.symbol()));
-        S.decimals = a.decimals();
+        // Set decimals based off the `asset`.
+        S.decimals = ERC20(_asset).decimals();
         // Set initial chain id for permit replay protection
         S.INITIAL_CHAIN_ID = block.chainid;
         // Set the inital domain seperator for permit functions
@@ -820,9 +817,9 @@ contract TokenizedStrategy {
      * over the `maxProfitUnlockTime` each second based on the
      * calculated `profitUnlockingRate`.
      *
-     * Any 'loss' or fees greater than 'profit' will attempted to be
-     * offset with any remaining locked shares from the last report
-     * in order to reduce any negative impact to PPS.
+     * Any 'loss' will attempted to be offset with any remaining
+     * locked shares from the last report in order to reduce any
+     * negative impact to PPS.
      *
      * Will then recalculate the new time to unlock profits over and the
      * rate based on a weighted average of any remaining time from the
@@ -848,9 +845,6 @@ contract TokenizedStrategy {
             oldTotalAssets = S.totalIdle + S.totalDebt;
         }
 
-        // Burn unlocked shares.
-        _burnUnlockedShares();
-
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and redepositing now and
         // account for deployed and loose `asset` so we can accuratly
@@ -860,68 +854,77 @@ contract TokenizedStrategy {
         uint256 newTotalAssets = IBaseTokenizedStrategy(address(this))
             .harvestAndReport();
 
-        uint256 totalFees;
-        unchecked {
-            // Calculate profit/loss.
-            if (newTotalAssets > oldTotalAssets) {
-                // We have a profit
-                profit = newTotalAssets - oldTotalAssets;
+        // Burn unlocked shares.
+        _burnUnlockedShares();
 
+        uint256 totalFees;
+        uint256 protocolFees;
+        uint256 sharesToLock;
+        // Calculate profit/loss.
+        if (newTotalAssets > oldTotalAssets) {
+            // We have a profit.
+            unchecked {
+                profit = newTotalAssets - oldTotalAssets;
                 // Asses performance fees.
                 totalFees = (profit * S.performanceFee) / MAX_BPS;
-            } else {
-                // We have a loss.
-                loss = oldTotalAssets - newTotalAssets;
             }
-        }
 
-        uint256 protocolFees;
-        address protocolFeesRecipient;
-        // If performance fees are 0 so will protocol fees.
-        if (totalFees > 0) {
-            // Calculate protocol fees based on the performance Fees.
-            (protocolFees, protocolFeesRecipient) = _assessProtocolFees(
-                totalFees
-            );
-            totalFees += protocolFees;
-        }
+            address protocolFeesRecipient;
+            uint256 performanceFeeShares;
+            uint256 protocolFeeShares;
+            // If performance fees are 0 so will protocol fees.
+            if (totalFees > 0) {
+                // Calculate protocol fees based on the performance Fees.
+                (protocolFees, protocolFeesRecipient) = _assessProtocolFees(
+                    totalFees
+                );
 
-        // We need to get the shares to issue for the fees at
-        // current PPS before any minting or burning.
-        uint256 performanceFeeShares;
-        unchecked {
-            performanceFeeShares = convertToShares(totalFees - protocolFees);
-        }
-        uint256 protocolFeeShares = convertToShares(protocolFees);
-
-        uint256 sharesToLock;
-        if (loss + totalFees >= profit) {
-            // We have a net loss. Will try and unlock the difference between
-            // between the gain and the loss to prevent any PPS decline post report.
-            uint256 sharesToBurn = Math.min(
-                convertToShares((loss + totalFees) - profit),
-                S.balances[address(this)]
-            );
-
-            if (sharesToBurn > 0) {
-                _burn(address(this), sharesToBurn);
+                // We need to get the shares to issue for the fees at
+                // current PPS before any minting or burning.
+                unchecked {
+                    performanceFeeShares = convertToShares(
+                        totalFees - protocolFees
+                    );
+                }
+                if (protocolFees > 0) {
+                    protocolFeeShares = convertToShares(protocolFees);
+                }
             }
-        } else {
+
             // we have a net profit
             // lock (profit - fees)
             unchecked {
                 sharesToLock = convertToShares(profit - totalFees);
             }
             _mint(address(this), sharesToLock);
-        }
 
-        // Mint fees shares.
-        if (performanceFeeShares > 0) {
-            _mint(S.performanceFeeRecipient, performanceFeeShares);
-        }
+            // Mint fees shares.
+            if (performanceFeeShares > 0) {
+                _mint(S.performanceFeeRecipient, performanceFeeShares);
+            }
 
-        if (protocolFeeShares > 0) {
-            _mint(protocolFeesRecipient, protocolFeeShares);
+            if (protocolFeeShares > 0) {
+                _mint(protocolFeesRecipient, protocolFeeShares);
+            }
+        } else {
+            // We have a loss.
+            unchecked {
+                loss = oldTotalAssets - newTotalAssets;
+            }
+
+            // Check in case else was due to being equal.
+            if (loss > 0) {
+                // We will try and burn shares from any pending profit still unlocking
+                // to offset the loss to prevent any PPS decline post report.
+                uint256 sharesToBurn = Math.min(
+                    convertToShares(loss),
+                    S.balances[address(this)]
+                );
+
+                if (sharesToBurn > 0) {
+                    _burn(address(this), sharesToBurn);
+                }
+            }
         }
 
         // Update unlocking rate and time to fully unlocked
@@ -971,15 +974,6 @@ contract TokenizedStrategy {
 
         S.lastReport = uint128(block.timestamp);
 
-        // If we had an overall loss we need to adjust the actual fees issued
-        // based on new PPS post all minting and locking.
-        if (loss + totalFees >= profit) {
-            totalFees = convertToAssets(
-                performanceFeeShares + protocolFeeShares
-            );
-            protocolFees = convertToAssets(protocolFeeShares);
-        }
-
         // Emit event with info
         emit Reported(
             profit,
@@ -996,10 +990,12 @@ contract TokenizedStrategy {
         view
         returns (uint256 protocolFees, address protocolFeesRecipient)
     {
+        // Get the config from the factory.
         (uint16 protocolFeeBps, address _protocolFeesRecipient) = IFactory(
             FACTORY
         ).protocol_fee_config();
 
+        // Check if there is a protocol fee to charge.
         if (protocolFeeBps > 0) {
             protocolFeesRecipient = _protocolFeesRecipient;
 
@@ -1240,14 +1236,16 @@ contract TokenizedStrategy {
      * @dev Can only be called by the current `management`.
      *
      * Denominated in Baseis Points. So 100% == 10_000.
-     * Cannot set greateer or equal to 10_000.
+
      * Cannot be set less than the MIN_FEE.
+     * Cannot set greater than to 5_000 (50%).
+
      *
      * @param _performanceFee New performance fee.
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
-        require(_performanceFee < MAX_BPS, "MAX BPS");
         require(_performanceFee >= MIN_FEE, "MIN FEE");
+        require(_performanceFee <= 5_000, "MAX FEE");
         _strategyStorage().performanceFee = _performanceFee;
 
         emit UpdatePerformanceFee(_performanceFee);
@@ -1323,12 +1321,13 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Returns the symbol of the token.
-     * @dev Should be some iteration of 'ys + asset symbol'
+     * @notice Returns the symbol of the strategies token.
+     * @dev Will be 'ys + asset symbol'.
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() public view returns (string memory) {
-        return string(abi.encodePacked((_strategyStorage().symbol)));
+        return
+            string(abi.encodePacked("ys", _strategyStorage().asset.symbol()));
     }
 
     /**
@@ -1738,7 +1737,7 @@ contract TokenizedStrategy {
      * the current chain id is not the same as the origin al.
      *
      */
-    function _computeDomainSeparator() internal view returns (bytes32) {
+    function _computeDomainSeparator() private view returns (bytes32) {
         return
             keccak256(
                 abi.encode(
