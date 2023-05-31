@@ -127,7 +127,7 @@ contract AccesssControlTest is Setup {
 
         vm.prank(management);
         vm.expectRevert("MAX FEE");
-        strategy.setPerformanceFee(uint16(_amount + 5_000));
+        strategy.setPerformanceFee(uint16(_amount + 5_001));
     }
 
     function test_settingPerformanceFeeRecipient_reverts(
