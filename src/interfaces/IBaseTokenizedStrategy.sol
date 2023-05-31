@@ -8,14 +8,6 @@ interface IBaseTokenizedStrategy {
 
     function asset() external view returns (address);
 
-    function initialize(
-        address _asset,
-        string memory name_,
-        address _management,
-        address _performanceFeeRecipient,
-        address _keeper
-    ) external;
-
     function availableDepositLimit(
         address _owner
     ) external view returns (uint256);

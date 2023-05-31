@@ -6,14 +6,6 @@ import {ITokenizedStrategy} from "../../interfaces/ITokenizedStrategy.sol";
 
 // Interface to use during testing that implements the 4626 standard the implementation functions and the Strategies immutable functions
 interface IMockStrategy is ITokenizedStrategy {
-    function initialize(
-        address _asset,
-        string memory name_,
-        address _management,
-        address _performanceFeeRecipient,
-        address _keeper
-    ) external;
-
     function availableDepositLimit(
         address _owner
     ) external view returns (uint256);
