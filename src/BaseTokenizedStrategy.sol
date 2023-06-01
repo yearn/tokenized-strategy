@@ -251,6 +251,8 @@ abstract contract BaseTokenizedStrategy {
      */
     function _tend(uint256 _totalIdle) internal virtual {}
 
+    function _shutdownWithdraw(uint256 _amount) internal virtual {}
+
     /**
      * @notice Returns wether or not tend() should be called by a keeper.
      * @dev Optional trigger to override if tend() will be used by the strategy.
@@ -384,6 +386,10 @@ abstract contract BaseTokenizedStrategy {
      */
     function tendThis(uint256 _totalIdle) external onlySelf {
         _tend(_totalIdle);
+    }
+
+    function shutdownWithdraw(uint256 _amount) external onlySelf {
+        _shutdownWithdraw(_amount);
     }
 
     /**

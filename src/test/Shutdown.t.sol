@@ -150,4 +150,73 @@ contract ShutdownTest is Setup {
 
         assertEq(asset.balanceOf(_address), before + _amount - loss);
     }
+
+    function test_emergencyWithdraw_halfAmount(
+        address _address,
+        uint256 _amount
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        assertTrue(!strategy.isShutdown());
+
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit StrategyShutdown();
+
+        vm.prank(management);
+        strategy.shutdownStrategy();
+
+        assertTrue(strategy.isShutdown());
+
+        // Withdraw half and make sure it records properly
+        uint256 toWithdraw = _amount / 2;
+
+        vm.prank(management);
+        strategy.emergencyWithdraw(toWithdraw);
+
+        // Make sure it pulled out the correct amount.
+        // And did not reinvest.
+        checkStrategyTotals(
+            strategy,
+            _amount,
+            _amount - toWithdraw,
+            toWithdraw,
+            _amount
+        );
+
+        assertEq(asset.balanceOf(address(strategy)), toWithdraw);
+
+        vm.prank(_address);
+        strategy.redeem(_amount, _address, _address);
+
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
+
+        assertEq(asset.balanceOf(_address), _amount);
+    }
+
+    function test_emergencyWithdraw_notShutdown_reverts(
+        address _address,
+        uint256 _amount
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        assertTrue(!strategy.isShutdown());
+
+        uint256 toWithdraw = _amount / 2;
+
+        vm.expectRevert("not shutdown");
+        vm.prank(management);
+        strategy.emergencyWithdraw(toWithdraw);
+    }
 }

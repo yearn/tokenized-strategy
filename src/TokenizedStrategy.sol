@@ -827,7 +827,7 @@ contract TokenizedStrategy {
      * report in terms of `asset`.
      */
     function report()
-        external
+        public
         nonReentrant
         onlyKeepers
         returns (uint256 profit, uint256 loss)
@@ -1101,6 +1101,18 @@ contract TokenizedStrategy {
                 S.totalDebt -= harvested;
             }
         }
+    }
+
+    function emergencyWithdraw(uint256 _amount) external onlyManagement {
+        StrategyData storage S = _strategyStorage();
+        // The strategy needs to be shutdown to call withdraw.
+        require(S.shutdown, "not shutdown");
+
+        // Tell the strategy to try and withdraw the `_amount`.
+        IBaseTokenizedStrategy(address(this)).shutdownWithdraw(_amount);
+
+        // Report the updates based on the new amounts.
+        report();
     }
 
     /*//////////////////////////////////////////////////////////////

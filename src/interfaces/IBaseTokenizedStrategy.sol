@@ -24,5 +24,7 @@ interface IBaseTokenizedStrategy {
 
     function tendThis(uint256 _totalIdle) external;
 
+    function shutdownWithdraw(uint256 _amount) external;
+
     function tendTrigger() external view returns (bool);
 }

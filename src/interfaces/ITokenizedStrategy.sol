@@ -107,6 +107,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function shutdownStrategy() external;
 
+    function emergencyWithdraw(uint256 _amount) external;
+
     /*//////////////////////////////////////////////////////////////
                            ERC20 ADD ONS
     //////////////////////////////////////////////////////////////*/

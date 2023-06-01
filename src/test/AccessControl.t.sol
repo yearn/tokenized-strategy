@@ -86,6 +86,16 @@ contract AccesssControlTest is Setup {
         assertTrue(strategy.isShutdown());
     }
 
+    function test_emergencyWithdraw() public {
+        vm.prank(management);
+        strategy.shutdownStrategy();
+
+        assertTrue(strategy.isShutdown());
+
+        vm.prank(management);
+        strategy.emergencyWithdraw(0);
+    }
+
     function test_setManagement_reverts(address _address) public {
         vm.assume(_address != management && _address != address(0));
 
@@ -188,6 +198,19 @@ contract AccesssControlTest is Setup {
         strategy.shutdownStrategy();
 
         assertTrue(!strategy.isShutdown());
+    }
+
+    function test_emergencyWithdraw_reverts(address _address) public {
+        vm.assume(_address != management);
+
+        vm.prank(management);
+        strategy.shutdownStrategy();
+
+        assertTrue(strategy.isShutdown());
+
+        vm.prank(_address);
+        vm.expectRevert("!Authorized");
+        strategy.emergencyWithdraw(0);
     }
 
     function test_initializeTokenizedStrategy_reverts(

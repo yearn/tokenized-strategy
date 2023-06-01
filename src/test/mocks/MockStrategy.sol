@@ -35,10 +35,12 @@ contract MockStrategy is BaseTokenizedStrategy {
 
     function _harvestAndReport() internal override returns (uint256) {
         uint256 balance = ERC20(asset).balanceOf(address(this));
-        if (balance > 0) {
+        if (balance > 0 && !TokenizedStrategy.isShutdown()) {
             MockYieldSource(yieldSource).deposit(balance);
         }
-        return MockYieldSource(yieldSource).balance();
+        return
+            MockYieldSource(yieldSource).balance() +
+            ERC20(asset).balanceOf(address(this));
     }
 
     function _tend(uint256 /*_idle*/) internal override {
@@ -46,6 +48,10 @@ contract MockStrategy is BaseTokenizedStrategy {
         if (balance > 0) {
             MockYieldSource(yieldSource).deposit(balance);
         }
+    }
+
+    function _shutdownWithdraw(uint256 _amount) internal override {
+        MockYieldSource(yieldSource).withdraw(_amount);
     }
 
     function tendTrigger() external view override returns (bool) {
