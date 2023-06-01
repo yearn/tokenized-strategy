@@ -827,7 +827,7 @@ contract TokenizedStrategy {
      * report in terms of `asset`.
      */
     function report()
-        public
+        external
         nonReentrant
         onlyKeepers
         returns (uint256 profit, uint256 loss)
@@ -1103,6 +1103,28 @@ contract TokenizedStrategy {
         }
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        STRATEGY SHUTDOWN
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Used to shutdown the strategy preventing any further deposits.
+     * @dev Can only be called by the current `management`.
+     *
+     * This will stop any new {deposit} or {mint} calls but will
+     * not prevent {withdraw} or {redeem}. It will also still allow for
+     * {tend} and {report} so that management can report any last losses
+     * in an emergency as well as provide any maintence to allow for full
+     * withdraw.
+     *
+     * This is a one way switch and can never be set back once shutdown.
+     */
+    function shutdownStrategy() external onlyManagement {
+        _strategyStorage().shutdown = true;
+
+        emit StrategyShutdown();
+    }
+
     /**
      * @notice To manually withdraw funds from the yield source after a
      * strategy has been shutdown.
@@ -1110,29 +1132,44 @@ contract TokenizedStrategy {
      * withdraw an '_amount' of deployed funds from the yield source in
      * the case of an emergency.
      *
-     * This will end with a {report} call so that any asset now idle
-     * can be properly accounted for to service withdraws.
+     * This will update totalDebt and totalIdle based on the amount of
+     * loose `asset` after the withdraw leaving `totalAssets` unchanged.
      *
-     * NOTE: It is important to check if the strategy is shutdown during
-     * {_harvestAndReport} so that it does not simply re-deploy all funds
-     * that had been freed during this call.
-     *
-     * EX:
-     *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {
-     *       depositFunds..
-     *    }
+     * A strategist will need to override the {_emergencyWithdraw} function
+     * in their strategy for this to work.
      *
      * @param _amount The amount of asset to attempt to free.
      */
-    function emergencyWithdraw(uint256 _amount) external onlyManagement {
-        // The strategy needs to be shutdown to call this.
-        require(_strategyStorage().shutdown, "not shutdown");
+    function emergencyWithdraw(
+        uint256 _amount
+    ) external nonReentrant onlyManagement {
+        StrategyData storage S = _strategyStorage();
+        // Make sure the strategy has been shutdown.
+        require(S.shutdown, "not shutdown");
+
+        // Cache current assets for post withdraw updates.
+        uint256 _totalAssets = totalAssets();
 
         // Tell the strategy to try and withdraw the `_amount`.
-        IBaseTokenizedStrategy(address(this)).shutdownWithdraw(_amount); // TODO: can we just use freeFunds ?
+        IBaseTokenizedStrategy(address(this)).shutdownWithdraw(_amount);
 
-        // Report the updates based on the new amounts.
-        report();
+        // Record the updated totalAssets based on the new amounts.
+        uint256 looseBalance = S.asset.balanceOf(address(this));
+
+        // If we have enough loose to cover all assets.
+        if (looseBalance >= _totalAssets) {
+            // Set idle to totalAssets.
+            S.totalIdle = _totalAssets;
+            // Set debt to 0.
+            S.totalDebt = 0;
+        } else {
+            // Otherwise idle is the actual loose balance.
+            S.totalIdle = looseBalance;
+            unchecked {
+                // And debt is the difference.
+                S.totalDebt = _totalAssets - looseBalance;
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1324,24 +1361,6 @@ contract TokenizedStrategy {
         _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
-    }
-
-    /**
-     * @notice Used to shutdown the strategy preventing any further deposits.
-     * @dev Can only be called by the current `management`.
-     *
-     * This will stop any new {deposit} or {mint} calls but will
-     * not prevent {withdraw} or {redeem}. It will also still allow for
-     * {tend} and {report} so that management can report any last losses
-     * in an emergency as well as provide any maintence to allow for full
-     * withdraw.
-     *
-     * This is a one way switch and can never be set back once shutdown.
-     */
-    function shutdownStrategy() external onlyManagement {
-        _strategyStorage().shutdown = true;
-
-        emit StrategyShutdown();
     }
 
     /*//////////////////////////////////////////////////////////////

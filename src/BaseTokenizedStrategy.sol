@@ -252,16 +252,23 @@ abstract contract BaseTokenizedStrategy {
     function _tend(uint256 _totalIdle) internal virtual {}
 
     /**
-     * @dev Optional functio for a strategist to override that will
+     * @dev Optional function for a strategist to override that will
      * allow management to manually withdraw deployed funds from the
      * yield source if a strategy is shutdown.
      *
-     * This should attempt to free `amount`, noting that _amount may
+     * This should attempt to free `_amount`, noting that `_amount` may
      * be more than is currently deployed.
      *
-     * A {report} will be done immediatly after this, so strategists
-     * should be sure not to deposit idle asset in `harvestAndReport`
-     * if a strategy is shutdown.
+     * NOTE: This will not realize any profits or losses. A seperate
+     * {report} will be needed in order to record any profit/loss. If
+     * a report may need to be called after a shutdown it is important
+     * to check if the strategy is shutdown during {_harvestAndReport}
+     * so that it does not simply re-deploy all funds that had been freed.
+     *
+     * EX:
+     *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {
+     *       depositFunds..
+     *    }
      *
      * @param _amount The amount of asset to attempt to free.
      */
