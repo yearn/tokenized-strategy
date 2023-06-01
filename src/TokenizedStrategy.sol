@@ -873,10 +873,16 @@ contract TokenizedStrategy {
             uint256 protocolFeeShares;
             // If performance fees are 0 so will protocol fees.
             if (totalFees > 0) {
-                // Calculate protocol fees based on the performance Fees.
-                (protocolFees, protocolFeesRecipient) = _assessProtocolFees(
-                    totalFees
-                );
+                // Get the config from the factory.
+                uint16 protocolFeeBps;
+                (protocolFeeBps, protocolFeesRecipient) = IFactory(FACTORY)
+                    .protocol_fee_config();
+
+                // Check if there is a protocol fee to charge.
+                if (protocolFeeBps > 0) {
+                    // Calculate protocol fees based on the performance Fees.
+                    protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
+                }
 
                 // We need to get the shares to issue for the fees at
                 // current PPS before any minting or burning.
@@ -895,9 +901,10 @@ contract TokenizedStrategy {
             unchecked {
                 sharesToLock = convertToShares(profit - totalFees);
             }
+            // Mint the shares to lock the strategy.
             _mint(address(this), sharesToLock);
 
-            // Mint fees shares.
+            // Mint fees shares to recipients.
             if (performanceFeeShares > 0) {
                 _mint(S.performanceFeeRecipient, performanceFeeShares);
             }
@@ -920,48 +927,48 @@ contract TokenizedStrategy {
                     S.balances[address(this)]
                 );
 
+                // Check if there is anything to burn.
                 if (sharesToBurn > 0) {
                     _burn(address(this), sharesToBurn);
                 }
             }
         }
 
-        // Update unlocking rate and time to fully unlocked
-        {
-            // Scoped to avoid stack to deep errors
-            uint256 totalLockedShares = S.balances[address(this)];
-            if (totalLockedShares > 0) {
-                uint32 _profitMaxUnlockTime = S.profitMaxUnlockTime;
-                uint256 remainingTime;
-                uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
-                if (_fullProfitUnlockDate > block.timestamp) {
-                    unchecked {
-                        remainingTime = _fullProfitUnlockDate - block.timestamp;
-                    }
+        // Update unlocking rate and time to fully unlocked.
+        uint256 totalLockedShares = S.balances[address(this)];
+        if (totalLockedShares > 0) {
+            uint256 previouslyLockedTime;
+            uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+            // Check if we need to account for shares still unlocking.
+            if (_fullProfitUnlockDate > block.timestamp) {
+                unchecked {
+                    // There will only be previously locked shares if time remains.
+                    // We calculate this here since it should be rare.
+                    previouslyLockedTime =
+                        (_fullProfitUnlockDate - block.timestamp) *
+                        (totalLockedShares - sharesToLock);
                 }
-
-                uint256 previouslyLockedShares = totalLockedShares -
-                    sharesToLock;
-
-                // new_profit_locking_period is a weighted average between the remaining
-                // time of the previously locked shares and the PROFIT_MAX_UNLOCK_TIME
-                uint256 newProfitLockingPeriod = (previouslyLockedShares *
-                    remainingTime +
-                    sharesToLock *
-                    _profitMaxUnlockTime) / totalLockedShares;
-
-                S.profitUnlockingRate =
-                    (totalLockedShares * MAX_BPS_EXTENDED) /
-                    newProfitLockingPeriod;
-
-                S.fullProfitUnlockDate = uint128(
-                    block.timestamp + newProfitLockingPeriod
-                );
-            } else {
-                // Only setting this to 0 will turn in the desired effect,
-                // no need to update fullProfitUnlockDate
-                S.profitUnlockingRate = 0;
             }
+
+            // newProfitLockingPeriod is a weighted average between the remaining
+            // time of the previously locked shares and the profitMaxUnlockTime.
+            uint256 newProfitLockingPeriod = (previouslyLockedTime +
+                sharesToLock *
+                S.profitMaxUnlockTime) / totalLockedShares;
+            
+            // Calculate how many shares unlock per second.
+            S.profitUnlockingRate =
+                (totalLockedShares * MAX_BPS_EXTENDED) /
+                newProfitLockingPeriod;
+
+            // Calculate how long until the full amount of shares is unlocked.
+            S.fullProfitUnlockDate = uint128(
+                block.timestamp + newProfitLockingPeriod
+            );
+        } else {
+            // Only setting this to 0 will turn in the desired effect,
+            // no need to update fullProfitUnlockDate.
+            S.profitUnlockingRate = 0;
         }
 
         // Update storage we use the actual loose here since it should have
@@ -982,33 +989,13 @@ contract TokenizedStrategy {
         );
     }
 
-    function _assessProtocolFees(
-        uint256 _performanceFees
-    )
-        private
-        view
-        returns (uint256 protocolFees, address protocolFeesRecipient)
-    {
-        // Get the config from the factory.
-        (uint16 protocolFeeBps, address _protocolFeesRecipient) = IFactory(
-            FACTORY
-        ).protocol_fee_config();
-
-        // Check if there is a protocol fee to charge.
-        if (protocolFeeBps > 0) {
-            protocolFeesRecipient = _protocolFeesRecipient;
-
-            protocolFees = (_performanceFees * protocolFeeBps) / MAX_BPS;
-        }
-    }
-
     function _burnUnlockedShares() private {
         uint256 unlcokdedShares = _unlockedShares();
         if (unlcokdedShares == 0) {
             return;
         }
 
-        // update variables (done here to keep _unlcokdedShares() as a view function)
+        // update variables (done here to keep _unlockedShares() as a view function)
         if (_strategyStorage().fullProfitUnlockDate > block.timestamp) {
             _strategyStorage().lastReport = uint128(block.timestamp);
         }
