@@ -955,7 +955,7 @@ contract TokenizedStrategy {
             uint256 newProfitLockingPeriod = (previouslyLockedTime +
                 sharesToLock *
                 S.profitMaxUnlockTime) / totalLockedShares;
-            
+
             // Calculate how many shares unlock per second.
             S.profitUnlockingRate =
                 (totalLockedShares * MAX_BPS_EXTENDED) /
