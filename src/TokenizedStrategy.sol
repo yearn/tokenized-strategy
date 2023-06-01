@@ -820,9 +820,9 @@ contract TokenizedStrategy {
      * over the `maxProfitUnlockTime` each second based on the
      * calculated `profitUnlockingRate`.
      *
-     * Any 'loss' or fees greater than 'profit' will attempted to be
-     * offset with any remaining locked shares from the last report
-     * in order to reduce any negative impact to PPS.
+     * Any 'loss' will attempted to be offset with any remaining
+     * locked shares from the last report in order to reduce any
+     * negative impact to PPS.
      *
      * Will then recalculate the new time to unlock profits over and the
      * rate based on a weighted average of any remaining time from the
@@ -848,9 +848,6 @@ contract TokenizedStrategy {
             oldTotalAssets = S.totalIdle + S.totalDebt;
         }
 
-        // Burn unlocked shares.
-        _burnUnlockedShares();
-
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and redepositing now and
         // account for deployed and loose `asset` so we can accuratly
@@ -860,106 +857,122 @@ contract TokenizedStrategy {
         uint256 newTotalAssets = IBaseTokenizedStrategy(address(this))
             .harvestAndReport();
 
-        uint256 totalFees;
-        unchecked {
-            // Calculate profit/loss.
-            if (newTotalAssets > oldTotalAssets) {
-                // We have a profit
-                profit = newTotalAssets - oldTotalAssets;
+        // Burn unlocked shares.
+        _burnUnlockedShares();
 
+        uint256 totalFees;
+        uint256 protocolFees;
+        uint256 sharesToLock;
+        // Calculate profit/loss.
+        if (newTotalAssets > oldTotalAssets) {
+            // We have a profit.
+            unchecked {
+                profit = newTotalAssets - oldTotalAssets;
                 // Asses performance fees.
                 totalFees = (profit * S.performanceFee) / MAX_BPS;
-            } else {
-                // We have a loss.
-                loss = oldTotalAssets - newTotalAssets;
             }
-        }
 
-        uint256 protocolFees;
-        address protocolFeesRecipient;
-        // If performance fees are 0 so will protocol fees.
-        if (totalFees > 0) {
-            // Calculate protocol fees based on the performance Fees.
-            (protocolFees, protocolFeesRecipient) = _assessProtocolFees(
-                totalFees
-            );
-            totalFees += protocolFees;
-        }
+            address protocolFeesRecipient;
+            uint256 performanceFeeShares;
+            uint256 protocolFeeShares;
+            // If performance fees are 0 so will protocol fees.
+            if (totalFees > 0) {
+                // Get the config from the factory.
+                uint16 protocolFeeBps;
+                (protocolFeeBps, protocolFeesRecipient) = IFactory(FACTORY)
+                    .protocol_fee_config();
 
-        // We need to get the shares to issue for the fees at
-        // current PPS before any minting or burning.
-        uint256 performanceFeeShares;
-        unchecked {
-            performanceFeeShares = convertToShares(totalFees - protocolFees);
-        }
-        uint256 protocolFeeShares = convertToShares(protocolFees);
+                // Check if there is a protocol fee to charge.
+                if (protocolFeeBps > 0) {
+                    // Calculate protocol fees based on the performance Fees.
+                    protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
+                }
 
-        uint256 sharesToLock;
-        if (loss + totalFees >= profit) {
-            // We have a net loss. Will try and unlock the difference between
-            // between the gain and the loss to prevent any PPS decline post report.
-            uint256 sharesToBurn = Math.min(
-                convertToShares((loss + totalFees) - profit),
-                S.balances[address(this)]
-            );
-
-            if (sharesToBurn > 0) {
-                _burn(address(this), sharesToBurn);
+                // We need to get the shares to issue for the fees at
+                // current PPS before any minting or burning.
+                unchecked {
+                    performanceFeeShares = convertToShares(
+                        totalFees - protocolFees
+                    );
+                }
+                if (protocolFees > 0) {
+                    protocolFeeShares = convertToShares(protocolFees);
+                }
             }
-        } else {
+
             // we have a net profit
             // lock (profit - fees)
             unchecked {
                 sharesToLock = convertToShares(profit - totalFees);
             }
+            // Mint the shares to lock the strategy.
             _mint(address(this), sharesToLock);
-        }
 
-        // Mint fees shares.
-        if (performanceFeeShares > 0) {
-            _mint(S.performanceFeeRecipient, performanceFeeShares);
-        }
-
-        if (protocolFeeShares > 0) {
-            _mint(protocolFeesRecipient, protocolFeeShares);
-        }
-
-        // Update unlocking rate and time to fully unlocked
-        {
-            // Scoped to avoid stack to deep errors
-            uint256 totalLockedShares = S.balances[address(this)];
-            if (totalLockedShares > 0) {
-                uint32 _profitMaxUnlockTime = S.profitMaxUnlockTime;
-                uint256 remainingTime;
-                uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
-                if (_fullProfitUnlockDate > block.timestamp) {
-                    unchecked {
-                        remainingTime = _fullProfitUnlockDate - block.timestamp;
-                    }
-                }
-
-                uint256 previouslyLockedShares = totalLockedShares -
-                    sharesToLock;
-
-                // new_profit_locking_period is a weighted average between the remaining
-                // time of the previously locked shares and the PROFIT_MAX_UNLOCK_TIME
-                uint256 newProfitLockingPeriod = (previouslyLockedShares *
-                    remainingTime +
-                    sharesToLock *
-                    _profitMaxUnlockTime) / totalLockedShares;
-
-                S.profitUnlockingRate =
-                    (totalLockedShares * MAX_BPS_EXTENDED) /
-                    newProfitLockingPeriod;
-
-                S.fullProfitUnlockDate = uint128(
-                    block.timestamp + newProfitLockingPeriod
-                );
-            } else {
-                // Only setting this to 0 will turn in the desired effect,
-                // no need to update fullProfitUnlockDate
-                S.profitUnlockingRate = 0;
+            // Mint fees shares to recipients.
+            if (performanceFeeShares > 0) {
+                _mint(S.performanceFeeRecipient, performanceFeeShares);
             }
+
+            if (protocolFeeShares > 0) {
+                _mint(protocolFeesRecipient, protocolFeeShares);
+            }
+        } else {
+            // We have a loss.
+            unchecked {
+                loss = oldTotalAssets - newTotalAssets;
+            }
+
+            // Check in case else was due to being equal.
+            if (loss > 0) {
+                // We will try and burn shares from any pending profit still unlocking
+                // to offset the loss to prevent any PPS decline post report.
+                uint256 sharesToBurn = Math.min(
+                    convertToShares(loss),
+                    S.balances[address(this)]
+                );
+
+                // Check if there is anything to burn.
+                if (sharesToBurn > 0) {
+                    _burn(address(this), sharesToBurn);
+                }
+            }
+        }
+
+        // Update unlocking rate and time to fully unlocked.
+        uint256 totalLockedShares = S.balances[address(this)];
+        if (totalLockedShares > 0) {
+            uint256 previouslyLockedTime;
+            uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+            // Check if we need to account for shares still unlocking.
+            if (_fullProfitUnlockDate > block.timestamp) {
+                unchecked {
+                    // There will only be previously locked shares if time remains.
+                    // We calculate this here since it should be rare.
+                    previouslyLockedTime =
+                        (_fullProfitUnlockDate - block.timestamp) *
+                        (totalLockedShares - sharesToLock);
+                }
+            }
+
+            // newProfitLockingPeriod is a weighted average between the remaining
+            // time of the previously locked shares and the profitMaxUnlockTime.
+            uint256 newProfitLockingPeriod = (previouslyLockedTime +
+                sharesToLock *
+                S.profitMaxUnlockTime) / totalLockedShares;
+
+            // Calculate how many shares unlock per second.
+            S.profitUnlockingRate =
+                (totalLockedShares * MAX_BPS_EXTENDED) /
+                newProfitLockingPeriod;
+
+            // Calculate how long until the full amount of shares is unlocked.
+            S.fullProfitUnlockDate = uint128(
+                block.timestamp + newProfitLockingPeriod
+            );
+        } else {
+            // Only setting this to 0 will turn in the desired effect,
+            // no need to update fullProfitUnlockDate.
+            S.profitUnlockingRate = 0;
         }
 
         // Update storage we use the actual loose here since it should have
@@ -971,15 +984,6 @@ contract TokenizedStrategy {
 
         S.lastReport = uint128(block.timestamp);
 
-        // If we had an overall loss we need to adjust the actual fees issued
-        // based on new PPS post all minting and locking.
-        if (loss + totalFees >= profit) {
-            totalFees = convertToAssets(
-                performanceFeeShares + protocolFeeShares
-            );
-            protocolFees = convertToAssets(protocolFeeShares);
-        }
-
         // Emit event with info
         emit Reported(
             profit,
@@ -989,31 +993,13 @@ contract TokenizedStrategy {
         );
     }
 
-    function _assessProtocolFees(
-        uint256 _performanceFees
-    )
-        private
-        view
-        returns (uint256 protocolFees, address protocolFeesRecipient)
-    {
-        (uint16 protocolFeeBps, address _protocolFeesRecipient) = IFactory(
-            FACTORY
-        ).protocol_fee_config();
-
-        if (protocolFeeBps > 0) {
-            protocolFeesRecipient = _protocolFeesRecipient;
-
-            protocolFees = (_performanceFees * protocolFeeBps) / MAX_BPS;
-        }
-    }
-
     function _burnUnlockedShares() private {
         uint256 unlcokdedShares = _unlockedShares();
         if (unlcokdedShares == 0) {
             return;
         }
 
-        // update variables (done here to keep _unlcokdedShares() as a view function)
+        // update variables (done here to keep _unlockedShares() as a view function)
         if (_strategyStorage().fullProfitUnlockDate > block.timestamp) {
             _strategyStorage().lastReport = uint128(block.timestamp);
         }
@@ -1240,14 +1226,14 @@ contract TokenizedStrategy {
      * @dev Can only be called by the current `management`.
      *
      * Denominated in Baseis Points. So 100% == 10_000.
-     * Cannot set greateer or equal to 10_000.
      * Cannot be set less than the MIN_FEE.
+     * Cannot set greater than to 5_000 (50%).
      *
      * @param _performanceFee New performance fee.
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
-        require(_performanceFee < MAX_BPS, "MAX BPS");
         require(_performanceFee >= MIN_FEE, "MIN FEE");
+        require(_performanceFee <= 5_000, "MAX FEE");
         _strategyStorage().performanceFee = _performanceFee;
 
         emit UpdatePerformanceFee(_performanceFee);
