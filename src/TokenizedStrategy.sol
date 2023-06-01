@@ -1222,10 +1222,10 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Sets the performance fee to be charged on a reported gains.
+     * @notice Sets the performance fee to be charged on reported gains.
      * @dev Can only be called by the current `management`.
      *
-     * Denominated in Baseis Points. So 100% == 10_000.
+     * Denominated in Basis Points. So 100% == 10_000.
      * Cannot be set less than the MIN_FEE.
      * Cannot set greater than to 5_000 (50%).
      *
