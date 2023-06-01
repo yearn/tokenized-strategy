@@ -1103,13 +1103,33 @@ contract TokenizedStrategy {
         }
     }
 
+    /**
+     * @notice To manually withdraw funds from the yield source after a
+     * strategy has been shutdown.
+     * @dev This can only be called post {shutdownStrategy} in order to
+     * withdraw an '_amount' of deployed funds from the yield source in
+     * the case of an emergency.
+     *
+     * This will end with a {report} call so that any asset now idle
+     * can be properly accounted for to service withdraws.
+     *
+     * NOTE: It is important to check if the strategy is shutdown during
+     * {_harvestAndReport} so that it does not simply re-deploy all funds
+     * that had been freed during this call.
+     *
+     * EX:
+     *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {
+     *       depositFunds..
+     *    }
+     *
+     * @param _amount The amount of asset to attempt to free.
+     */
     function emergencyWithdraw(uint256 _amount) external onlyManagement {
-        StrategyData storage S = _strategyStorage();
-        // The strategy needs to be shutdown to call withdraw.
-        require(S.shutdown, "not shutdown");
+        // The strategy needs to be shutdown to call this.
+        require(_strategyStorage().shutdown, "not shutdown");
 
         // Tell the strategy to try and withdraw the `_amount`.
-        IBaseTokenizedStrategy(address(this)).shutdownWithdraw(_amount);
+        IBaseTokenizedStrategy(address(this)).shutdownWithdraw(_amount); // TODO: can we just use freeFunds ?
 
         // Report the updates based on the new amounts.
         report();

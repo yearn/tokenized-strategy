@@ -50,7 +50,7 @@ contract MockStrategy is BaseTokenizedStrategy {
         }
     }
 
-    function _shutdownWithdraw(uint256 _amount) internal override {
+    function _emergencyWithdraw(uint256 _amount) internal override {
         MockYieldSource(yieldSource).withdraw(_amount);
     }
 

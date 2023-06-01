@@ -251,7 +251,21 @@ abstract contract BaseTokenizedStrategy {
      */
     function _tend(uint256 _totalIdle) internal virtual {}
 
-    function _shutdownWithdraw(uint256 _amount) internal virtual {}
+    /**
+     * @dev Optional functio for a strategist to override that will
+     * allow management to manually withdraw deployed funds from the
+     * yield source if a strategy is shutdown.
+     *
+     * This should attempt to free `amount`, noting that _amount may
+     * be more than is currently deployed.
+     *
+     * A {report} will be done immediatly after this, so strategists
+     * should be sure not to deposit idle asset in `harvestAndReport`
+     * if a strategy is shutdown.
+     *
+     * @param _amount The amount of asset to attempt to free.
+     */
+    function _emergencyWithdraw(uint256 _amount) internal virtual {}
 
     /**
      * @notice Returns wether or not tend() should be called by a keeper.
@@ -388,8 +402,21 @@ abstract contract BaseTokenizedStrategy {
         _tend(_totalIdle);
     }
 
+    /**
+     * @notice Will call the internal '_emergencyWithdraw' function.
+     * @dev Callback for the TokenizedStrategy during an emergency withdraw.
+     *
+     * This can only be called after a emergencyWithdraw() delegateCall to
+     * the TokenizedStrategy so msg.sender == address(this).
+     *
+     * We name the function `shutdownWithdraw` so that `emergencyWithdraw`
+     * calls are forwarded to the TokenizedStrategy so it can do the neccesary
+     * accounting after the withdraw.
+     *
+     * @param _amount The amount of asset to attempt to free.
+     */
     function shutdownWithdraw(uint256 _amount) external onlySelf {
-        _shutdownWithdraw(_amount);
+        _emergencyWithdraw(_amount);
     }
 
     /**
