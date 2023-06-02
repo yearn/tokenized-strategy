@@ -25,8 +25,7 @@ contract AccountingTest is Setup {
         );
 
         // set fees to 0 for calculations simplicity
-        vm.prank(management);
-        strategy.setPerformanceFee(0);
+        setFees(0, 0);
 
         // nothing has happened pps should be 1
         uint256 pricePerShare = strategy.pricePerShare();
@@ -199,8 +198,7 @@ contract AccountingTest is Setup {
         );
 
         // set fees to 0 for calculations simplicity
-        vm.prank(management);
-        strategy.setPerformanceFee(0);
+        setFees(0, 0);
 
         // nothing has happened pps should be 1
         uint256 pricePerShare = strategy.pricePerShare();

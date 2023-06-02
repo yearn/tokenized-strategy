@@ -290,6 +290,10 @@ contract TokenizedStrategy {
     // Used for profit unlocking rate calculations.
     uint256 private constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
+    // Minimum in Basis points the Performance fee can be set to.
+    // Used to disenctevize forking strategies just to lower fees.
+    uint16 private constant MIN_FEE = 500; // 5%
+
     // Address of the previously deployed Vault factory that the
     // protocl fee config is retrieved from.
     // NOTE: This will be set to deployed factory. deterministic address for testing is used now
@@ -1218,15 +1222,17 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Sets the performance fee to be charged on a reported gains.
+     * @notice Sets the performance fee to be charged on reported gains.
      * @dev Can only be called by the current `management`.
      *
-     * Denominated in Baseis Points. So 100% == 10_000.
+     * Denominated in Basis Points. So 100% == 10_000.
+     * Cannot be set less than the MIN_FEE.
      * Cannot set greater than to 5_000 (50%).
      *
      * @param _performanceFee New performance fee.
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
+        require(_performanceFee >= MIN_FEE, "MIN FEE");
         require(_performanceFee <= 5_000, "MAX FEE");
         _strategyStorage().performanceFee = _performanceFee;
 
