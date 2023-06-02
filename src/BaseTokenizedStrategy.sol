@@ -267,7 +267,7 @@ abstract contract BaseTokenizedStrategy {
      *
      * EX:
      *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {
-     *       depositFunds..
+     *       depositFunds...
      *    }
      *
      * @param _amount The amount of asset to attempt to free.

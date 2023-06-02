@@ -174,14 +174,14 @@ contract ShutdownTest is Setup {
 
         assertTrue(strategy.isShutdown());
 
-        // Withdraw half and make sure it records properly
+        // Withdra half and make sure it records properly
         uint256 toWithdraw = _amount / 2;
 
         vm.prank(management);
         strategy.emergencyWithdraw(toWithdraw);
 
         // Make sure it pulled out the correct amount.
-        // And did not reinvest.
+        // And recorded it correctly
         checkStrategyTotals(
             strategy,
             _amount,
@@ -198,6 +198,123 @@ contract ShutdownTest is Setup {
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
         assertEq(asset.balanceOf(_address), _amount);
+    }
+
+    function test_emergencyWithdraw_withProfit(
+        address _address,
+        uint256 _amount,
+        uint16 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        setFees(0, 0);
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+
+        assertTrue(!strategy.isShutdown());
+
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit StrategyShutdown();
+
+        vm.prank(management);
+        strategy.shutdownStrategy();
+
+        assertTrue(strategy.isShutdown());
+
+        uint256 pps = strategy.pricePerShare();
+        // Simulate a profit
+        asset.mint(address(yieldSource), profit);
+
+        vm.prank(management);
+        strategy.emergencyWithdraw(_amount + profit);
+
+        // Make sure it recorded the correct amount
+        checkStrategyTotals(strategy, _amount, 0, _amount, _amount);
+
+        // PPS should not change.
+        assertEq(strategy.pricePerShare(), pps);
+        assertEq(asset.balanceOf(address(strategy)), _amount + profit);
+
+        // Make sure we can now report the profit.
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Reported(profit, 0, 0, 0);
+
+        vm.prank(management);
+        strategy.report();
+
+        skip(strategy.profitMaxUnlockTime());
+
+        vm.prank(_address);
+        strategy.redeem(_amount, _address, _address);
+
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
+
+        assertEq(asset.balanceOf(_address), _amount + profit);
+    }
+
+    function test_emergencyWithdraw_withLoss(
+        address _address,
+        uint256 _amount,
+        uint16 _lossFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _lossFactor = uint16(bound(uint256(_lossFactor), 10, 5_000));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        uint256 loss = (_amount * _lossFactor) / MAX_BPS;
+
+        assertTrue(!strategy.isShutdown());
+
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit StrategyShutdown();
+
+        vm.prank(management);
+        strategy.shutdownStrategy();
+
+        assertTrue(strategy.isShutdown());
+
+        uint256 pps = strategy.pricePerShare();
+        // Simulate a loss
+        yieldSource.simulateLoss(loss);
+
+        vm.prank(management);
+        strategy.emergencyWithdraw(_amount - loss);
+
+        // Make sure it recorded the correct amount.
+        // Loss will still be counted as debt.
+        checkStrategyTotals(strategy, _amount, loss, _amount - loss, _amount);
+
+        // PPS should not change.
+        assertEq(strategy.pricePerShare(), pps);
+        assertEq(asset.balanceOf(address(strategy)), _amount - loss);
+
+        // Make sure we can now report the profit.
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Reported(0, loss, 0, 0);
+
+        vm.prank(management);
+        strategy.report();
+
+        vm.prank(_address);
+        strategy.redeem(_amount, _address, _address);
+
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
+
+        assertEq(asset.balanceOf(_address), _amount - loss);
     }
 
     function test_emergencyWithdraw_notShutdown_reverts(
