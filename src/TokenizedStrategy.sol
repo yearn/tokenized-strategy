@@ -14,12 +14,14 @@ import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
  * @notice
  *  This TokenizedStrategy can be used by anyone wishing to easily build
  *  and deploy their own custom ERC4626 compliant single strategy Vault.
- *  This TokenizedStrategy contract is meant to be used as a proxy type
+ *
+ *  The TokenizedStrategy contract is meant to be used as a proxy style
  *  implementation contract that will hanle all logic, storage and
  *  mangement for a custom strategy that inherits the `BaseTokenizedStrategy`.
  *  Any function calls to the strategy that are not defined withen that
  *  strategy will be forwarded through a delegateCall to this contract.
- *  A strategy only needs to override a few simple functions that are
+
+ *  A strategist only needs to override a few simple functions that are
  *  focused entirely on the strategy specific needs to easily and cheaply
  *  deploy their own permisionless 4626 compliant vault.
  */
@@ -817,9 +819,9 @@ contract TokenizedStrategy {
      * over the `maxProfitUnlockTime` each second based on the
      * calculated `profitUnlockingRate`.
      *
-     * Any 'loss' will attempted to be offset with any remaining
-     * locked shares from the last report in order to reduce any
-     * negative impact to PPS.
+     * In case of a loss it will first attempt to offset the loss
+     * with any remaining locked shares from the last report in
+     * order to reduce any negative impact to PPS.
      *
      * Will then recalculate the new time to unlock profits over and the
      * rate based on a weighted average of any remaining time from the
@@ -1107,9 +1109,7 @@ contract TokenizedStrategy {
     /**
      * @notice To manually withdraw funds from the yield source after a
      * strategy has been shutdown.
-     * @dev This can only be called post {shutdownStrategy} in order to
-     * withdraw an '_amount' of deployed funds from the yield source in
-     * the case of an emergency.
+     * @dev This can only be called post {shutdownStrategy}.
      *
      * This will update totalDebt and totalIdle based on the amount of
      * loose `asset` after the withdraw leaving `totalAssets` unchanged.
