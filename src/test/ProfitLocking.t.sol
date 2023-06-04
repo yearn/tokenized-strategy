@@ -32,11 +32,9 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
 
         createAndCheckProfit(
             strategy,
@@ -108,7 +106,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set protocol fee to 100 bps so there will always be fees charged over a 10 day period with minFuzzAmount
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -117,11 +115,10 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
         createAndCheckProfit(
@@ -181,14 +178,16 @@ contract ProfitLockingTest is Setup {
             totalExpectedFees
         );
 
-        assertGt(strategy.pricePerShare(), wad, "pps decreased");
+        if (totalExpectedFees > 0) {
+            assertGt(strategy.pricePerShare(), wad, "pps decreased");
 
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(
-            totalExpectedFees,
-            protocolFeeRecipient,
-            protocolFeeRecipient
-        );
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                totalExpectedFees,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
@@ -218,11 +217,10 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
         createAndCheckProfit(
@@ -311,7 +309,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set perf fee to 10% protcol fee to 100 bps
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 1_000;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -319,11 +317,14 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
+
+        // Adjust what the percormance fee expects to get when there is a protocol fee.
+        expectedPerformanceFee = expectedPerformanceFee - expectedProtocolFee;
+
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
         createAndCheckProfit(
@@ -383,14 +384,16 @@ contract ProfitLockingTest is Setup {
             totalExpectedFees
         );
 
-        assertGt(strategy.pricePerShare(), wad, "pps decreased");
+        if (expectedPerformanceFee > 0) {
+            assertGt(strategy.pricePerShare(), wad, "pps decreased");
 
-        vm.prank(performanceFeeRecipient);
-        strategy.redeem(
-            expectedPerformanceFee,
-            performanceFeeRecipient,
-            performanceFeeRecipient
-        );
+            vm.prank(performanceFeeRecipient);
+            strategy.redeem(
+                expectedPerformanceFee,
+                performanceFeeRecipient,
+                performanceFeeRecipient
+            );
+        }
 
         expectedAssetsForFees = strategy.convertToAssets(expectedProtocolFee);
         checkStrategyTotals(
@@ -401,12 +404,14 @@ contract ProfitLockingTest is Setup {
             expectedProtocolFee
         );
 
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(
-            expectedProtocolFee,
-            protocolFeeRecipient,
-            protocolFeeRecipient
-        );
+        if (expectedProtocolFee > 0) {
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                expectedProtocolFee,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
@@ -437,11 +442,11 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
+
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
         createAndCheckProfit(
@@ -476,19 +481,15 @@ contract ProfitLockingTest is Setup {
         );
 
         uint256 newAmount = _amount + profit;
-        uint256 secondExpectedProtocolFee = getExpectedProtocolFee(
-            newAmount,
-            protocolFee
-        );
 
         uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            secondExpectedProtocolFee + expectedPerformanceFee
+            expectedProtocolFee + expectedPerformanceFee
         );
 
         createAndCheckProfit(
             strategy,
             profit,
-            secondExpectedProtocolFee,
+            expectedProtocolFee,
             expectedPerformanceFee
         );
 
@@ -535,7 +536,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set fees
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -544,11 +545,11 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
+
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
 
@@ -584,19 +585,15 @@ contract ProfitLockingTest is Setup {
         );
 
         uint256 newAmount = _amount + profit;
-        uint256 secondExpectedProtocolFee = getExpectedProtocolFee(
-            newAmount,
-            protocolFee
-        );
 
         uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            secondExpectedProtocolFee + expectedPerformanceFee
+            expectedProtocolFee + expectedPerformanceFee
         );
 
         createAndCheckProfit(
             strategy,
             profit,
-            secondExpectedProtocolFee,
+            expectedProtocolFee,
             expectedPerformanceFee
         );
 
@@ -620,6 +617,8 @@ contract ProfitLockingTest is Setup {
             newAmount - profit + totalExpectedFees + secondExpectedSharesForFees
         );
 
+        assertGt(strategy.pricePerShare(), wad, "pps decreased");
+
         vm.prank(_address);
         strategy.redeem(newAmount - profit, _address, _address);
 
@@ -635,11 +634,16 @@ contract ProfitLockingTest is Setup {
             totalExpectedFees + secondExpectedSharesForFees
         );
 
-        assertGt(strategy.pricePerShare(), wad, "pps decreased");
-
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(balance, protocolFeeRecipient, protocolFeeRecipient);
+        if (balance > 0) {
+            assertGt(strategy.pricePerShare(), wad, "pps decreased");
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                balance,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
@@ -670,11 +674,11 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
+
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
 
@@ -710,19 +714,15 @@ contract ProfitLockingTest is Setup {
         );
 
         uint256 newAmount = _amount + profit;
-        uint256 secondExpectedProtocolFee = getExpectedProtocolFee(
-            newAmount,
-            protocolFee
-        );
 
         uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            secondExpectedProtocolFee + expectedPerformanceFee
+            expectedProtocolFee + expectedPerformanceFee
         );
 
         createAndCheckProfit(
             strategy,
             profit,
-            secondExpectedProtocolFee,
+            expectedProtocolFee,
             expectedPerformanceFee
         );
 
@@ -791,7 +791,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set fees
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 1_000;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -800,11 +800,12 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
+        // Adjust what the percormance fee expects to get when there is a protocol fee.
+        expectedPerformanceFee = expectedPerformanceFee - expectedProtocolFee;
+
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
 
@@ -840,19 +841,15 @@ contract ProfitLockingTest is Setup {
         );
 
         uint256 newAmount = _amount + profit;
-        uint256 secondExpectedProtocolFee = getExpectedProtocolFee(
-            newAmount,
-            protocolFee
-        );
 
         uint256 secondExpectedSharesForFees = strategy.convertToShares(
             expectedPerformanceFee
-        ) + strategy.convertToShares(secondExpectedProtocolFee);
+        ) + strategy.convertToShares(expectedProtocolFee);
 
         createAndCheckProfit(
             strategy,
             profit,
-            secondExpectedProtocolFee,
+            expectedProtocolFee,
             expectedPerformanceFee
         );
 
@@ -864,8 +861,7 @@ contract ProfitLockingTest is Setup {
             newAmount -
                 ((profit - totalExpectedFees) / 2) +
                 strategy.previewWithdraw(
-                    profit -
-                        (secondExpectedProtocolFee + expectedPerformanceFee)
+                    profit - (expectedProtocolFee + expectedPerformanceFee)
                 ) +
                 secondExpectedSharesForFees
         );
@@ -899,8 +895,14 @@ contract ProfitLockingTest is Setup {
         assertGt(strategy.pricePerShare(), wad, "pps decreased");
 
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(balance, protocolFeeRecipient, protocolFeeRecipient);
+        if (balance > 0) {
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                balance,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         balance = strategy.balanceOf(performanceFeeRecipient);
         vm.prank(performanceFeeRecipient);
@@ -938,10 +940,7 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 loss = (_amount * _lossFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+        uint256 expectedProtocolFee = 0;
 
         createAndCheckLoss(strategy, loss, expectedProtocolFee, true);
 
@@ -1008,7 +1007,7 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set all fees to 0
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         uint16 performanceFee = 0;
         setFees(protocolFee, performanceFee);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
@@ -1016,10 +1015,7 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 loss = (_amount * _lossFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+        uint256 expectedProtocolFee = 0;
 
         uint256 totalExpectedFees = expectedProtocolFee;
         createAndCheckLoss(
@@ -1073,8 +1069,14 @@ contract ProfitLockingTest is Setup {
         strategy.redeem(_amount, _address, _address);
 
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(balance, protocolFeeRecipient, protocolFeeRecipient);
+        if (balance > 0) {
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                balance,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
@@ -1104,10 +1106,7 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 loss = (_amount * _lossFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+        uint256 expectedProtocolFee = 0;
         uint256 expectedPerformanceFee = (loss * 0) / MAX_BPS;
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
@@ -1142,18 +1141,14 @@ contract ProfitLockingTest is Setup {
         );
 
         uint256 newAmount = _amount + loss * 2;
-        uint256 secondExpectedProtocolFee = getExpectedProtocolFee(
-            newAmount,
-            protocolFee
-        );
 
         uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            secondExpectedProtocolFee + expectedPerformanceFee
+            expectedProtocolFee + expectedPerformanceFee
         );
 
         // We will not burn the difference between the remaining buffer and shares it will take post profit to cover it
         uint256 toNotBurn = loss - strategy.convertToShares(loss);
-        createAndCheckLoss(strategy, loss, secondExpectedProtocolFee, true);
+        createAndCheckLoss(strategy, loss, expectedProtocolFee, true);
 
         // We should have burned the full buffer
         assertApproxEq(
@@ -1201,17 +1196,14 @@ contract ProfitLockingTest is Setup {
                 _address != address(yieldSource)
         );
         // set all fees to 0
-        uint16 protocolFee = 100;
+        uint16 protocolFee = 1_000;
         setFees(protocolFee, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
         // Increase time to simulate interest being earned
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 loss = (_amount * _lossFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
+        uint256 expectedProtocolFee = 0;
         uint256 expectedPerformanceFee = (loss * 0) / MAX_BPS;
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
@@ -1250,19 +1242,15 @@ contract ProfitLockingTest is Setup {
         );
 
         uint256 newAmount = _amount + loss * 2;
-        uint256 secondExpectedProtocolFee = getExpectedProtocolFee(
-            newAmount,
-            protocolFee
-        );
 
         uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            secondExpectedProtocolFee + expectedPerformanceFee
+            expectedProtocolFee + expectedPerformanceFee
         );
 
         createAndCheckLoss(
             strategy,
             loss,
-            secondExpectedProtocolFee,
+            expectedProtocolFee,
             false // Dont check protocol fees with overall loss
         );
 
@@ -1285,8 +1273,14 @@ contract ProfitLockingTest is Setup {
         strategy.redeem(_amount, _address, _address);
 
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
-        vm.prank(protocolFeeRecipient);
-        strategy.redeem(balance, protocolFeeRecipient, protocolFeeRecipient);
+        if (balance > 0) {
+            vm.prank(protocolFeeRecipient);
+            strategy.redeem(
+                balance,
+                protocolFeeRecipient,
+                protocolFeeRecipient
+            );
+        }
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
@@ -1316,11 +1310,9 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedProtocolFee = getExpectedProtocolFee(
-            _amount,
-            protocolFee
-        );
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
 
         createAndCheckProfit(
             strategy,
