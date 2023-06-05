@@ -12,8 +12,9 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *  seemlessly integrate with the `TokenizedStrategy` implementation contract
  *  allowing anyone to easily build a fully permisionless ERC-4626 compliant
  *  Vault by inheriting this contract and overriding three simple functions.
+
  *  It utilizes an immutable proxy pattern that allows the BaseTokenizedStrategy
- *  to remain incredibly simple and small. All standard logic is held withen the
+ *  to remain simple and small. All standard logic is held withen the
  *  `TokenizedStrategy` and is reused over any n strategies all using the
  *  `fallback` function to delegatecall the implementation so that strategists
  *  can only be concerned with writing their strategy specific code.
@@ -67,7 +68,7 @@ abstract contract BaseTokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        CONSTANTS /IMMUTABLES
+                            CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -86,6 +87,10 @@ abstract contract BaseTokenizedStrategy {
     address public constant tokenizedStrategyAddress =
         0x2e234DAe75C793f67A35089C9d99245E1C58470b;
 
+    /*//////////////////////////////////////////////////////////////
+                            IMMUTABLES
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * This variable is set to address(this) during initialization of each strategy.
      *
@@ -98,50 +103,30 @@ abstract contract BaseTokenizedStrategy {
      * to a call to itself. Which will hit the fallback function and
      * delegateCall that to the actual TokenizedStrategy.
      */
-    ITokenizedStrategy internal TokenizedStrategy;
-
-    /*//////////////////////////////////////////////////////////////
-                               STORAGE
-    //////////////////////////////////////////////////////////////*/
+    ITokenizedStrategy internal immutable TokenizedStrategy;
 
     // Underlying asset the Strategy is earning yield on.
-    address public asset;
-
-    constructor(address _asset, string memory _name) {
-        _initialize(_asset, _name, msg.sender, msg.sender, msg.sender);
-    }
+    address public immutable asset;
 
     /**
      * @notice Used to intialize the strategy on deployment.
      *
-     * This will set the `TokenizedStrategy` variable for easy internal view
-     * calls to the implementation. As well as initializing the
-     * defualt storage variables based on the parameters given.
+     * This will set the `TokenizedStrategy` variable for easy
+     * internal view calls to the implementation. As well as
+     * initializing the defualt storage variables based on the
+     * parameters and using the deployer for the permisioned roles.
      *
      * @param _asset Address of the underlying asset.
      * @param _name Name the strategy will use.
-     * @param _management Address to set as the strategies `management`.
-     * @param _performanceFeeRecipient Address to receive performance fees.
-     * @param _keeper Address to set as strategies `keeper`.
      */
-    function _initialize(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _performanceFeeRecipient,
-        address _keeper
-    ) internal {
-        // make sure we have not been initialized
-        require(asset == address(0), "!init");
+    constructor(address _asset, string memory _name) {
+        asset = _asset;
 
         // Set instance of the implementation for internal use.
         TokenizedStrategy = ITokenizedStrategy(address(this));
 
-        // Set the asset we are using.
-        asset = _asset;
-
-        // initilize the strategies storage variables
-        _init(_asset, _name, _management, _performanceFeeRecipient, _keeper);
+        // Initilize the strategies storage variables.
+        _init(_asset, _name, msg.sender, msg.sender, msg.sender);
 
         // Store the tokenizedStrategyAddress at the standard implementation
         // address storage slot so etherscan picks up the interface. This gets

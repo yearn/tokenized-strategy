@@ -178,7 +178,7 @@ contract CutsomImplementationsTest is Setup {
         assertTrue(strategy.kept());
 
         // Reset the slot holding the bools all to false.
-        vm.store(address(strategy), bytes32(uint256(2)), bytes32(0));
+        vm.store(address(strategy), bytes32(uint256(0)), bytes32(0));
 
         assertTrue(!strategy.kept());
 
