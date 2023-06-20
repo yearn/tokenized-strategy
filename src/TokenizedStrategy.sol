@@ -293,7 +293,7 @@ contract TokenizedStrategy {
     uint16 private constant MIN_FEE = 500; // 5%
 
     // Address of the previously deployed Vault factory that the
-    // protocl fee config is retrieved from.
+    // protocol fee config is retrieved from.
     // NOTE: This will be set to deployed factory. deterministic address for testing is used now
     address private constant FACTORY =
         0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
