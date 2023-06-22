@@ -741,6 +741,7 @@ contract TokenizedStrategy {
         uint256 assets,
         uint256 shares
     ) private returns (uint256) {
+        require(receiver != address(0), "ZERO ADDRESS");
         require(shares <= maxRedeem(owner), "ERC4626: withdraw more than max");
 
         if (msg.sender != owner) {
