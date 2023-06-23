@@ -1059,13 +1059,14 @@ contract TokenizedStrategy {
         IBaseTokenizedStrategy(address(this)).tendThis(_totalIdle);
         uint256 afterBalance = _asset.balanceOf(address(this));
 
+        uint256 diff;
         // Adjust storage according to the changes without adjusting totalAssets().
         if (beforeBalance > afterBalance) {
             // Idle funds were deposited.
-            uint256 deposited = Math.min(
-                beforeBalance - afterBalance,
-                _totalIdle
-            );
+            unchecked {
+                diff = beforeBalance - afterBalance;
+            }
+            uint256 deposited = Math.min(diff, _totalIdle);
 
             unchecked {
                 S.totalIdle -= deposited;
@@ -1073,10 +1074,10 @@ contract TokenizedStrategy {
             }
         } else if (afterBalance > beforeBalance) {
             // We default to use any funds freed as idle for cheaper withdraw/redeems.
-            uint256 harvested = Math.min(
-                afterBalance - beforeBalance,
-                S.totalDebt
-            );
+            unchecked {
+                diff = afterBalance - beforeBalance;
+            }
+            uint256 harvested = Math.min(diff, S.totalDebt);
 
             unchecked {
                 S.totalIdle += harvested;
