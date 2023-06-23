@@ -876,14 +876,14 @@ contract TokenizedStrategy {
             uint256 performanceFeeShares;
             uint256 protocolFeeShares;
             // If performance fees are 0 so will protocol fees.
-            if (totalFees > 0) {
+            if (totalFees != 0) {
                 // Get the config from the factory.
                 uint16 protocolFeeBps;
                 (protocolFeeBps, protocolFeesRecipient) = IFactory(FACTORY)
                     .protocol_fee_config();
 
                 // Check if there is a protocol fee to charge.
-                if (protocolFeeBps > 0) {
+                if (protocolFeeBps != 0) {
                     // Calculate protocol fees based on the performance Fees.
                     protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
                 }
@@ -895,7 +895,7 @@ contract TokenizedStrategy {
                         totalFees - protocolFees
                     );
                 }
-                if (protocolFees > 0) {
+                if (protocolFees != 0) {
                     protocolFeeShares = convertToShares(protocolFees);
                 }
             }
@@ -909,11 +909,11 @@ contract TokenizedStrategy {
             _mint(address(this), sharesToLock);
 
             // Mint fees shares to recipients.
-            if (performanceFeeShares > 0) {
+            if (performanceFeeShares != 0) {
                 _mint(S.performanceFeeRecipient, performanceFeeShares);
             }
 
-            if (protocolFeeShares > 0) {
+            if (protocolFeeShares != 0) {
                 _mint(protocolFeesRecipient, protocolFeeShares);
             }
         } else {
@@ -923,7 +923,7 @@ contract TokenizedStrategy {
             }
 
             // Check in case else was due to being equal.
-            if (loss > 0) {
+            if (loss != 0) {
                 // We will try and burn shares from any pending profit still unlocking
                 // to offset the loss to prevent any PPS decline post report.
                 uint256 sharesToBurn = Math.min(
@@ -932,7 +932,7 @@ contract TokenizedStrategy {
                 );
 
                 // Check if there is anything to burn.
-                if (sharesToBurn > 0) {
+                if (sharesToBurn != 0) {
                     _burn(address(this), sharesToBurn);
                 }
             }
@@ -940,7 +940,7 @@ contract TokenizedStrategy {
 
         // Update unlocking rate and time to fully unlocked.
         uint256 totalLockedShares = S.balances[address(this)];
-        if (totalLockedShares > 0) {
+        if (totalLockedShares != 0) {
             uint256 previouslyLockedTime;
             uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
             // Check if we need to account for shares still unlocking.
@@ -1338,7 +1338,7 @@ contract TokenizedStrategy {
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
-        require(_profitMaxUnlockTime > 0, "to short");
+        require(_profitMaxUnlockTime != 0, "to short");
         require(_profitMaxUnlockTime <= 31_556_952, "to long");
         _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 

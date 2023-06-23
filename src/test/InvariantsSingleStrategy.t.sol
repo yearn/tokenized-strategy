@@ -47,7 +47,7 @@ contract SingleStrategyInvariantTest is BaseInvariant {
     }
 
     function invariant_maxWithdrawEqualsMaxRedeem() public {
-        asert_maxRedeemEqualsMaxWithdraw();
+        assert_maxRedeemEqualsMaxWithdraw();
     }
 
     function invariant_unlockingTime() public {
