@@ -450,6 +450,7 @@ contract TokenizedStrategy {
     /**
      * @notice Withdraws exactly `assets` from `owners` shares and sends
      * the underlying tokens to `receiver`.
+     * @dev This will default to not allowing any loss to be taken.
      * @param assets The amount of underlying to withdraw.
      * @param receiver The address to receive `assets`.
      * @param owner The address whose shares are burnt.
@@ -483,18 +484,13 @@ contract TokenizedStrategy {
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
         // Withdraw and track the actual amount withdrawn for loss check.
-        uint256 withdrawn = _withdraw(receiver, owner, assets, shares);
-
-        // Make sure we are withen the acceptable loss.
-        require(
-            assets - withdrawn <= (assets * maxLoss) / MAX_BPS,
-            "to much loss"
-        );
+        _withdraw(receiver, owner, assets, shares, maxLoss);
     }
 
     /**
      * @notice Redeems exactly `shares` from `owner` and
      * sends `assets` of underlying tokens to `receiver`.
+     * @dev This will default to allowing any loss passed to be realized.
      * @param shares The amount of shares burnt.
      * @param receiver The address to receive `assets`.
      * @param owner The address whose shares are burnt.
@@ -530,18 +526,7 @@ contract TokenizedStrategy {
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
         // We need to return the actual amount withdrawn in case of a loss.
-        uint256 withdrawn = _withdraw(receiver, owner, assets, shares);
-
-        // If a non-default max loss parameter was set.
-        if (maxLoss < MAX_BPS) {
-            // Make sure we are withen the acceptable loss.
-            require(
-                assets - withdrawn <= (assets * maxLoss) / MAX_BPS,
-                "to much loss"
-            );
-        }
-
-        return withdrawn;
+        return _withdraw(receiver, owner, assets, shares, maxLoss);
     }
 
     /**
@@ -796,7 +781,8 @@ contract TokenizedStrategy {
         address receiver,
         address owner,
         uint256 assets,
-        uint256 shares
+        uint256 shares,
+        uint256 maxLoss
     ) private returns (uint256) {
         require(receiver != address(0), "ZERO ADDRESS");
         require(shares <= maxRedeem(owner), "ERC4626: withdraw more than max");
@@ -836,6 +822,14 @@ contract TokenizedStrategy {
             if (idle < assets) {
                 unchecked {
                     loss = assets - idle;
+                }
+                // If a non-default max loss parameter was set.
+                if (maxLoss < MAX_BPS) {
+                    // Make sure we are withen the acceptable range.
+                    require(
+                        loss <= (assets * maxLoss) / MAX_BPS,
+                        "to much loss"
+                    );
                 }
                 // Lower the amount to be withdrawn.
                 assets = idle;
