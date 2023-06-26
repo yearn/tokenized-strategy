@@ -630,7 +630,7 @@ contract TokenizedStrategy {
     /**
      * @notice Total number of underlying assets that can
      * be deposited by `_owner` into the strategy, where `_owner`
-     * corresponds to the msg.sender of a {deposit} call.
+     * corresponds to the receiver of a {deposit} call.
      */
     function maxDeposit(address _owner) public view returns (uint256) {
         if (_strategyStorage().shutdown) return 0;
@@ -641,7 +641,7 @@ contract TokenizedStrategy {
 
     /**
      * @notice Total number of shares that can be minted by `_owner`
-     * into the strategy, where `_owner` corresponds to the msg.sender
+     * into the strategy, where `_owner` corresponds to the receiver
      * of a {mint} call.
      */
     function maxMint(address _owner) public view returns (uint256 _maxMint) {
@@ -733,7 +733,7 @@ contract TokenizedStrategy {
         require(
             assets <=
                 IBaseTokenizedStrategy(address(this)).availableDepositLimit(
-                    msg.sender
+                    receiver
                 ),
             "ERC4626: deposit more than max"
         );
