@@ -45,6 +45,24 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     ) external;
 
     /*//////////////////////////////////////////////////////////////
+                    NON-STANDARD 4626 OPTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) external returns (uint256);
+
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) external returns (uint256);
+
+    /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
 

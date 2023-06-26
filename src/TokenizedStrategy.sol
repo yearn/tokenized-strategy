@@ -448,8 +448,9 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Redeems `shares` from `owner` and sends `assets`
-     * of underlying tokens to `receiver`.
+     * @notice Withdraws exactly `assets` from `owners` shares and sends
+     * the underlying tokens to `receiver`.
+     * @dev This will default to not allowing any loss to be taken.
      * @param assets The amount of underlying to withdraw.
      * @param receiver The address to receive `assets`.
      * @param owner The address whose shares are burnt.
@@ -459,16 +460,37 @@ contract TokenizedStrategy {
         uint256 assets,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 shares) {
+    ) external returns (uint256 shares) {
+        return withdraw(assets, receiver, owner, 0);
+    }
+
+    /**
+     * @notice Withdraws `assets` from `owners` shares and sends
+     * the underlying tokens to `receiver`.
+     * @dev This includes an added parameter to allow for losses.
+     * @param assets The amount of underlying to withdraw.
+     * @param receiver The address to receive `assets`.
+     * @param owner The address whose shares are burnt.
+     * @param maxLoss The amount of acceptable loss in Basis points.
+     * @return shares The actual amount of shares burnt.
+     */
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) public nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
-        _withdraw(receiver, owner, assets, shares);
+        // Withdraw and track the actual amount withdrawn for loss check.
+        _withdraw(receiver, owner, assets, shares, maxLoss);
     }
 
     /**
      * @notice Redeems exactly `shares` from `owner` and
      * sends `assets` of underlying tokens to `receiver`.
+     * @dev This will default to allowing any loss passed to be realized.
      * @param shares The amount of shares burnt.
      * @param receiver The address to receive `assets`.
      * @param owner The address whose shares are burnt.
@@ -478,13 +500,33 @@ contract TokenizedStrategy {
         uint256 shares,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256) {
+    ) external returns (uint256) {
+        // We default to not limiting a potential loss.
+        return redeem(shares, receiver, owner, MAX_BPS);
+    }
+
+    /**
+     * @notice Redeems exactly `shares` from `owner` and
+     * sends `assets` of underlying tokens to `receiver`.
+     * @dev This includes an added parameter to allow for losses.
+     * @param shares The amount of shares burnt.
+     * @param receiver The address to receive `assets`.
+     * @param owner The address whose shares are burnt.
+     * @param maxLoss The amount of acceptable loss in Basis points.
+     * @return . The actual amount of underlying withdrawn.
+     */
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) public nonReentrant returns (uint256) {
         uint256 assets;
         // Check for rounding error.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
         // We need to return the actual amount withdrawn in case of a loss.
-        return _withdraw(receiver, owner, assets, shares);
+        return _withdraw(receiver, owner, assets, shares, maxLoss);
     }
 
     /**
@@ -739,7 +781,8 @@ contract TokenizedStrategy {
         address receiver,
         address owner,
         uint256 assets,
-        uint256 shares
+        uint256 shares,
+        uint256 maxLoss
     ) private returns (uint256) {
         require(receiver != address(0), "ZERO ADDRESS");
         require(shares <= maxRedeem(owner), "ERC4626: withdraw more than max");
@@ -779,6 +822,14 @@ contract TokenizedStrategy {
             if (idle < assets) {
                 unchecked {
                     loss = assets - idle;
+                }
+                // If a non-default max loss parameter was set.
+                if (maxLoss < MAX_BPS) {
+                    // Make sure we are withen the acceptable range.
+                    require(
+                        loss <= (assets * maxLoss) / MAX_BPS,
+                        "to much loss"
+                    );
                 }
                 // Lower the amount to be withdrawn.
                 assets = idle;
