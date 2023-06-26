@@ -48,6 +48,17 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) external;
+
+    /*//////////////////////////////////////////////////////////////
+                            MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
     function isKeeperOrManagement(address _sender) external view;
 
     function isManagement(address _sender) external view;

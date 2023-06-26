@@ -398,7 +398,33 @@ contract AccountingTest is Setup {
         );
     }
 
-    function test_withdrawWithUnrealizedLoss(
+    function test_withdrawWithUnrealizedLoss_reverts(
+        address _address,
+        uint256 _amount,
+        uint16 _lossFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _lossFactor = uint16(bound(uint256(_lossFactor), 10, MAX_BPS));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        uint256 toLoose = (_amount * _lossFactor) / MAX_BPS;
+        // Simulate a loss.
+        vm.prank(address(yieldSource));
+        asset.transfer(address(69), toLoose);
+
+        vm.expectRevert("to much loss");
+        vm.prank(_address);
+        strategy.withdraw(_amount, _address, _address);
+    }
+
+    function test_withdrawWithUnrealizedLoss_withMaxLoss(
         address _address,
         uint256 _amount,
         uint16 _lossFactor
@@ -423,7 +449,43 @@ contract AccountingTest is Setup {
         uint256 expectedOut = _amount - toLoose;
         // Withdraw the full amount before the loss is reported.
         vm.prank(_address);
-        strategy.withdraw(_amount, _address, _address);
+        strategy.withdraw(_amount, _address, _address, _lossFactor);
+
+        uint256 afterBalance = asset.balanceOf(_address);
+
+        assertEq(afterBalance - beforeBalance, expectedOut);
+        assertEq(strategy.totalDebt(), 0);
+        assertEq(strategy.totalIdle(), 0);
+        assertEq(strategy.totalSupply(), 0);
+        assertEq(strategy.pricePerShare(), wad);
+    }
+
+    function test_redeemWithUnrealizedLoss(
+        address _address,
+        uint256 _amount,
+        uint16 _lossFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _lossFactor = uint16(bound(uint256(_lossFactor), 10, MAX_BPS));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        uint256 toLoose = (_amount * _lossFactor) / MAX_BPS;
+        // Simulate a loss.
+        vm.prank(address(yieldSource));
+        asset.transfer(address(69), toLoose);
+
+        uint256 beforeBalance = asset.balanceOf(_address);
+        uint256 expectedOut = _amount - toLoose;
+        // Withdraw the full amount before the loss is reported.
+        vm.prank(_address);
+        strategy.redeem(_amount, _address, _address);
 
         uint256 afterBalance = asset.balanceOf(_address);
 

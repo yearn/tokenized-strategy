@@ -448,8 +448,8 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Redeems `shares` from `owner` and sends `assets`
-     * of underlying tokens to `receiver`.
+     * @notice Withdraws exactly `assets` from `owners` shares and sends
+     * the underlying tokens to `receiver`.
      * @param assets The amount of underlying to withdraw.
      * @param receiver The address to receive `assets`.
      * @param owner The address whose shares are burnt.
@@ -459,11 +459,42 @@ contract TokenizedStrategy {
         uint256 assets,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 shares) {
+    ) external returns (uint256 shares) {
+        // Check for rounding error.
+        //require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
+
+        //_withdraw(receiver, owner, assets, shares);
+
+        return withdraw(assets, receiver, owner, 0);
+    }
+
+    /**
+     * @notice Withdraws `assets` from `owners` shares and sends
+     * the underlying tokens to `receiver`.
+     * @dev This includes an added parameter to allow for losses.
+     * @param assets The amount of underlying to withdraw.
+     * @param receiver The address to receive `assets`.
+     * @param owner The address whose shares are burnt.
+     * @param maxLoss The amount of acceptable loss in Basis points.
+     * @return shares The actual amount of shares burnt.
+     */
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) public nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
-        _withdraw(receiver, owner, assets, shares);
+        // Withdraw and track the actual amount withdrawn for loss check.
+        uint256 withdrawn = _withdraw(receiver, owner, assets, shares);
+
+        // Make sure we are withen the acceptable loss.
+        require(
+            assets - withdrawn <= (assets * maxLoss) / MAX_BPS,
+            "to much loss"
+        );
     }
 
     /**
