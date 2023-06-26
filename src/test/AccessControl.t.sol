@@ -13,11 +13,18 @@ contract AccesssControlTest is Setup {
         vm.assume(_address != management && _address != address(0));
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit UpdateManagement(_address);
+        emit UpdatePendingManagement(_address);
 
         vm.prank(management);
-        strategy.setManagement(_address);
+        strategy.setPendingManagement(_address);
 
+        assertEq(strategy.pendingManagement(), _address);
+        assertEq(strategy.management(), management);
+
+        vm.prank(_address);
+        strategy.acceptManagement();
+
+        assertEq(strategy.pendingManagement(), address(0));
         assertEq(strategy.management(), _address);
     }
 
@@ -103,9 +110,20 @@ contract AccesssControlTest is Setup {
 
         vm.prank(_address);
         vm.expectRevert("!Authorized");
-        strategy.setManagement(address(69));
+        strategy.setPendingManagement(address(69));
 
         assertEq(strategy.management(), _management);
+        assertEq(strategy.pendingManagement(), address(0));
+
+        vm.prank(management);
+        strategy.setPendingManagement(_address);
+
+        assertEq(strategy.management(), _management);
+        assertEq(strategy.pendingManagement(), _address);
+
+        vm.expectRevert("!Authorized");
+        vm.prank(management);
+        strategy.acceptManagement();
     }
 
     function test_setKeeper_reverts(address _address) public {

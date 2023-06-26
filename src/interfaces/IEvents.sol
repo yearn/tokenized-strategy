@@ -7,6 +7,11 @@ interface IEvents {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Emitted whent the 'pendingMangement' address is updtaed to 'newPendingManagement'.
+     */
+    event UpdatePendingManagement(address indexed newPendingManagement);
+
+    /**
      * @notice Emitted whent the 'mangement' address is updtaed to 'newManagement'.
      */
     event UpdateManagement(address indexed newManagement);

@@ -34,6 +34,11 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Emitted whent the 'pendingMangement' address is updtaed to 'newPendingManagement'.
+     */
+    event UpdatePendingManagement(address indexed newPendingManagement);
+
+    /**
      * @notice Emitted whent the 'mangement' address is updtaed to 'newManagement'.
      */
     event UpdateManagement(address indexed newManagement);
@@ -189,6 +194,7 @@ contract TokenizedStrategy {
         // Access management variables.
         address management; // Main address that can set all configurable variables.
         address keeper; // Address given permission to call {report} and {tend}.
+        address pendingManagement; // Address that is pending to take over 'management'.
         bool entered; // Bool to prevent reentrancy.
         bool shutdown; // Bool that can be used to stop deposits into the strategy.
     }
@@ -1241,6 +1247,14 @@ contract TokenizedStrategy {
     }
 
     /**
+     * @notice Get the current pending management address if any.
+     * @return . Address of pendingManagement
+     */
+    function pendingManagement() external view returns (address) {
+        return _strategyStorage().pendingManagement;
+    }
+
+    /**
      * @notice Get the current address that can call tend and report.
      * @return . Address of the keeper
      */
@@ -1314,18 +1328,35 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Sets a new address to be in charge of the stategy.
-     * @dev Can only be called by the current `management`.
+     * @notice Step one of two to set a new address to be in charge of the stategy.
+     * @dev Can only be called by the current `management`. The address is
+     * set to pending management and will then have to call {acceptManagement}
+     * in order for the 'management' to officially change.
      *
      * Cannot set `management` to address(0).
      *
-     * @param _management New address to set `management` to.
+     * @param _management New address to set `pendingManagement` to.
      */
-    function setManagement(address _management) external onlyManagement {
+    function setPendingManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
-        _strategyStorage().management = _management;
+        _strategyStorage().pendingManagement = _management;
 
-        emit UpdateManagement(_management);
+        emit UpdatePendingManagement(_management);
+    }
+
+    /**
+     * @notice Step two of two to set a new 'management' of the strategy.
+     * @dev Can only be called by the current `pendingManagement`.
+     */
+    function acceptManagement() external {
+        require(
+            msg.sender == _strategyStorage().pendingManagement,
+            "!Authorized"
+        );
+        _strategyStorage().management = msg.sender;
+        _strategyStorage().pendingManagement = address(0);
+
+        emit UpdateManagement(msg.sender);
     }
 
     /**
