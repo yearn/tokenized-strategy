@@ -40,7 +40,11 @@ contract CutsomImplementationsTest is Setup {
 
         // Make sure max withdraw and redeem return the correct amounts
         assertEq(strategy.maxWithdraw(_address), idle);
-        assertEq(strategy.maxRedeem(_address), strategy.convertToShares(idle));
+        assertEq(strategy.maxRedeem(_address), strategy.previewWithdraw(idle));
+        assertLe(
+            strategy.maxRedeem(_address),
+            strategy.availableWithdrawLimit(_address)
+        );
 
         vm.expectRevert("ERC4626: withdraw more than max");
         vm.prank(_address);
@@ -60,6 +64,10 @@ contract CutsomImplementationsTest is Setup {
         // Make sure max withdraw and redeem return the correct amounts
         assertEq(strategy.maxWithdraw(_address), idle);
         assertEq(strategy.maxRedeem(_address), strategy.previewWithdraw(idle));
+        assertLe(
+            strategy.maxRedeem(_address),
+            strategy.availableWithdrawLimit(_address)
+        );
 
         vm.expectRevert("ERC4626: withdraw more than max");
         vm.prank(_address);
@@ -77,6 +85,10 @@ contract CutsomImplementationsTest is Setup {
         assertApproxEq(strategy.availableWithdrawLimit(_address), 0, 1);
         assertApproxEq(strategy.maxWithdraw(_address), 0, 1);
         assertApproxEq(strategy.maxRedeem(_address), 0, 1);
+        assertLe(
+            strategy.maxRedeem(_address),
+            strategy.availableWithdrawLimit(_address)
+        );
     }
 
     function test_customDepositLimit(
