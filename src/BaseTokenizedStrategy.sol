@@ -9,12 +9,12 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  * @author yearn.finance
  * @notice
  *  BaseTokenizedStrategy implements all of the required functionality to
- *  seemlessly integrate with the `TokenizedStrategy` implementation contract
+ *  seamlessly integrate with the `TokenizedStrategy` implementation contract
  *  allowing anyone to easily build a fully permisionless ERC-4626 compliant
  *  Vault by inheriting this contract and overriding three simple functions.
 
  *  It utilizes an immutable proxy pattern that allows the BaseTokenizedStrategy
- *  to remain simple and small. All standard logic is held withen the
+ *  to remain simple and small. All standard logic is held within the
  *  `TokenizedStrategy` and is reused over any n strategies all using the
  *  `fallback` function to delegatecall the implementation so that strategists
  *  can only be concerned with writing their strategy specific code.
@@ -47,7 +47,7 @@ abstract contract BaseTokenizedStrategy {
     }
 
     /**
-     * @dev Use to assure that the call is coming from the strategies mangement.
+     * @dev Use to assure that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
         TokenizedStrategy.isManagement(msg.sender);
@@ -109,11 +109,11 @@ abstract contract BaseTokenizedStrategy {
     address public immutable asset;
 
     /**
-     * @notice Used to intialize the strategy on deployment.
+     * @notice Used to initialize the strategy on deployment.
      *
      * This will set the `TokenizedStrategy` variable for easy
      * internal view calls to the implementation. As well as
-     * initializing the defualt storage variables based on the
+     * initializing the default storage variables based on the
      * parameters and using the deployer for the permisioned roles.
      *
      * @param _asset Address of the underlying asset.
@@ -149,10 +149,10 @@ abstract contract BaseTokenizedStrategy {
      *
      * This function is called at the end of a {deposit} or {mint}
      * call. Meaning that unless a whitelist is implemented it will
-     * be entirely permsionless and thus can be sandwhiched or otherwise
+     * be entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
-     * @param _amount The amount of 'asset' that the strategy should attemppt
+     * @param _amount The amount of 'asset' that the strategy should attempt
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal virtual;
@@ -165,11 +165,11 @@ abstract contract BaseTokenizedStrategy {
      *
      * This function is called during {withdraw} and {redeem} calls.
      * Meaning that unless a whitelist is implemented it will be
-     * entirely permsionless and thus can be sandwhiched or otherwise
+     * entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
      * Should not rely on asset.balanceOf(address(this)) calls other than
-     * for diff accounting puroposes.
+     * for diff accounting purposes.
      *
      * Any difference between `_amount` and what is actually freed will be
      * counted as a loss and passed on to the withdrawer. This means
@@ -217,15 +217,15 @@ abstract contract BaseTokenizedStrategy {
      *
      * If '_tend' is used tendTrigger() will also need to be overridden.
      *
-     * This call can only be called by a persionned role so may be
+     * This call can only be called by a permissioned role so may be
      * through protected relays.
      *
      * This can be used to harvest and compound rewards, deposit idle funds,
-     * perform needed poisition maintence or anything else that doesn't need
+     * perform needed poisition maintenance or anything else that doesn't need
      * a full report for.
      *
      *   EX: A strategy that can not deposit funds without getting
-     *       sandwhiched can use the tend when a certain threshold
+     *       sandwiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
      * The TokenizedStrategy contract will do all needed debt and idle updates
@@ -237,7 +237,7 @@ abstract contract BaseTokenizedStrategy {
     function _tend(uint256 _totalIdle) internal virtual {}
 
     /**
-     * @notice Returns wether or not tend() should be called by a keeper.
+     * @notice Returns weather or not tend() should be called by a keeper.
      * @dev Optional trigger to override if tend() will be used by the strategy.
      * This must be implemented if the strategy hopes to invoke _tend().
      *
@@ -248,7 +248,7 @@ abstract contract BaseTokenizedStrategy {
     }
 
     /**
-     * @notice Gets the max amount of `asset` that an adress can deposit.
+     * @notice Gets the max amount of `asset` that an address can deposit.
      * @dev Defaults to an unlimited amount for any address. But can
      * be overriden by strategists.
      *
@@ -266,7 +266,7 @@ abstract contract BaseTokenizedStrategy {
      * by `totalSupply`.
      *
      * @param . The address that is depositing into the strategy.
-     * @return . The avialable amount the `_owner` can deposit in terms of `asset`
+     * @return . The available amount the `_owner` can deposit in terms of `asset`
      */
     function availableDepositLimit(
         address /*_owner*/
@@ -281,7 +281,7 @@ abstract contract BaseTokenizedStrategy {
      *
      * This function will be called before any withdraw or redeem to enforce
      * any limits desired by the strategist. This can be used for illiquid
-     * or sandwhichable strategies. It should never be lower than `totalIdle`.
+     * or sandwichable strategies. It should never be lower than `totalIdle`.
      *
      *   EX:
      *       return TokenIzedStrategy.totalIdle();
@@ -290,7 +290,7 @@ abstract contract BaseTokenizedStrategy {
      * or conversion rates from shares to assets.
      *
      * @param . The address that is withdrawing from the strategy.
-     * @return . The avialable amount that can be withdrawn in terms of `asset`
+     * @return . The available amount that can be withdrawn in terms of `asset`
      */
     function availableWithdrawLimit(
         address /*_owner*/
@@ -306,7 +306,7 @@ abstract contract BaseTokenizedStrategy {
      * This should attempt to free `_amount`, noting that `_amount` may
      * be more than is currently deployed.
      *
-     * NOTE: This will not realize any profits or losses. A seperate
+     * NOTE: This will not realize any profits or losses. A separate
      * {report} will be needed in order to record any profit/loss. If
      * a report may need to be called after a shutdown it is important
      * to check if the strategy is shutdown during {_harvestAndReport}
@@ -333,8 +333,8 @@ abstract contract BaseTokenizedStrategy {
      * Since this can only be called after a {deposit} or {mint}
      * delegateCall to the TokenizedStrategy msg.sender == address(this).
      *
-     * Unless a whitelist is implemented this will be entirely permsionless
-     * and thus can be sandwhiched or otherwise manipulated.
+     * Unless a whitelist is implemented this will be entirely permissionless
+     * and thus can be sandwiched or otherwise manipulated.
      *
      * @param _amount The amount of 'asset' that the strategy should
      * attemppt to deposit in the yield source.
@@ -351,7 +351,7 @@ abstract contract BaseTokenizedStrategy {
      * This can only be called after a 'withdraw' or 'redeem' delegateCall
      * to the TokenizedStrategy so msg.sender == address(this).
      *
-     * @param _amount The amount of 'asset' that the strategy should attemppt to free up.
+     * @param _amount The amount of 'asset' that the strategy should attempt to free up.
      */
     function freeFunds(uint256 _amount) external onlySelf {
         _freeFunds(_amount);
@@ -385,7 +385,7 @@ abstract contract BaseTokenizedStrategy {
      * so msg.sender == address(this).
      *
      * We name the function `tendThis` so that `tend` calls are forwarded to 
-     * the TokenizedStrategy so it can do the neccesary accounting.
+     * the TokenizedStrategy so it can do the necessary accounting.
 
      * @param _totalIdle The amount of current idle funds that can be 
      * deployed during the tend
@@ -402,7 +402,7 @@ abstract contract BaseTokenizedStrategy {
      * the TokenizedStrategy so msg.sender == address(this).
      *
      * We name the function `shutdownWithdraw` so that `emergencyWithdraw`
-     * calls are forwarded to the TokenizedStrategy so it can do the neccesary
+     * calls are forwarded to the TokenizedStrategy so it can do the necessary
      * accounting after the withdraw.
      *
      * @param _amount The amount of asset to attempt to free.
@@ -412,7 +412,7 @@ abstract contract BaseTokenizedStrategy {
     }
 
     /**
-     * @dev Funciton used on initilization to delegate call the
+     * @dev Funciton used on initialization to delegate call the
      * TokenizedStrategy to setup the default storage for the strategy.
      *
      * We cannot use the `TokenizedStrategy` variable call since this
