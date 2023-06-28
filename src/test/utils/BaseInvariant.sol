@@ -39,13 +39,12 @@ abstract contract BaseInvariant is Setup {
         assertLe(strategy.maxRedeem(msg.sender), strategy.totalSupply());
     }
 
-    function asert_maxRedeemEqualsMaxWithdraw() public {
+    function assert_maxRedeemEqualsMaxWithdraw() public {
         assertApproxEq(
             strategy.maxWithdraw(msg.sender),
             strategy.convertToAssets(strategy.maxRedeem(msg.sender)),
-            2
+            3
         );
-        // Rounding down twice would give us a diff of 3 wei.
         assertApproxEq(
             strategy.maxRedeem(msg.sender),
             strategy.convertToShares(strategy.maxWithdraw(msg.sender)),

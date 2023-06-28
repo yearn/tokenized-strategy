@@ -16,9 +16,9 @@ import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
  *  and deploy their own custom ERC4626 compliant single strategy Vault.
  *
  *  The TokenizedStrategy contract is meant to be used as a proxy style
- *  implementation contract that will hanle all logic, storage and
- *  mangement for a custom strategy that inherits the `BaseTokenizedStrategy`.
- *  Any function calls to the strategy that are not defined withen that
+ *  implementation contract that will handle all logic, storage and
+ *  management for a custom strategy that inherits the `BaseTokenizedStrategy`.
+ *  Any function calls to the strategy that are not defined within that
  *  strategy will be forwarded through a delegateCall to this contract.
 
  *  A strategist only needs to override a few simple functions that are
@@ -34,30 +34,35 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Emitted whent the 'mangement' address is updtaed to 'newManagement'.
+     * @notice Emitted when the 'pendingMangement' address is updated to 'newPendingManagement'.
+     */
+    event UpdatePendingManagement(address indexed newPendingManagement);
+
+    /**
+     * @notice Emitted when the 'mangement' address is updated to 'newManagement'.
      */
     event UpdateManagement(address indexed newManagement);
 
     /**
-     * @notice Emitted whent the 'keeper' address is updtaed to 'newKeeper'.
+     * @notice Emitted when the 'keeper' address is updated to 'newKeeper'.
      */
     event UpdateKeeper(address indexed newKeeper);
 
     /**
-     * @notice Emitted whent the 'performaneFee' is updtaed to 'newPerformanceFee'.
+     * @notice Emitted when the 'performaneFee' is updated to 'newPerformanceFee'.
      */
     event UpdatePerformanceFee(uint16 newPerformanceFee);
 
     /**
-     * @notice Emitted whent the 'performanceFeeRecipient' address is
-     * updtaed to 'newPerformanceFeeRecipient'.
+     * @notice Emitted when the 'performanceFeeRecipient' address is
+     * updated to 'newPerformanceFeeRecipient'.
      */
     event UpdatePerformanceFeeRecipient(
         address indexed newPerformanceFeeRecipient
     );
 
     /**
-     * @notice Emitted whent the 'profitMaxUnlockTime' is updtaed to 'newProfitMaxUnlockTime'.
+     * @notice Emitted when the 'profitMaxUnlockTime' is updated to 'newProfitMaxUnlockTime'.
      */
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 
@@ -137,7 +142,7 @@ contract TokenizedStrategy {
      * uses this implementation.
      *
      * This replaces all state variables for a traditional contract. This
-     * full struct will be initiliazed on the createion of the strategy
+     * full struct will be initialized on the creation of the strategy
      * and continually updated and read from for the life of the contract.
      *
      * We combine all the variables into one struct to limit the amount of
@@ -152,7 +157,7 @@ contract TokenizedStrategy {
         // The ERC20 compliant underlying asset that will be
         // used by the Strategy. We can keep this as an ERC20 
         // instance because the `BaseTokenizedStrategy` holds 
-        // the addres of `asset` as an immutable variable to
+        // the address of `asset` as an immutable variable to
         // meet the 4626 standard.
         ERC20 asset;
         
@@ -189,6 +194,7 @@ contract TokenizedStrategy {
         // Access management variables.
         address management; // Main address that can set all configurable variables.
         address keeper; // Address given permission to call {report} and {tend}.
+        address pendingManagement; // Address that is pending to take over 'management'.
         bool entered; // Bool to prevent reentrancy.
         bool shutdown; // Bool that can be used to stop deposits into the strategy.
     }
@@ -198,7 +204,7 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Require that the call is coming from the strategies mangement.
+     * @dev Require that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
         isManagement(msg.sender);
@@ -280,7 +286,7 @@ contract TokenizedStrategy {
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    // Api version this TokenizedStrategy implements.
+    // API version this TokenizedStrategy implements.
     string private constant API_VERSION = "3.0.1-beta";
 
     // Used for fee calculations.
@@ -289,27 +295,27 @@ contract TokenizedStrategy {
     uint256 private constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
     // Minimum in Basis points the Performance fee can be set to.
-    // Used to disenctevize forking strategies just to lower fees.
+    // Used to disincentivize forking strategies just to lower fees.
     uint16 private constant MIN_FEE = 500; // 5%
 
     // Address of the previously deployed Vault factory that the
-    // protocl fee config is retrieved from.
+    // protocol fee config is retrieved from.
     // NOTE: This will be set to deployed factory. deterministic address for testing is used now
     address private constant FACTORY =
         0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
 
     /**
-     * @dev Custom storgage slot that will be used to store the
+     * @dev Custom storage slot that will be used to store the
      * `StrategyData` struct that holds each strategies
      * specific storage variables.
      *
      * Any storage updates done by the TokenizedStrategy actually update
      * the storage of the calling contract. This variable points
-     * to the specic location that will be used to store the
+     * to the specific location that will be used to store the
      * struct that holds all that data.
      *
      * We use a custom string in order to get a random
-     * storage slot that will allow for stratgists to use any
+     * storage slot that will allow for strategists to use any
      * amount of storage in their strategy without worrying
      * about collisions.
      */
@@ -321,12 +327,12 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev will return the actaul storage slot where the strategy
-     * sepcific `StrategyData` struct is stored for both read
+     * @dev will return the actual storage slot where the strategy
+     * specific `StrategyData` struct is stored for both read
      * and write operations.
      *
      * This loads just the slot location, not the full struct
-     * so it can be used in a gas effecient manner.
+     * so it can be used in a gas efficient manner.
      */
     function _strategyStorage() private pure returns (StrategyData storage S) {
         // Since STORAGE_SLOT is a constant, we have to put a variable
@@ -338,7 +344,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                INITILIZATION OF DEFAULT STORAGE
+                INITIALIZATION OF DEFAULT STORAGE
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -353,7 +359,7 @@ contract TokenizedStrategy {
      * The function will also emit an event that off chain indexers can
      * look for to track any new deployments using this TokenizedStrategy.
      *
-     * This is called through a lowelevel call in the BaseTokenizedStrategy
+     * This is called through a low level call in the BaseTokenizedStrategy
      * so any reverts will return the "init failed" string.
      *
      * @param _asset Address of the underlying asset.
@@ -410,7 +416,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        ERC4626 FUNCIONS
+                        ERC4626 FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -448,8 +454,9 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Redeems `shares` from `owner` and sends `assets`
-     * of underlying tokens to `receiver`.
+     * @notice Withdraws exactly `assets` from `owners` shares and sends
+     * the underlying tokens to `receiver`.
+     * @dev This will default to not allowing any loss to be taken.
      * @param assets The amount of underlying to withdraw.
      * @param receiver The address to receive `assets`.
      * @param owner The address whose shares are burnt.
@@ -459,16 +466,37 @@ contract TokenizedStrategy {
         uint256 assets,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 shares) {
+    ) external returns (uint256 shares) {
+        return withdraw(assets, receiver, owner, 0);
+    }
+
+    /**
+     * @notice Withdraws `assets` from `owners` shares and sends
+     * the underlying tokens to `receiver`.
+     * @dev This includes an added parameter to allow for losses.
+     * @param assets The amount of underlying to withdraw.
+     * @param receiver The address to receive `assets`.
+     * @param owner The address whose shares are burnt.
+     * @param maxLoss The amount of acceptable loss in Basis points.
+     * @return shares The actual amount of shares burnt.
+     */
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) public nonReentrant returns (uint256 shares) {
         // Check for rounding error.
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
-        _withdraw(receiver, owner, assets, shares);
+        // Withdraw and track the actual amount withdrawn for loss check.
+        _withdraw(receiver, owner, assets, shares, maxLoss);
     }
 
     /**
      * @notice Redeems exactly `shares` from `owner` and
      * sends `assets` of underlying tokens to `receiver`.
+     * @dev This will default to allowing any loss passed to be realized.
      * @param shares The amount of shares burnt.
      * @param receiver The address to receive `assets`.
      * @param owner The address whose shares are burnt.
@@ -478,13 +506,33 @@ contract TokenizedStrategy {
         uint256 shares,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256) {
+    ) external returns (uint256) {
+        // We default to not limiting a potential loss.
+        return redeem(shares, receiver, owner, MAX_BPS);
+    }
+
+    /**
+     * @notice Redeems exactly `shares` from `owner` and
+     * sends `assets` of underlying tokens to `receiver`.
+     * @dev This includes an added parameter to allow for losses.
+     * @param shares The amount of shares burnt.
+     * @param receiver The address to receive `assets`.
+     * @param owner The address whose shares are burnt.
+     * @param maxLoss The amount of acceptable loss in Basis points.
+     * @return . The actual amount of underlying withdrawn.
+     */
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) public nonReentrant returns (uint256) {
         uint256 assets;
         // Check for rounding error.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
         // We need to return the actual amount withdrawn in case of a loss.
-        return _withdraw(receiver, owner, assets, shares);
+        return _withdraw(receiver, owner, assets, shares, maxLoss);
     }
 
     /**
@@ -493,7 +541,7 @@ contract TokenizedStrategy {
      * ideal scenario where all the conditions are met.
      *
      * @param assets The amount of underlying.
-     * @return . Expected shares that `assets` repersents.
+     * @return . Expected shares that `assets` represents.
      */
     function convertToShares(uint256 assets) public view returns (uint256) {
         // Saves an extra SLOAD if totalAssets() is non-zero.
@@ -512,7 +560,7 @@ contract TokenizedStrategy {
      * ideal scenario where all the conditions are met.
      *
      * @param shares The amount of the strategies shares.
-     * @return . Expected amount of `asset` the shares repersent.
+     * @return . Expected amount of `asset` the shares represents.
      */
     function convertToAssets(uint256 shares) public view returns (uint256) {
         // Saves an extra SLOAD if totalSupply() is non-zero.
@@ -571,7 +619,7 @@ contract TokenizedStrategy {
 
     /**
      * @notice Allows an on-chain or off-chain user to simulate
-     * the effects of their redeemption at the current block,
+     * the effects of their redemption at the current block,
      * given current on-chain conditions.
      * @dev This will round down.
      */
@@ -582,7 +630,7 @@ contract TokenizedStrategy {
     /**
      * @notice Total number of underlying assets that can
      * be deposited by `_owner` into the strategy, where `_owner`
-     * corresponds to the msg.sender of a {deposit} call.
+     * corresponds to the receiver of a {deposit} call.
      */
     function maxDeposit(address _owner) public view returns (uint256) {
         if (_strategyStorage().shutdown) return 0;
@@ -593,7 +641,7 @@ contract TokenizedStrategy {
 
     /**
      * @notice Total number of shares that can be minted by `_owner`
-     * into the strategy, where `_owner` corresponds to the msg.sender
+     * into the strategy, where `_owner` corresponds to the receiver
      * of a {mint} call.
      */
     function maxMint(address _owner) public view returns (uint256 _maxMint) {
@@ -672,7 +720,7 @@ contract TokenizedStrategy {
      * minting and accounting.
      *
      * We do all external calls before updating any internal
-     * values to prevent view re-entrancy issues from the token
+     * values to prevent view reentrancy issues from the token
      * transfers or the _deployFunds() calls.
      */
     function _deposit(
@@ -681,11 +729,11 @@ contract TokenizedStrategy {
         uint256 shares
     ) private {
         require(receiver != address(this), "ERC4626: mint to self");
-        // Saves a redundant "shutdown" check to manually retreive deposit limit.
+        // Saves a redundant "shutdown" check to manually retrieve deposit limit.
         require(
             assets <=
                 IBaseTokenizedStrategy(address(this)).availableDepositLimit(
-                    msg.sender
+                    receiver
                 ),
             "ERC4626: deposit more than max"
         );
@@ -739,8 +787,10 @@ contract TokenizedStrategy {
         address receiver,
         address owner,
         uint256 assets,
-        uint256 shares
+        uint256 shares,
+        uint256 maxLoss
     ) private returns (uint256) {
+        require(receiver != address(0), "ZERO ADDRESS");
         require(shares <= maxRedeem(owner), "ERC4626: withdraw more than max");
 
         if (msg.sender != owner) {
@@ -779,6 +829,14 @@ contract TokenizedStrategy {
                 unchecked {
                     loss = assets - idle;
                 }
+                // If a non-default max loss parameter was set.
+                if (maxLoss < MAX_BPS) {
+                    // Make sure we are withen the acceptable range.
+                    require(
+                        loss <= (assets * maxLoss) / MAX_BPS,
+                        "to much loss"
+                    );
+                }
                 // Lower the amount to be withdrawn.
                 assets = idle;
             }
@@ -814,7 +872,7 @@ contract TokenizedStrategy {
      * This will account for any gains/losses since the last report
      * and charge fees accordingly.
      *
-     * Any profit over the fees charged will be immediatly locked
+     * Any profit over the fees charged will be immediately locked
      * so there is no change in PricePerShare. Then slowly unlocked
      * over the `maxProfitUnlockTime` each second based on the
      * calculated `profitUnlockingRate`.
@@ -843,13 +901,13 @@ contract TokenizedStrategy {
 
         uint256 oldTotalAssets;
         unchecked {
-            // Manuaully calculate totalAssets to save a SLOAD.
+            // Manually calculate totalAssets to save a SLOAD.
             oldTotalAssets = S.totalIdle + S.totalDebt;
         }
 
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and redepositing now and
-        // account for deployed and loose `asset` so we can accuratly
+        // account for deployed and loose `asset` so we can accurately
         // account for all funds including those potentially airdropped
         // by a trade factory. It is safe here to use asset.balanceOf()
         // instead of totalIdle because any profits are immediatly locked.
@@ -875,14 +933,14 @@ contract TokenizedStrategy {
             uint256 performanceFeeShares;
             uint256 protocolFeeShares;
             // If performance fees are 0 so will protocol fees.
-            if (totalFees > 0) {
+            if (totalFees != 0) {
                 // Get the config from the factory.
                 uint16 protocolFeeBps;
                 (protocolFeeBps, protocolFeesRecipient) = IFactory(FACTORY)
                     .protocol_fee_config();
 
                 // Check if there is a protocol fee to charge.
-                if (protocolFeeBps > 0) {
+                if (protocolFeeBps != 0) {
                     // Calculate protocol fees based on the performance Fees.
                     protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
                 }
@@ -894,7 +952,7 @@ contract TokenizedStrategy {
                         totalFees - protocolFees
                     );
                 }
-                if (protocolFees > 0) {
+                if (protocolFees != 0) {
                     protocolFeeShares = convertToShares(protocolFees);
                 }
             }
@@ -908,11 +966,11 @@ contract TokenizedStrategy {
             _mint(address(this), sharesToLock);
 
             // Mint fees shares to recipients.
-            if (performanceFeeShares > 0) {
+            if (performanceFeeShares != 0) {
                 _mint(S.performanceFeeRecipient, performanceFeeShares);
             }
 
-            if (protocolFeeShares > 0) {
+            if (protocolFeeShares != 0) {
                 _mint(protocolFeesRecipient, protocolFeeShares);
             }
         } else {
@@ -922,7 +980,7 @@ contract TokenizedStrategy {
             }
 
             // Check in case else was due to being equal.
-            if (loss > 0) {
+            if (loss != 0) {
                 // We will try and burn shares from any pending profit still unlocking
                 // to offset the loss to prevent any PPS decline post report.
                 uint256 sharesToBurn = Math.min(
@@ -931,7 +989,7 @@ contract TokenizedStrategy {
                 );
 
                 // Check if there is anything to burn.
-                if (sharesToBurn > 0) {
+                if (sharesToBurn != 0) {
                     _burn(address(this), sharesToBurn);
                 }
             }
@@ -939,7 +997,7 @@ contract TokenizedStrategy {
 
         // Update unlocking rate and time to fully unlocked.
         uint256 totalLockedShares = S.balances[address(this)];
-        if (totalLockedShares > 0) {
+        if (totalLockedShares != 0) {
             uint256 previouslyLockedTime;
             uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
             // Check if we need to account for shares still unlocking.
@@ -1038,7 +1096,7 @@ contract TokenizedStrategy {
      *
      * Keepers are expected to use protected relays in tend calls so this
      * can be used for illiquid or manipulatable strategies to compound
-     * rewards, perform maintence or deposit/withdraw funds.
+     * rewards, perform maintenance or deposit/withdraw funds.
      *
      * All accounting for totalDebt and totalIdle updates will be done
      * here post '_tend'.
@@ -1058,13 +1116,14 @@ contract TokenizedStrategy {
         IBaseTokenizedStrategy(address(this)).tendThis(_totalIdle);
         uint256 afterBalance = _asset.balanceOf(address(this));
 
+        uint256 diff;
         // Adjust storage according to the changes without adjusting totalAssets().
         if (beforeBalance > afterBalance) {
             // Idle funds were deposited.
-            uint256 deposited = Math.min(
-                beforeBalance - afterBalance,
-                _totalIdle
-            );
+            unchecked {
+                diff = beforeBalance - afterBalance;
+            }
+            uint256 deposited = Math.min(diff, _totalIdle);
 
             unchecked {
                 S.totalIdle -= deposited;
@@ -1072,10 +1131,10 @@ contract TokenizedStrategy {
             }
         } else if (afterBalance > beforeBalance) {
             // We default to use any funds freed as idle for cheaper withdraw/redeems.
-            uint256 harvested = Math.min(
-                afterBalance - beforeBalance,
-                S.totalDebt
-            );
+            unchecked {
+                diff = afterBalance - beforeBalance;
+            }
+            uint256 harvested = Math.min(diff, S.totalDebt);
 
             unchecked {
                 S.totalIdle += harvested;
@@ -1095,7 +1154,7 @@ contract TokenizedStrategy {
      * This will stop any new {deposit} or {mint} calls but will
      * not prevent {withdraw} or {redeem}. It will also still allow for
      * {tend} and {report} so that management can report any last losses
-     * in an emergency as well as provide any maintence to allow for full
+     * in an emergency as well as provide any maintenance to allow for full
      * withdraw.
      *
      * This is a one way switch and can never be set back once shutdown.
@@ -1152,12 +1211,12 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        Getter FUNCIONS
+                        GETTER FUNCIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Get the api version for this TokenizedStrategy.
-     * @return . The api version for this TokenizedStrategy
+     * @notice Get the API version for this TokenizedStrategy.
+     * @return . The API version for this TokenizedStrategy
      */
     function apiVersion() external pure returns (string memory) {
         return API_VERSION;
@@ -1188,6 +1247,14 @@ contract TokenizedStrategy {
     }
 
     /**
+     * @notice Get the current pending management address if any.
+     * @return . Address of pendingManagement
+     */
+    function pendingManagement() external view returns (address) {
+        return _strategyStorage().pendingManagement;
+    }
+
+    /**
      * @notice Get the current address that can call tend and report.
      * @return . Address of the keeper
      */
@@ -1197,7 +1264,7 @@ contract TokenizedStrategy {
 
     /**
      * @notice Get the current performance fee charged on profits.
-     * denominated in Basis Points wehere 10_000 == 100%
+     * denominated in Basis Points where 10_000 == 100%
      * @return . Current performance fee.
      */
     function performanceFee() external view returns (uint16) {
@@ -1257,22 +1324,39 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        SETTER FUNCIONS
+                        SETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Sets a new address to be in charge of the stategy.
-     * @dev Can only be called by the current `management`.
+     * @notice Step one of two to set a new address to be in charge of the strategy.
+     * @dev Can only be called by the current `management`. The address is
+     * set to pending management and will then have to call {acceptManagement}
+     * in order for the 'management' to officially change.
      *
      * Cannot set `management` to address(0).
      *
-     * @param _management New address to set `management` to.
+     * @param _management New address to set `pendingManagement` to.
      */
-    function setManagement(address _management) external onlyManagement {
+    function setPendingManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
-        _strategyStorage().management = _management;
+        _strategyStorage().pendingManagement = _management;
 
-        emit UpdateManagement(_management);
+        emit UpdatePendingManagement(_management);
+    }
+
+    /**
+     * @notice Step two of two to set a new 'management' of the strategy.
+     * @dev Can only be called by the current `pendingManagement`.
+     */
+    function acceptManagement() external {
+        require(
+            msg.sender == _strategyStorage().pendingManagement,
+            "!Authorized"
+        );
+        _strategyStorage().management = msg.sender;
+        _strategyStorage().pendingManagement = address(0);
+
+        emit UpdateManagement(msg.sender);
     }
 
     /**
@@ -1306,7 +1390,7 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Sets a new address to recieve performance fees.
+     * @notice Sets a new address to receive performance fees.
      * @dev Can only be called by the current `management`.
      *
      * Cannot set to address(0).
@@ -1337,7 +1421,7 @@ contract TokenizedStrategy {
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
-        require(_profitMaxUnlockTime > 0, "to short");
+        require(_profitMaxUnlockTime != 0, "to short");
         require(_profitMaxUnlockTime <= 31_556_952, "to long");
         _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
@@ -1345,7 +1429,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        ERC20 FUNCIONS
+                        ERC20 FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -1751,10 +1835,11 @@ contract TokenizedStrategy {
      * @notice Returns the domain separator used in the encoding of the signature
      * for {permit}, as defined by {EIP712}.
      *
-     * @dev This checks that the current chain id is the same as when the contract was deployed to
-     * prevent replay attacks. If false it will calculate a new domain seperator based on the new chain id.
+     * @dev This checks that the current chain id is the same as when the contract
+     * was deployed to prevent replay attacks. If false it will calculate a new
+     * domain separator based on the new chain id.
      *
-     * @return . The domain seperator that will be used for any {permit} calls.
+     * @return . The domain separator that will be used for any {permit} calls.
      */
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
         StrategyData storage S = _strategyStorage();
@@ -1765,12 +1850,12 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @dev Calculates and returns the domain seperator to be used in any
+     * @dev Calculates and returns the domain separator to be used in any
      * permit functions for the strategies {permit} calls.
      *
-     * This will be used at the initilization of each new strategies storage.
+     * This will be used at the initialization of each new strategies storage.
      * It would then be used in the future in the case of any forks in which
-     * the current chain id is not the same as the origin al.
+     * the current chain id is not the same as the original.
      *
      */
     function _computeDomainSeparator() private view returns (bytes32) {
@@ -1794,7 +1879,7 @@ contract TokenizedStrategy {
 
     /**
      * @dev On contract creation we set `asset` for this contract to address(1).
-     * This prevents it from ever being intialized in the future.
+     * This prevents it from ever being initialized in the future.
      */
     constructor() {
         _strategyStorage().asset = ERC20(address(1));

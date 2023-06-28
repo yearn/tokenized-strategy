@@ -11,6 +11,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    event UpdatePendingManagement(address indexed newPendingManagement);
+
     event UpdateManagement(address indexed newManagement);
 
     event UpdateKeeper(address indexed newKeeper);
@@ -45,6 +47,24 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     ) external;
 
     /*//////////////////////////////////////////////////////////////
+                    NON-STANDARD 4626 OPTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) external returns (uint256);
+
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner,
+        uint256 maxLoss
+    ) external returns (uint256);
+
+    /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
@@ -76,6 +96,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function management() external view returns (address);
 
+    function pendingManagement() external view returns (address);
+
     function keeper() external view returns (address);
 
     function performanceFee() external view returns (uint16);
@@ -93,7 +115,10 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     /*//////////////////////////////////////////////////////////////
                             SETTERS
     //////////////////////////////////////////////////////////////*/
-    function setManagement(address) external;
+
+    function setPendingManagement(address) external;
+
+    function acceptManagement() external;
 
     function setKeeper(address _keeper) external;
 
