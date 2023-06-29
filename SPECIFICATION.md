@@ -1,7 +1,9 @@
 # Yearn V3 Tokenized Strategy Specification
 
 ## Overview
-The Yearn V3 "Tokenized Strategy" goal is to make it as easy as possible for any person or protocol to create and deploy their own ERC-4626 compliant single strategy vault. It uses an immutable proxy pattern to outsource all of the standardized 4626 and other vault logic to one implementation contract that all Strategies deployed on a specific chain use through delegatecall. This makes the strategy specific contract as simple and specific to that yield generating task as possible and allows for anyone to simply plug their version into a permissionless, secure and optimized 4626 compliant base that handles all risky and complicated code. 
+The Yearn V3 "Tokenized Strategy" goal is to make it as easy as possible for any person or protocol to create and deploy their own ERC-4626 compliant single strategy vault. It uses an immutable proxy pattern to outsource all of the standardized 4626 and other vault logic to one implementation contract that all Strategies deployed on a specific chain use through delegatecall. 
+
+This makes the strategy specific contract as simple and specific to that yield generating task as possible and allows for anyone to simply plug their version into a permissionless, secure and optimized 4626 compliant base that handles all risky and complicated code. 
 
 
 ### Definitions
@@ -12,10 +14,10 @@ The Yearn V3 "Tokenized Strategy" goal is to make it as easy as possible for any
 - BaseTokenizedStrategy: The abstract contract that a strategy should inherit from that handles all communication with the Tokenized Strategy contract.
 - Strategist: The developer of a specific strategy.
 - Depositor: Account that holds Shares
-- Vault: ERC4626 compliant Smart contract that receives Assets from Depositors to then distribute them among the different Strategies added to the vault, managing accounting and Assets distribution. 
+- Vault: Or "Meta Vault" is an ERC4626 compliant Smart contract that receives Assets from Depositors to then distribute them among the different Strategies added to the vault, managing accounting and Assets distribution. 
 - Management: The owner of the specific strategy that can set fees, profit unlocking time etc.
 - Keeper: the address of a contract allowed to call report() and tend() on a strategy.
-- Factory: The factory that all vaults of a specific API version are cloned from that also controls the protocol fee amount and recipient.
+- Factory: The factory that all meta vaults of a specific API version are cloned from that also controls the protocol fee amount and recipient.
 
 ## Storage
 In order to standardize all high risk and complex logic associated with ERC4626, ERC20 and profit locking, all core logic has been moved to the 'TokenizedStrategy.sol' and is used by each strategy through a fallback function that delegatecall's this contract to do all necessary checks, logic and storage updates for the strategy.
@@ -65,7 +67,7 @@ The majority of function in the BaseTokenizedStrategy are either external functi
 
 `shutdownWithdraw(uint256)/_emergencyWithdraw(uint256)`: Optional function for a strategist to implement that will allow management to manually withdraw a specified amount from the yield source if a strategy is shutdown in the case of emergencies.
 
-`init(...)`: Used only once during initialization to manually delegatecall the TokenizedStrategy to tell it to set up the storage for a new strategy.
+`_init(...)`: Used only once during initialization to manually delegatecall the TokenizedStrategy to tell it to set up the storage for a new strategy.
 
 ## TokenizedStrategy
 
@@ -86,7 +88,7 @@ Users can redeem their shares at any point in time if there is liquidity availab
 
 The amount of a withdraw or redeem can be limited by the strategist by overriding the maxAvailableWithdraw function.
 
-If not enough funds have been recovered to honor the full request, the strategy will pass on the difference to the user as a loss.
+In order to properly comply with the ERC-4626 standard and still allow losses, both withdraw and redeem have an additional optional parameter of 'maxLoss' that can be used. The default for 'maxLoss' is 0 (i.e. revert if any loss) for withdraws, and 10_000 (100%) for redeems.
 
 #### Strategy Shares
 The strategy issues shares to each depositor to track their relative share of assets. Shares are ERC20 transferable yield-bearing tokens.
@@ -108,7 +110,7 @@ Fee assessment and distribution is handled during each `report` call after profi
 
 It will report the amount of fees that need to be charged and the strategy will issue shares for that amount of fees.
 
-There are two potential fees. Performance fees and protocol fees. Performance fees are configurable by management of the strategy and payed based on the reported profit during each report with a max of 50%. 
+There are two potential fees. Performance fees and protocol fees. Performance fees are configurable by management of the strategy and payed based on the reported profit during each report with a min of 5% and a max of 50%. 
 
 Protocol fees are configured by Yearn governance through the Factory and are taken as a percent of the performanceFees charged. I.E. profit = 100, performance fees = 20% protocol fees = 10%. Then total fees charged = 100 * .2 = 20 of which 10% is sent to the protocol fee recipient (2) and 90% (18) is sent the strategy specific `performanceFeeRecipient`.
 
@@ -127,7 +129,7 @@ Issue of new shares due to fees will also unlock profit so that PPS does not go 
 Both of this offsets will prevent front running (as the profit was already earned and was not distributed yet)
 
 ### Strategy Management
-Strategy management is held by the 'management' address that can be updated at any time by the current 'managment'
+Strategy management is held by the 'management' address that can be updated by the current 'managment'. Changing 'management' is a two step process, so first the current management will have to set 'pendingManagement' then that pending management will need to accept the role.
 
 Management has the ability to set all the configurable variables for their specific Strategy.
 
@@ -135,16 +137,19 @@ The base strategy has purposely been written to limit the actual control managem
 
 The configurable variables within managements control are: 
 
-#### Setting Management
-This allows the current management to set a new non-zero address as the management of the strategy.
+#### Setting Pending Management
+This allows the current management to set a new non-zero address to take over as the management of the strategy.
+
+#### Accepting Management
+This allows the current 'pendingManagement' to accept the ownership of the contract.
 
 #### Setting the keeper
 Setting the address that is also allowed to call report and tend functions.
 
 #### Setting Performance Fee
-Setting the percent in terms of Basis points for the amount of profit to be charged as a fee.
+Setting the percent in terms of basis points for the amount of profit to be charged as a fee.
 
-The max this can be 99.99%.
+This has a minimum of 5% and a maximum of 50%.
 
 #### Setting performance fee recipient
 Setting the non-zero address that will receive any shares issued as a result of the performance fee.
@@ -219,7 +224,7 @@ While it can be possible to deploy a completely ERC-4626 compliant vault with ju
 
 *maxAvailableWithdraw(address _owner)* can be used to limit the amount that a user can withdraw at any given moment.
 
-*emergencyWithdra(uint256 _amount)* can be overridden to provide a manual method for management to pull funds from a yield source in an emergency when the vault is shutdown.
+*_emergencyWithdraw(uint256 _amount)* can be overridden to provide a manual method for management to pull funds from a yield source in an emergency when the vault is shutdown.
 
 ## Deployment
 All strategies deployed will have the address of the deployed 'TokenizedStrategy' set as a constant to be used as the address to forward all external calls to that are not defined in the Strategy.
