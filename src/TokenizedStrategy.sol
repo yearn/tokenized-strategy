@@ -707,6 +707,13 @@ contract TokenizedStrategy {
                             ACCOUNTING LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Get the toal amount of assets this strategy holds
+     * as of the last report.
+     *
+     * We manually track debt and idle to avoid any PPS manipulation
+     * from donations, touch values of debt etc.
+     */
     function totalAssets() public view returns (uint256) {
         StrategyData storage S = _strategyStorage();
         unchecked {
@@ -714,6 +721,15 @@ contract TokenizedStrategy {
         }
     }
 
+    /**
+     * @notice Get the current supply of the strategies shares.
+     *
+     * Locked shares issued to the strategy from profits are not
+     * counted towards the full supply until they are unlocked.
+     *
+     * As more shares slowly unlock the totalSupply will decrease
+     * causing the PPS of the strategy to increase.
+     */
     function totalSupply() public view returns (uint256) {
         return _strategyStorage().totalSupply - _unlockedShares();
     }
@@ -1055,6 +1071,13 @@ contract TokenizedStrategy {
         );
     }
 
+    /**
+     * @dev Called during reports to burn shares that have been unlocked
+     * since the last report.
+     *
+     * Will reset the `lastReport` if haven't unlocked the full amount yet
+     * so future calculations remain correct.
+     */
     function _burnUnlockedShares() private {
         uint256 unlockedShares = _unlockedShares();
         if (unlockedShares == 0) {
@@ -1069,6 +1092,15 @@ contract TokenizedStrategy {
         _burn(address(this), unlockedShares);
     }
 
+    /**
+     * @dev To determine how many of the shares that were locked during the last
+     * report have since unlocked.
+     *
+     * If the `fullProfitUnlockDate` has passed the full strategies balance will
+     * count as unlocked.
+     *
+     * @return unlockedShares The amount of shares that have unlocked.
+     */
     function _unlockedShares() private view returns (uint256 unlockedShares) {
         // should save 2 extra calls for most scenarios.
         StrategyData storage S = _strategyStorage();
