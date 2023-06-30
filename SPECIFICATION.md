@@ -165,7 +165,7 @@ Strategy Shares are ERC4626 compliant.
 ## Emergency Operation
 There is default emergency functions built in. First of which is `shutdownStrategy`. This can only ever be called by the management address and is non-reversible.
 
-Once this is called it will stop any further deposit or mints but will have no effect on any other functionality including withdraw, redeem, report and tend. This is to all the management to continue potentially recording profits or losses and users to withdraw even post shutdown.
+Once this is called it will stop any further deposit or mints but will have no effect on any other functionality including withdraw, redeem, report and tend. This is to allow management to continue potentially recording profits or losses and users to withdraw even post shutdown.
 
 This can be used in an emergency or simply to retire a vault.
 
