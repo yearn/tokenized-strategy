@@ -1056,8 +1056,8 @@ contract TokenizedStrategy {
     }
 
     function _burnUnlockedShares() private {
-        uint256 unlcokdedShares = _unlockedShares();
-        if (unlcokdedShares == 0) {
+        uint256 unlockedShares = _unlockedShares();
+        if (unlockedShares == 0) {
             return;
         }
 
@@ -1066,7 +1066,7 @@ contract TokenizedStrategy {
             _strategyStorage().lastReport = uint128(block.timestamp);
         }
 
-        _burn(address(this), unlcokdedShares);
+        _burn(address(this), unlockedShares);
     }
 
     function _unlockedShares() private view returns (uint256 unlockedShares) {
