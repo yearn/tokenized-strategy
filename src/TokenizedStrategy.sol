@@ -296,12 +296,17 @@ contract TokenizedStrategy {
 
     // Minimum in Basis points the Performance fee can be set to.
     // Used to disincentivize forking strategies just to lower fees.
-    uint16 private constant MIN_FEE = 500; // 5%
+    uint16 public constant MIN_FEE = 500; // 5%
+    // Maximum in Basis Points the Performance Fee can be set to.
+    uint16 public constant MAX_FEE = 5_000; // 50%
+
+    // Seconds per year for max profit unlocking time.
+    uint256 private constant SECONDS_PER_YEAR = 31_556_952; // 365.2425 days
 
     // Address of the previously deployed Vault factory that the
     // protocol fee config is retrieved from.
     // NOTE: This will be set to deployed factory. deterministic address for testing is used now
-    address private constant FACTORY =
+    address public constant FACTORY =
         0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
 
     /**
@@ -632,7 +637,7 @@ contract TokenizedStrategy {
      * be deposited by `_owner` into the strategy, where `_owner`
      * corresponds to the receiver of a {deposit} call.
      */
-    function maxDeposit(address _owner) public view returns (uint256) {
+    function maxDeposit(address _owner) external view returns (uint256) {
         if (_strategyStorage().shutdown) return 0;
 
         return
@@ -644,7 +649,7 @@ contract TokenizedStrategy {
      * into the strategy, where `_owner` corresponds to the receiver
      * of a {mint} call.
      */
-    function maxMint(address _owner) public view returns (uint256 _maxMint) {
+    function maxMint(address _owner) external view returns (uint256 _maxMint) {
         if (_strategyStorage().shutdown) return 0;
 
         _maxMint = IBaseTokenizedStrategy(address(this)).availableDepositLimit(
@@ -662,7 +667,7 @@ contract TokenizedStrategy {
      */
     function maxWithdraw(
         address _owner
-    ) public view returns (uint256 _maxWithdraw) {
+    ) external view returns (uint256 _maxWithdraw) {
         _maxWithdraw = IBaseTokenizedStrategy(address(this))
             .availableWithdrawLimit(_owner);
         if (_maxWithdraw == type(uint256).max) {
@@ -702,6 +707,13 @@ contract TokenizedStrategy {
                             ACCOUNTING LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Get the toal amount of assets this strategy holds
+     * as of the last report.
+     *
+     * We manually track debt and idle to avoid any PPS manipulation
+     * from donations, touch values of debt etc.
+     */
     function totalAssets() public view returns (uint256) {
         StrategyData storage S = _strategyStorage();
         unchecked {
@@ -709,6 +721,15 @@ contract TokenizedStrategy {
         }
     }
 
+    /**
+     * @notice Get the current supply of the strategies shares.
+     *
+     * Locked shares issued to the strategy from profits are not
+     * counted towards the full supply until they are unlocked.
+     *
+     * As more shares slowly unlock the totalSupply will decrease
+     * causing the PPS of the strategy to increase.
+     */
     function totalSupply() public view returns (uint256) {
         return _strategyStorage().totalSupply - _unlockedShares();
     }
@@ -1050,9 +1071,16 @@ contract TokenizedStrategy {
         );
     }
 
+    /**
+     * @dev Called during reports to burn shares that have been unlocked
+     * since the last report.
+     *
+     * Will reset the `lastReport` if haven't unlocked the full amount yet
+     * so future calculations remain correct.
+     */
     function _burnUnlockedShares() private {
-        uint256 unlcokdedShares = _unlockedShares();
-        if (unlcokdedShares == 0) {
+        uint256 unlockedShares = _unlockedShares();
+        if (unlockedShares == 0) {
             return;
         }
 
@@ -1061,9 +1089,18 @@ contract TokenizedStrategy {
             _strategyStorage().lastReport = uint128(block.timestamp);
         }
 
-        _burn(address(this), unlcokdedShares);
+        _burn(address(this), unlockedShares);
     }
 
+    /**
+     * @dev To determine how many of the shares that were locked during the last
+     * report have since unlocked.
+     *
+     * If the `fullProfitUnlockDate` has passed the full strategies balance will
+     * count as unlocked.
+     *
+     * @return unlockedShares The amount of shares that have unlocked.
+     */
     function _unlockedShares() private view returns (uint256 unlockedShares) {
         // should save 2 extra calls for most scenarios.
         StrategyData storage S = _strategyStorage();
@@ -1377,13 +1414,13 @@ contract TokenizedStrategy {
      *
      * Denominated in Basis Points. So 100% == 10_000.
      * Cannot be set less than the MIN_FEE.
-     * Cannot set greater than to 5_000 (50%).
+     * Cannot set greater than to MAX_FEE.
      *
      * @param _performanceFee New performance fee.
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
         require(_performanceFee >= MIN_FEE, "MIN FEE");
-        require(_performanceFee <= 5_000, "MAX FEE");
+        require(_performanceFee <= MAX_FEE, "MAX FEE");
         _strategyStorage().performanceFee = _performanceFee;
 
         emit UpdatePerformanceFee(_performanceFee);
@@ -1421,8 +1458,9 @@ contract TokenizedStrategy {
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
+        // Must be greater than 0, and less than a year.
         require(_profitMaxUnlockTime != 0, "to short");
-        require(_profitMaxUnlockTime <= 31_556_952, "to long");
+        require(_profitMaxUnlockTime <= SECONDS_PER_YEAR, "to long");
         _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
@@ -1436,7 +1474,7 @@ contract TokenizedStrategy {
      * @notice Returns the name of the token.
      * @return . The name the strategy is using for its token.
      */
-    function name() public view returns (string memory) {
+    function name() external view returns (string memory) {
         return _strategyStorage().name;
     }
 
@@ -1485,7 +1523,7 @@ contract TokenizedStrategy {
      * @param amount The amount of shares to be transferred from sender.
      * @return . a boolean value indicating whether the operation succeeded.
      */
-    function transfer(address to, uint256 amount) public returns (bool) {
+    function transfer(address to, uint256 amount) external returns (bool) {
         _transfer(msg.sender, to, amount);
         return true;
     }
@@ -1531,7 +1569,7 @@ contract TokenizedStrategy {
      * @param amount the amount of shares to allow `spender` to move.
      * @return . a boolean value indicating whether the operation succeeded.
      */
-    function approve(address spender, uint256 amount) public returns (bool) {
+    function approve(address spender, uint256 amount) external returns (bool) {
         _approve(msg.sender, spender, amount);
         return true;
     }
@@ -1593,7 +1631,7 @@ contract TokenizedStrategy {
     function increaseAllowance(
         address spender,
         uint256 addedValue
-    ) public returns (bool) {
+    ) external returns (bool) {
         address owner = msg.sender;
         _approve(owner, spender, allowance(owner, spender) + addedValue);
         return true;
@@ -1620,7 +1658,7 @@ contract TokenizedStrategy {
     function decreaseAllowance(
         address spender,
         uint256 subtractedValue
-    ) public returns (bool) {
+    ) external returns (bool) {
         address owner = msg.sender;
         _approve(owner, spender, allowance(owner, spender) - subtractedValue);
         return true;
