@@ -426,13 +426,9 @@ abstract contract BaseTokenizedStrategy {
         address _keeper
     ) private {
         (bool success, ) = tokenizedStrategyAddress.delegatecall(
-            abi.encodeWithSignature(
-                "init(address,string,address,address,address)",
-                _asset,
-                _name,
-                _management,
-                _performanceFeeRecipient,
-                _keeper
+            abi.encodeCall(
+                ITokenizedStrategy.init,
+                (_asset, _name, _management, _performanceFeeRecipient, _keeper)
             )
         );
 
