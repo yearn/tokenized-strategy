@@ -296,12 +296,17 @@ contract TokenizedStrategy {
 
     // Minimum in Basis points the Performance fee can be set to.
     // Used to disincentivize forking strategies just to lower fees.
-    uint16 private constant MIN_FEE = 500; // 5%
+    uint16 public constant MIN_FEE = 500; // 5%
+    // Maximum in Basis Points the Performance Fee can be set to.
+    uint16 public constant MAX_FEE = 5_000; // 50%
+
+    // Seconds per year for max profit unlocking time.
+    uint256 private constant SECONDS_PER_YEAR = 31_556_952; // 365.2425 days
 
     // Address of the previously deployed Vault factory that the
     // protocol fee config is retrieved from.
     // NOTE: This will be set to deployed factory. deterministic address for testing is used now
-    address private constant FACTORY =
+    address public constant FACTORY =
         0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
 
     /**
@@ -1377,13 +1382,13 @@ contract TokenizedStrategy {
      *
      * Denominated in Basis Points. So 100% == 10_000.
      * Cannot be set less than the MIN_FEE.
-     * Cannot set greater than to 5_000 (50%).
+     * Cannot set greater than to MAX_FEE.
      *
      * @param _performanceFee New performance fee.
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
         require(_performanceFee >= MIN_FEE, "MIN FEE");
-        require(_performanceFee <= 5_000, "MAX FEE");
+        require(_performanceFee <= MAX_FEE, "MAX FEE");
         _strategyStorage().performanceFee = _performanceFee;
 
         emit UpdatePerformanceFee(_performanceFee);
@@ -1421,8 +1426,9 @@ contract TokenizedStrategy {
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
+        // Must be greater than 0, and less than a year.
         require(_profitMaxUnlockTime != 0, "to short");
-        require(_profitMaxUnlockTime <= 31_556_952, "to long");
+        require(_profitMaxUnlockTime <= SECONDS_PER_YEAR, "to long");
         _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
