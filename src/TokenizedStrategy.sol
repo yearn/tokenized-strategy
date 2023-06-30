@@ -632,7 +632,7 @@ contract TokenizedStrategy {
      * be deposited by `_owner` into the strategy, where `_owner`
      * corresponds to the receiver of a {deposit} call.
      */
-    function maxDeposit(address _owner) public view returns (uint256) {
+    function maxDeposit(address _owner) external view returns (uint256) {
         if (_strategyStorage().shutdown) return 0;
 
         return
@@ -644,7 +644,7 @@ contract TokenizedStrategy {
      * into the strategy, where `_owner` corresponds to the receiver
      * of a {mint} call.
      */
-    function maxMint(address _owner) public view returns (uint256 _maxMint) {
+    function maxMint(address _owner) external view returns (uint256 _maxMint) {
         if (_strategyStorage().shutdown) return 0;
 
         _maxMint = IBaseTokenizedStrategy(address(this)).availableDepositLimit(
@@ -662,7 +662,7 @@ contract TokenizedStrategy {
      */
     function maxWithdraw(
         address _owner
-    ) public view returns (uint256 _maxWithdraw) {
+    ) external view returns (uint256 _maxWithdraw) {
         _maxWithdraw = IBaseTokenizedStrategy(address(this))
             .availableWithdrawLimit(_owner);
         if (_maxWithdraw == type(uint256).max) {
@@ -1436,7 +1436,7 @@ contract TokenizedStrategy {
      * @notice Returns the name of the token.
      * @return . The name the strategy is using for its token.
      */
-    function name() public view returns (string memory) {
+    function name() external view returns (string memory) {
         return _strategyStorage().name;
     }
 
@@ -1485,7 +1485,7 @@ contract TokenizedStrategy {
      * @param amount The amount of shares to be transferred from sender.
      * @return . a boolean value indicating whether the operation succeeded.
      */
-    function transfer(address to, uint256 amount) public returns (bool) {
+    function transfer(address to, uint256 amount) external returns (bool) {
         _transfer(msg.sender, to, amount);
         return true;
     }
@@ -1531,7 +1531,7 @@ contract TokenizedStrategy {
      * @param amount the amount of shares to allow `spender` to move.
      * @return . a boolean value indicating whether the operation succeeded.
      */
-    function approve(address spender, uint256 amount) public returns (bool) {
+    function approve(address spender, uint256 amount) external returns (bool) {
         _approve(msg.sender, spender, amount);
         return true;
     }
@@ -1593,7 +1593,7 @@ contract TokenizedStrategy {
     function increaseAllowance(
         address spender,
         uint256 addedValue
-    ) public returns (bool) {
+    ) external returns (bool) {
         address owner = msg.sender;
         _approve(owner, spender, allowance(owner, spender) + addedValue);
         return true;
@@ -1620,7 +1620,7 @@ contract TokenizedStrategy {
     function decreaseAllowance(
         address spender,
         uint256 subtractedValue
-    ) public returns (bool) {
+    ) external returns (bool) {
         address owner = msg.sender;
         _approve(owner, spender, allowance(owner, spender) - subtractedValue);
         return true;
