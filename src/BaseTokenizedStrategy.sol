@@ -366,14 +366,10 @@ abstract contract BaseTokenizedStrategy {
      * This can only be called after a report() delegateCall to the
      * TokenizedStrategy so msg.sender == address(this).
      *
-     * @return _totalAssets A trusted and accurate account for the total
-     * amount of 'asset' the strategy currently holds including idle funds.
+     * @return . A trusted and accurate account for the total amount
+     * of 'asset' the strategy currently holds including idle funds.
      */
-    function harvestAndReport()
-        external
-        onlySelf
-        returns (uint256 _totalAssets)
-    {
+    function harvestAndReport() external onlySelf returns (uint256) {
         return _harvestAndReport();
     }
 
