@@ -708,7 +708,7 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Get the toal amount of assets this strategy holds
+     * @notice Get the total amount of assets this strategy holds
      * as of the last report.
      *
      * We manually track debt and idle to avoid any PPS manipulation
@@ -1096,7 +1096,7 @@ contract TokenizedStrategy {
      * @dev To determine how many of the shares that were locked during the last
      * report have since unlocked.
      *
-     * If the `fullProfitUnlockDate` has passed the full strategies balance will
+     * If the `fullProfitUnlockDate` has passed the full strategy's balance will
      * count as unlocked.
      *
      * @return unlockedShares The amount of shares that have unlocked.
