@@ -309,12 +309,14 @@ contract ShutdownTest is Setup {
         vm.prank(management);
         strategy.report();
 
+        uint256 before = asset.balanceOf(_address);
+
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
-        assertEq(asset.balanceOf(_address), _amount - loss);
+        assertEq(asset.balanceOf(_address) - before, _amount - loss);
     }
 
     function test_emergencyWithdraw_notShutdown_reverts(

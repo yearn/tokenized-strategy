@@ -1,11 +1,13 @@
 
 # Yearn Tokenized Strategy
 
-This repository contains the base code for the Yearn V3 "Tokenized Strategy" implementation. The V3 strategy implementation utilizes an immutable proxy pattern to allow anyone to easily create their own single strategy 4626 vaults that will all use the same logic held within the `TokenizedStrategy` for their redundant and high risk code. The implementation holds all ERC-20, ERC-4626, profit locking and reporting functionality to make any strategy that uses it a fully permissionless vault without holding any of this logic itself. 
+This repository contains the base code for the Yearn V3 "Tokenized Strategy" implementation. The V3 strategy implementation utilizes an immutable proxy pattern to allow anyone to easily create their own single strategy 4626 vault. All Tokenized Strategies will use the logic held within the `TokenizedStrategy` for their redundant and high risk code. The implementation holds all ERC-20, ERC-4626, profit locking and reporting functionality to make any strategy that uses it a fully permissionless vault without holding any of this logic itself. 
 
-NOTE: The implementation address that calls are delegated to is pre-set to a constant and can never be changed post deployment. The implementation contract itself is ownerless and can never be updated in any way.
+The implementation address that calls are delegated to is pre-set to a constant and can never be changed post deployment. The implementation contract itself is ownerless and can never be updated in any way.
 
-A `Strategy` contract can become a fully ERC-4626 compliant vault by inheriting the `BaseTokenizedStrategy` contract that uses the fallback function to delegateCall a previously deployed version of `TokenizedStrategy`. A strategist then only needs to override three simple functions in their specific strategy.
+NOTE: The master branch has these pre-set addresses set based on the deterministic address that testing on a local device will render. These contracts should not be used in production and any live versions should use an official [release](https://github.com/yearn/tokenized-strategy/releases).
+
+A Strategy contract can become a fully ERC-4626 compliant vault by inheriting the `BaseTokenizedStrategy` contract, that uses the fallback function to delegateCall the previously deployed version of `TokenizedStrategy`. A strategist then only needs to override three simple functions in their specific strategy.
 
 [TokenizedStrategy](https://github.com/yearn/tokenized-strategy/blob/master/src/TokenizedStrategy.sol) - The implementation contract that holds all logic for every strategy.
 
