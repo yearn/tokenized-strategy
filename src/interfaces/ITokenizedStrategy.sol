@@ -83,6 +83,16 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     function report() external returns (uint256 _profit, uint256 _loss);
 
     /*//////////////////////////////////////////////////////////////
+                        CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    function MIN_FEE() external view returns (uint16);
+
+    function MAX_FEE() external view returns (uint16);
+
+    function FACTORY() external view returns (address);
+
+    /*//////////////////////////////////////////////////////////////
                             GETTERS
     //////////////////////////////////////////////////////////////*/
 
