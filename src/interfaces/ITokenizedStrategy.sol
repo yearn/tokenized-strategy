@@ -30,8 +30,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     event Reported(
         uint256 profit,
         uint256 loss,
-        uint256 performanceFees,
-        uint256 protocolFees
+        uint256 protocolFees,
+        uint256 performanceFees
     );
 
     /*//////////////////////////////////////////////////////////////
