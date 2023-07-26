@@ -419,7 +419,7 @@ contract AccountingTest is Setup {
         vm.prank(address(yieldSource));
         asset.transfer(address(69), toLoose);
 
-        vm.expectRevert("to much loss");
+        vm.expectRevert("too much loss");
         vm.prank(_address);
         strategy.withdraw(_amount, _address, _address);
     }
@@ -517,7 +517,7 @@ contract AccountingTest is Setup {
         vm.prank(address(yieldSource));
         asset.transfer(address(69), toLoose);
 
-        vm.expectRevert("to much loss");
+        vm.expectRevert("too much loss");
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address, 0);
     }
@@ -547,7 +547,7 @@ contract AccountingTest is Setup {
         uint256 expectedOut = _amount - toLoose;
 
         // First set it to just under the expected loss.
-        vm.expectRevert("to much loss");
+        vm.expectRevert("too much loss");
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address, _lossFactor - 1);
 

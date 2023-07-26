@@ -855,7 +855,7 @@ contract TokenizedStrategy {
                     // Make sure we are withen the acceptable range.
                     require(
                         loss <= (assets * maxLoss) / MAX_BPS,
-                        "to much loss"
+                        "too much loss"
                     );
                 }
                 // Lower the amount to be withdrawn.
