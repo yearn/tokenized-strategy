@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 import "forge-std/console.sol";
 import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
-contract CutsomImplementationsTest is Setup {
+contract CustomImplementationsTest is Setup {
     function setUp() public override {
         super.setUp();
     }
