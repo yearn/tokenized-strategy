@@ -855,7 +855,7 @@ contract TokenizedStrategy {
                     // Make sure we are withen the acceptable range.
                     require(
                         loss <= (assets * maxLoss) / MAX_BPS,
-                        "to much loss"
+                        "too much loss"
                     );
                 }
                 // Lower the amount to be withdrawn.
@@ -1459,8 +1459,8 @@ contract TokenizedStrategy {
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
         // Must be greater than 0, and less than a year.
-        require(_profitMaxUnlockTime != 0, "to short");
-        require(_profitMaxUnlockTime <= SECONDS_PER_YEAR, "to long");
+        require(_profitMaxUnlockTime != 0, "too short");
+        require(_profitMaxUnlockTime <= SECONDS_PER_YEAR, "too long");
         _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
