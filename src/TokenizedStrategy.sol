@@ -384,7 +384,7 @@ contract TokenizedStrategy {
         StrategyData storage S = _strategyStorage();
 
         // Make sure we aren't initiliazed.
-        require(address(S.asset) == address(0));
+        require(address(S.asset) == address(0), "Not initialized");
 
         // Set the strategys underlying asset
         S.asset = ERC20(_asset);
@@ -401,9 +401,9 @@ contract TokenizedStrategy {
         S.profitMaxUnlockTime = 10 days;
         // Set address to receive performance fees.
         // Can't be address(0) or we will be burning fees.
-        require(_performanceFeeRecipient != address(0));
+        require(_performanceFeeRecipient != address(0), "Zero address not allowed");
         // Can't mint shares to its self because of profit locking.
-        require(_performanceFeeRecipient != address(this));
+        require(_performanceFeeRecipient != address(this), "Can't set to self");
         S.performanceFeeRecipient = _performanceFeeRecipient;
         // Default to a 10% performance fee.
         S.performanceFee = 1_000;
@@ -411,7 +411,7 @@ contract TokenizedStrategy {
         S.lastReport = uint128(block.timestamp);
 
         // Set the default management address. Can't be 0.
-        require(_management != address(0));
+        require(_management != address(0), "Zero address not allowed");
         S.management = _management;
         // Set the keeper address
         S.keeper = _keeper;
