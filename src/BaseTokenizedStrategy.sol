@@ -221,7 +221,7 @@ abstract contract BaseTokenizedStrategy {
      * through protected relays.
      *
      * This can be used to harvest and compound rewards, deposit idle funds,
-     * perform needed poisition maintenance or anything else that doesn't need
+     * perform needed position maintenance or anything else that doesn't need
      * a full report for.
      *
      *   EX: A strategy that can not deposit funds without getting
@@ -377,13 +377,13 @@ abstract contract BaseTokenizedStrategy {
      * @notice Will call the internal '_tend' when a keeper tends the strategy.
      * @dev Callback for the TokenizedStrategy to initiate a _tend call in the strategy.
      *
-     * This can only be called after a tend() delegateCall to the TokenizedStrategy 
+     * This can only be called after a tend() delegateCall to the TokenizedStrategy
      * so msg.sender == address(this).
      *
-     * We name the function `tendThis` so that `tend` calls are forwarded to 
+     * We name the function `tendThis` so that `tend` calls are forwarded to
      * the TokenizedStrategy so it can do the necessary accounting.
 
-     * @param _totalIdle The amount of current idle funds that can be 
+     * @param _totalIdle The amount of current idle funds that can be
      * deployed during the tend
      */
     function tendThis(uint256 _totalIdle) external onlySelf {
