@@ -941,6 +941,7 @@ contract TokenizedStrategy {
         uint256 totalFees;
         uint256 protocolFees;
         uint256 sharesToLock;
+        uint256 _profitMaxUnlockTime = S.profitMaxUnlockTime;
         // Calculate profit/loss.
         if (newTotalAssets > oldTotalAssets) {
             // We have a profit.
@@ -978,13 +979,15 @@ contract TokenizedStrategy {
                 }
             }
 
-            // we have a net profit
-            // lock (profit - fees)
-            unchecked {
-                sharesToLock = convertToShares(profit - totalFees);
+            // we have a net profit. Check if we are locking proifit.
+            if (_profitMaxUnlockTime != 0) {
+                // lock (profit - fees)
+                unchecked {
+                    sharesToLock = convertToShares(profit - totalFees);
+                }
+                // Mint the shares to lock the strategy.
+                _mint(address(this), sharesToLock);
             }
-            // Mint the shares to lock the strategy.
-            _mint(address(this), sharesToLock);
 
             // Mint fees shares to recipients.
             if (performanceFeeShares != 0) {
@@ -1036,7 +1039,7 @@ contract TokenizedStrategy {
             // time of the previously locked shares and the profitMaxUnlockTime.
             uint256 newProfitLockingPeriod = (previouslyLockedTime +
                 sharesToLock *
-                S.profitMaxUnlockTime) / totalLockedShares;
+                _profitMaxUnlockTime) / totalLockedShares;
 
             // Calculate how many shares unlock per second.
             S.profitUnlockingRate =
@@ -1450,6 +1453,9 @@ contract TokenizedStrategy {
      *
      * Denominated in seconds and cannot be greater than 1 year.
      *
+     * NOTE: Setting to 0 will cause all currently locked profit
+     * to be unlocked instantly and should be done with care.
+     *
      * `profitMaxUnlockTime` is stored as a uint32 for packing but can
      * be passed in as uint256 for simplicity.
      *
@@ -1459,9 +1465,20 @@ contract TokenizedStrategy {
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
         // Must be greater than 0, and less than a year.
-        require(_profitMaxUnlockTime != 0, "too short");
+        //require(_profitMaxUnlockTime != 0, "too short");
         require(_profitMaxUnlockTime <= SECONDS_PER_YEAR, "too long");
-        _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
+        StrategyData storage S = _strategyStorage();
+
+        // If we are setting to 0 we need to adjust amounts.
+        if (_profitMaxUnlockTime == 0) {
+            // Burn all shares if applicable.
+            _burn(address(this), S.balances[address(this)]);
+            // Reset unlocking variables
+            S.profitUnlockingRate = 0;
+            S.fullProfitUnlockDate = 0;
+        }
+
+        S.profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
