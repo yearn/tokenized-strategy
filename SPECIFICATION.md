@@ -100,8 +100,8 @@ The strategy will evaluate profit and losses from the yield generating activitie
 
 This is done comparing the current totalAssets of the strategy with the amount returned from _harvestAndReport()
 
-If totalAssets < newTotalAssets: the vault will record a loss
-If totalAssets > newTotalAssets: the vault will record a profit
+If totalAssets < newTotalAssets: the vault will record a profit
+If totalAssets > newTotalAssets: the vault will record a loss
 
 Both loss and profit will impact strategy's totalAssets, increasing if there are profits, decreasing  if there are losses.
 
