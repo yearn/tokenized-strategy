@@ -938,6 +938,7 @@ contract TokenizedStrategy {
         // Burn unlocked shares.
         _burnUnlockedShares();
 
+        // Initialize varaibles needed throughout.
         uint256 totalFees;
         uint256 protocolFees;
         uint256 sharesToLock;
@@ -1464,8 +1465,7 @@ contract TokenizedStrategy {
     function setProfitMaxUnlockTime(
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
-        // Must be greater than 0, and less than a year.
-        //require(_profitMaxUnlockTime != 0, "too short");
+        // Must be less than a year.
         require(_profitMaxUnlockTime <= SECONDS_PER_YEAR, "too long");
         StrategyData storage S = _strategyStorage();
 
