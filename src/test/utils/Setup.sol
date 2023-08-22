@@ -25,11 +25,12 @@ contract Setup is ExtendedTest, IEvents {
     TokenizedStrategy public tokenizedStrategy;
 
     // Addresses for different roles we will use repeatedly.
-    address public user = address(10);
-    address public keeper = address(4);
-    address public management = address(1);
-    address public protocolFeeRecipient = address(2);
-    address public performanceFeeRecipient = address(3);
+    address public user = address(1);
+    address public keeper = address(2);
+    address public management = address(3);
+    address public emergencyAdmin = address(4);
+    address public protocolFeeRecipient = address(5);
+    address public performanceFeeRecipient = address(6);
 
     // Integer variables that will be used repeatedly.
     uint256 public decimals = 18;
@@ -64,11 +65,12 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(address(asset), "asset");
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
+        vm.label(emergencyAdmin, "emergency admin");
         vm.label(address(mockFactory), "mock Factory");
         vm.label(address(yieldSource), "Mock Yield Source");
         vm.label(address(tokenizedStrategy), "tokenized Logic");
-        vm.label(protocolFeeRecipient, "protocolFeeRecipient");
-        vm.label(performanceFeeRecipient, "performanceFeeRecipient");
+        vm.label(protocolFeeRecipient, "Protocol Fee Recipient");
+        vm.label(performanceFeeRecipient, "Performance Fee Recipient");
     }
 
     function setUpStrategy() public returns (address) {
@@ -79,6 +81,8 @@ contract Setup is ExtendedTest, IEvents {
 
         // set keeper
         _strategy.setKeeper(keeper);
+        // set the emergency admin
+        _strategy.setEmergencyAdmin(emergencyAdmin);
         // set treasury
         _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
         // set management of the strategy
@@ -99,6 +103,8 @@ contract Setup is ExtendedTest, IEvents {
 
         // set keeper
         _strategy.setKeeper(keeper);
+        // set the emergency admin
+        _strategy.setEmergencyAdmin(emergencyAdmin);
         // set treasury
         _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
         // set management of the strategy
@@ -119,6 +125,8 @@ contract Setup is ExtendedTest, IEvents {
 
         // set keeper
         _strategy.setKeeper(keeper);
+        // set the emergency admin
+        _strategy.setEmergencyAdmin(emergencyAdmin);
         // set treasury
         _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
         // set management of the strategy

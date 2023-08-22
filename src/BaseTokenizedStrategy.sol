@@ -63,8 +63,17 @@ abstract contract BaseTokenizedStrategy {
         _;
     }
 
+    /**
+     * @dev Use to assure that the call is coming from either the strategies
+     * management or the emergency admin.
+     */
+    modifier onlyEmergencyAuthorized() {
+        TokenizedStrategy.isEmergencyAuthorized(msg.sender);
+        _;
+    }
+
     function _onlySelf() internal view {
-        require(msg.sender == address(this), "!Authorized");
+        require(msg.sender == address(this), "!self");
     }
 
     /*//////////////////////////////////////////////////////////////

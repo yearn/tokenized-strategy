@@ -46,9 +46,13 @@ contract CustomImplementationsTest is Setup {
             strategy.availableWithdrawLimit(_address)
         );
 
-        vm.expectRevert("ERC4626: withdraw more than max");
+        vm.expectRevert("ERC4626: redeem more than max");
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
+
+        vm.expectRevert("ERC4626: withdraw more than max");
+        vm.prank(_address);
+        strategy.withdraw(_amount, _address, _address);
 
         createAndCheckProfit(strategy, profit, 0, 0);
 
@@ -69,9 +73,13 @@ contract CustomImplementationsTest is Setup {
             strategy.availableWithdrawLimit(_address)
         );
 
-        vm.expectRevert("ERC4626: withdraw more than max");
+        vm.expectRevert("ERC4626: redeem more than max");
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
+
+        vm.expectRevert("ERC4626: withdraw more than max");
+        vm.prank(_address);
+        strategy.withdraw(_amount, _address, _address);
 
         uint256 before = asset.balanceOf(_address);
         uint256 redeem = strategy.previewWithdraw(idle);
@@ -132,6 +140,10 @@ contract CustomImplementationsTest is Setup {
         vm.expectRevert("ERC4626: deposit more than max");
         vm.prank(_notAllowed);
         strategy.deposit(_amount, _notAllowed);
+
+        vm.expectRevert("ERC4626: mint more than max");
+        vm.prank(_notAllowed);
+        strategy.mint(_amount, _notAllowed);
     }
 
     function test_tendTrigger(address _address, uint256 _amount) public {
@@ -157,7 +169,7 @@ contract CustomImplementationsTest is Setup {
 
         assertTrue(!strategy.managed());
 
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!management");
         vm.prank(_address);
         strategy.onlyLetManagers();
 
@@ -178,7 +190,7 @@ contract CustomImplementationsTest is Setup {
 
         assertTrue(!strategy.kept());
 
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!keeper");
         vm.prank(_address);
         strategy.onlyLetKeepersIn();
 
@@ -199,5 +211,37 @@ contract CustomImplementationsTest is Setup {
         strategy.onlyLetKeepersIn();
 
         assertTrue(strategy.kept());
+    }
+
+    function test_onlyEmergencyAuthorizedModifier(address _address) public {
+        vm.assume(
+            _address != emergencyAdmin &&
+                _address != management &&
+                _address != address(strategy)
+        );
+
+        assertTrue(!strategy.emergentizated());
+
+        vm.expectRevert("!emergency authorized");
+        vm.prank(_address);
+        strategy.onlyLetEmergencyAdminsIn();
+
+        assertTrue(!strategy.emergentizated());
+
+        vm.prank(emergencyAdmin);
+        strategy.onlyLetEmergencyAdminsIn();
+
+        assertTrue(strategy.emergentizated());
+
+        // Reset the slot holding the bools all to false.
+        vm.store(address(strategy), bytes32(uint256(0)), bytes32(0));
+
+        assertTrue(!strategy.emergentizated());
+
+        // Make sure management works as well
+        vm.prank(management);
+        strategy.onlyLetEmergencyAdminsIn();
+
+        assertTrue(strategy.emergentizated());
     }
 }

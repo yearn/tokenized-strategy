@@ -22,6 +22,11 @@ interface IEvents {
     event UpdateKeeper(address indexed newKeeper);
 
     /**
+     * @notice Emitted when the 'emergencyAdmin' address is updated to 'newEmergencyAdmin'.
+     */
+    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
+
+    /**
      * @notice Emitted whent the 'performaneFee' is updtaed to 'newPerformanceFee'.
      */
     event UpdatePerformanceFee(uint16 newPerformanceFee);

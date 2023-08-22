@@ -32,9 +32,13 @@ interface IMockStrategy is ITokenizedStrategy {
 
     function onlyLetKeepersIn() external;
 
+    function onlyLetEmergencyAdminsIn() external;
+
     function yieldSource() external view returns (address);
 
     function managed() external view returns (bool);
 
     function kept() external view returns (bool);
+
+    function emergentizated() external view returns (bool);
 }

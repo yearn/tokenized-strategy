@@ -11,6 +11,7 @@ contract MockStrategy is BaseTokenizedStrategy {
     bool public trigger;
     bool public managed;
     bool public kept;
+    bool public emergentizated;
 
     constructor(
         address _asset,
@@ -68,5 +69,9 @@ contract MockStrategy is BaseTokenizedStrategy {
 
     function onlyLetKeepersIn() public onlyKeepers {
         kept = true;
+    }
+
+    function onlyLetEmergencyAdminsIn() public onlyEmergencyAuthorized {
+        emergentizated = true;
     }
 }

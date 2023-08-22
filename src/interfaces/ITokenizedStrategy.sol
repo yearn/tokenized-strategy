@@ -17,6 +17,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     event UpdateKeeper(address indexed newKeeper);
 
+    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
+
     event UpdatePerformanceFee(uint16 newPerformanceFee);
 
     event UpdatePerformanceFeeRecipient(
@@ -30,8 +32,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     event Reported(
         uint256 profit,
         uint256 loss,
-        uint256 performanceFees,
-        uint256 protocolFees
+        uint256 protocolFees,
+        uint256 performanceFees
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -68,11 +70,13 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    function isKeeperOrManagement(address _sender) external view;
+    function isManagement(address _sender) external view returns (bool);
 
-    function isManagement(address _sender) external view;
+    function isKeeperOrManagement(address _sender) external view returns (bool);
 
-    function isShutdown() external view returns (bool);
+    function isEmergencyAuthorized(
+        address _sender
+    ) external view returns (bool);
 
     /*//////////////////////////////////////////////////////////////
                         KEEPERS FUNCTIONS
@@ -110,6 +114,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function keeper() external view returns (address);
 
+    function emergencyAdmin() external view returns (address);
+
     function performanceFee() external view returns (uint16);
 
     function performanceFeeRecipient() external view returns (address);
@@ -122,6 +128,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function lastReport() external view returns (uint256);
 
+    function isShutdown() external view returns (bool);
+
     /*//////////////////////////////////////////////////////////////
                             SETTERS
     //////////////////////////////////////////////////////////////*/
@@ -131,6 +139,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     function acceptManagement() external;
 
     function setKeeper(address _keeper) external;
+
+    function setEmergencyAdmin(address _emergencyAdmin) external;
 
     function setPerformanceFee(uint16 _performanceFee) external;
 
