@@ -13,6 +13,8 @@
       "not-rely-on-time": "off",
       "private-vars-leading-underscore": "off",
       "reason-string": ["warn", { "maxLength": 64 }],
-      "no-console": "off"
+      "no-console": "off",
+      "var-name-mixedcase": "off",
+      "func-name-mixedcase": "off"
     }
   }
