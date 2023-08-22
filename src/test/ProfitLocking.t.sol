@@ -130,6 +130,19 @@ contract ProfitLockingTest is Setup {
 
         assertEq(strategy.pricePerShare(), wad, "!pps");
 
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFee,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
+
         checkStrategyTotals(
             strategy,
             _amount + profit,
@@ -231,6 +244,19 @@ contract ProfitLockingTest is Setup {
         );
 
         assertEq(strategy.pricePerShare(), wad, "!pps");
+
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFee,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
 
         checkStrategyTotals(
             strategy,
@@ -335,6 +361,19 @@ contract ProfitLockingTest is Setup {
         );
 
         assertEq(strategy.pricePerShare(), wad, "!pps");
+
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFee,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
 
         checkStrategyTotals(
             strategy,
@@ -562,6 +601,19 @@ contract ProfitLockingTest is Setup {
 
         assertEq(strategy.pricePerShare(), wad, "!pps");
 
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFee,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
+
         checkStrategyTotals(
             strategy,
             _amount + profit,
@@ -691,6 +743,19 @@ contract ProfitLockingTest is Setup {
 
         assertEq(strategy.pricePerShare(), wad, "!pps");
 
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFee,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
+
         checkStrategyTotals(
             strategy,
             _amount + profit,
@@ -817,6 +882,19 @@ contract ProfitLockingTest is Setup {
         );
 
         assertEq(strategy.pricePerShare(), wad, "!pps");
+
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFee,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
 
         checkStrategyTotals(
             strategy,
@@ -1031,6 +1109,12 @@ contract ProfitLockingTest is Setup {
             MAX_BPS / 10
         );
 
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
+
         checkStrategyTotals(
             strategy,
             _amount - loss,
@@ -1160,7 +1244,6 @@ contract ProfitLockingTest is Setup {
 
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime / 2, 0);
 
-        console.log("Current bal ", strategy.balanceOf(address(strategy)));
         checkStrategyTotals(
             strategy,
             newAmount - loss,
@@ -1217,6 +1300,19 @@ contract ProfitLockingTest is Setup {
         );
 
         assertEq(strategy.pricePerShare(), wad, "!pps");
+
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFee,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
 
         checkStrategyTotals(
             strategy,
@@ -1322,6 +1418,19 @@ contract ProfitLockingTest is Setup {
         );
 
         assertEq(strategy.pricePerShare(), wad, "!pps");
+
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFee,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
 
         checkStrategyTotals(
             strategy,
@@ -1581,6 +1690,19 @@ contract ProfitLockingTest is Setup {
         assertEq(strategy.profitUnlockingRate(), 0, "!rate");
         assertEq(strategy.fullProfitUnlockDate(), 0, "date");
         assertGt(strategy.pricePerShare(), wad, "!pps");
+
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFee,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFee,
+            100
+        );
 
         checkStrategyTotals(
             strategy,
