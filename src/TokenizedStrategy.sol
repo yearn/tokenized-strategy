@@ -1244,6 +1244,9 @@ contract TokenizedStrategy {
         // Get the current loose balance.
         uint256 assetBalance = S.asset.balanceOf(address(this));
 
+        // If its already accurate do nothing.
+        if (S.totalIdle == assetBalance) return;
+
         // If we have enough loose to cover all assets.
         if (assetBalance >= _totalAssets) {
             // Set idle to totalAssets.
