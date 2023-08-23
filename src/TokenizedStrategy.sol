@@ -549,14 +549,21 @@ contract TokenizedStrategy {
      * @return . Expected shares that `assets` represents.
      */
     function convertToShares(uint256 assets) public view returns (uint256) {
+        return _convertToShares(_strategyStorage(), assets);
+    }
+
+    function _convertToShares(
+        StrategyData storage S,
+        uint256 assets
+    ) internal view returns (uint256) {
         // Saves an extra SLOAD if totalAssets() is non-zero.
-        uint256 _totalAssets = totalAssets();
-        uint256 _totalSupply = totalSupply();
+        uint256 totalAssets_ = _totalAssets(S);
+        uint256 totalSupply_ = _totalSupply(S);
 
         // If assets are 0 but supply is not PPS = 0.
-        if (_totalAssets == 0) return _totalSupply == 0 ? assets : 0;
+        if (totalAssets_ == 0) return totalSupply_ == 0 ? assets : 0;
 
-        return assets.mulDiv(_totalSupply, _totalAssets, Math.Rounding.Down);
+        return assets.mulDiv(totalSupply_, totalAssets_, Math.Rounding.Down);
     }
 
     /**
@@ -568,13 +575,20 @@ contract TokenizedStrategy {
      * @return . Expected amount of `asset` the shares represents.
      */
     function convertToAssets(uint256 shares) public view returns (uint256) {
+        return _convertToAssets(_strategyStorage(), shares);
+    }
+
+    function _convertToAssets(
+        StrategyData storage S,
+        uint256 shares
+    ) internal view returns (uint256) {
         // Saves an extra SLOAD if totalSupply() is non-zero.
-        uint256 supply = totalSupply();
+        uint256 supply = _totalSupply(S);
 
         return
             supply == 0
                 ? shares
-                : shares.mulDiv(totalAssets(), supply, Math.Rounding.Down);
+                : shares.mulDiv(_totalAssets(S), supply, Math.Rounding.Down);
     }
 
     /**
@@ -584,7 +598,7 @@ contract TokenizedStrategy {
      * @dev This will round down.
      */
     function previewDeposit(uint256 assets) public view returns (uint256) {
-        return convertToShares(assets);
+        return _convertToShares(_strategyStorage(), assets);
     }
 
     /**
@@ -629,7 +643,7 @@ contract TokenizedStrategy {
      * @dev This will round down.
      */
     function previewRedeem(uint256 shares) public view returns (uint256) {
-        return convertToAssets(shares);
+        return _convertToAssets(_strategyStorage(), shares);
     }
 
     /**
@@ -715,7 +729,12 @@ contract TokenizedStrategy {
      * from donations, touch values of debt etc.
      */
     function totalAssets() public view returns (uint256) {
-        StrategyData storage S = _strategyStorage();
+        return _totalAssets(_strategyStorage());
+    }
+
+    function _totalAssets(
+        StrategyData storage S
+    ) internal view returns (uint256) {
         unchecked {
             return S.totalIdle + S.totalDebt;
         }
@@ -731,7 +750,13 @@ contract TokenizedStrategy {
      * causing the PPS of the strategy to increase.
      */
     function totalSupply() public view returns (uint256) {
-        return _strategyStorage().totalSupply - _unlockedShares();
+        return _totalSupply(_strategyStorage());
+    }
+
+    function _totalSupply(
+        StrategyData storage S
+    ) internal view returns (uint256) {
+        return S.totalSupply - _unlockedShares(S);
     }
 
     /**
@@ -790,7 +815,7 @@ contract TokenizedStrategy {
         }
 
         // mint shares
-        _mint(receiver, shares);
+        _mint(S, receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
     }
@@ -869,7 +894,7 @@ contract TokenizedStrategy {
         // Update idle based on how much we took.
         S.totalIdle = idle - assets;
 
-        _burn(owner, shares);
+        _burn(S, owner, shares);
 
         _asset.safeTransfer(receiver, assets);
 
@@ -936,7 +961,7 @@ contract TokenizedStrategy {
             .harvestAndReport();
 
         // Burn unlocked shares.
-        _burnUnlockedShares();
+        _burnUnlockedShares(S);
 
         uint256 totalFees;
         uint256 protocolFees;
@@ -969,30 +994,31 @@ contract TokenizedStrategy {
                 // We need to get the shares to issue for the fees at
                 // current PPS before any minting or burning.
                 unchecked {
-                    performanceFeeShares = convertToShares(
+                    performanceFeeShares = _convertToShares(
+                        S,
                         totalFees - protocolFees
                     );
                 }
                 if (protocolFees != 0) {
-                    protocolFeeShares = convertToShares(protocolFees);
+                    protocolFeeShares = _convertToShares(S, protocolFees);
                 }
             }
 
             // we have a net profit
             // lock (profit - fees)
             unchecked {
-                sharesToLock = convertToShares(profit - totalFees);
+                sharesToLock = _convertToShares(S, profit - totalFees);
             }
             // Mint the shares to lock the strategy.
-            _mint(address(this), sharesToLock);
+            _mint(S, address(this), sharesToLock);
 
             // Mint fees shares to recipients.
             if (performanceFeeShares != 0) {
-                _mint(S.performanceFeeRecipient, performanceFeeShares);
+                _mint(S, S.performanceFeeRecipient, performanceFeeShares);
             }
 
             if (protocolFeeShares != 0) {
-                _mint(protocolFeesRecipient, protocolFeeShares);
+                _mint(S, protocolFeesRecipient, protocolFeeShares);
             }
         } else {
             // We have a loss.
@@ -1005,13 +1031,13 @@ contract TokenizedStrategy {
                 // We will try and burn shares from any pending profit still unlocking
                 // to offset the loss to prevent any PPS decline post report.
                 uint256 sharesToBurn = Math.min(
-                    convertToShares(loss),
+                    _convertToShares(S, loss),
                     S.balances[address(this)]
                 );
 
                 // Check if there is anything to burn.
                 if (sharesToBurn != 0) {
-                    _burn(address(this), sharesToBurn);
+                    _burn(S, address(this), sharesToBurn);
                 }
             }
         }
@@ -1078,18 +1104,18 @@ contract TokenizedStrategy {
      * Will reset the `lastReport` if haven't unlocked the full amount yet
      * so future calculations remain correct.
      */
-    function _burnUnlockedShares() private {
-        uint256 unlockedShares = _unlockedShares();
+    function _burnUnlockedShares(StrategyData storage S) private {
+        uint256 unlockedShares = _unlockedShares(S);
         if (unlockedShares == 0) {
             return;
         }
 
         // update variables (done here to keep _unlockedShares() as a view function)
-        if (_strategyStorage().fullProfitUnlockDate > block.timestamp) {
-            _strategyStorage().lastReport = uint128(block.timestamp);
+        if (S.fullProfitUnlockDate > block.timestamp) {
+            S.lastReport = uint128(block.timestamp);
         }
 
-        _burn(address(this), unlockedShares);
+        _burn(S, address(this), unlockedShares);
     }
 
     /**
@@ -1101,9 +1127,11 @@ contract TokenizedStrategy {
      *
      * @return unlockedShares The amount of shares that have unlocked.
      */
-    function _unlockedShares() private view returns (uint256 unlockedShares) {
+    function _unlockedShares(
+        StrategyData storage S
+    ) private view returns (uint256 unlockedShares) {
         // should save 2 extra calls for most scenarios.
-        StrategyData storage S = _strategyStorage();
+        //StrategyData storage S = _strategyStorage();
         uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         if (_fullProfitUnlockDate > block.timestamp) {
             unchecked {
@@ -1504,10 +1532,11 @@ contract TokenizedStrategy {
      * @return . The current balance in y shares of the '_account'.
      */
     function balanceOf(address account) public view returns (uint256) {
+        StrategyData storage S = _strategyStorage();
         if (account == address(this)) {
-            return _strategyStorage().balances[account] - _unlockedShares();
+            return S.balances[account] - _unlockedShares(S);
         }
-        return _strategyStorage().balances[account];
+        return S.balances[account];
     }
 
     /**
@@ -1704,9 +1733,13 @@ contract TokenizedStrategy {
      * - `account` cannot be the zero address.
      *
      */
-    function _mint(address account, uint256 amount) private {
+    function _mint(
+        StrategyData storage S,
+        address account,
+        uint256 amount
+    ) private {
         require(account != address(0), "ERC20: mint to the zero address");
-        StrategyData storage S = _strategyStorage();
+        //StrategyData storage S = _strategyStorage();
 
         S.totalSupply += amount;
         unchecked {
@@ -1726,9 +1759,13 @@ contract TokenizedStrategy {
      * - `account` cannot be the zero address.
      * - `account` must have at least `amount` tokens.
      */
-    function _burn(address account, uint256 amount) private {
+    function _burn(
+        StrategyData storage S,
+        address account,
+        uint256 amount
+    ) private {
         require(account != address(0), "ERC20: burn from the zero address");
-        StrategyData storage S = _strategyStorage();
+        //StrategyData storage S = _strategyStorage();
 
         S.balances[account] -= amount;
         unchecked {
