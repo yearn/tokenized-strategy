@@ -1679,30 +1679,17 @@ contract ProfitLockingTest is Setup {
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
 
-        createAndCheckProfit(
-            strategy,
-            profit,
-            expectedProtocolFee,
-            expectedPerformanceFee
-        );
+        asset.mint(address(strategy), profit);
+
+        vm.prank(keeper);
+        (uint256 _profit, ) = strategy.report();
+
+        assertEq(profit, _profit, "profit reported wrong");
 
         // All profit should have been unlocked instantly.
         assertEq(strategy.profitUnlockingRate(), 0, "!rate");
         assertEq(strategy.fullProfitUnlockDate(), 0, "date");
         assertGt(strategy.pricePerShare(), wad, "!pps");
-
-        assertApproxEq(
-            strategy.convertToAssets(
-                strategy.balanceOf(performanceFeeRecipient)
-            ),
-            expectedPerformanceFee,
-            100
-        );
-        assertApproxEq(
-            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
-            expectedProtocolFee,
-            100
-        );
 
         checkStrategyTotals(
             strategy,

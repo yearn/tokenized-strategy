@@ -1009,8 +1009,8 @@ contract TokenizedStrategy {
                 // We will try and burn shares from any pending profit still unlocking
                 // to offset the loss to prevent any PPS decline post report.
                 uint256 sharesToBurn = Math.min(
-                    convertToShares(loss),
-                    S.balances[address(this)]
+                    S.balances[address(this)],
+                    convertToShares(loss)
                 );
 
                 // Check if there is anything to burn.
