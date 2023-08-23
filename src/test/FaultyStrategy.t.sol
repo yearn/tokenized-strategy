@@ -98,6 +98,51 @@ contract FaultyStrategy is Setup {
         assertEq(asset.balanceOf(address(strategy)), _faultAmount);
     }
 
+    // Test that tend will update balances correctly even if they
+    // were not moved during the tend call.
+    function test_fundsMoved_tendUpdates(
+        address _address,
+        uint256 _amount
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        strategy = IMockStrategy(setUpFaultyStrategy());
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
+
+        // For rounding
+        uint256 toWithdraw = _amount / 2;
+        uint256 difference = _amount - toWithdraw;
+
+        // Simulate funds moving around by an non-core function.
+        vm.prank(address(strategy));
+        yieldSource.withdraw(toWithdraw);
+
+        // Make sure the balances were updated but the strategy doesn't know yet.
+        assertEq(asset.balanceOf(address(strategy)), toWithdraw);
+        assertEq(asset.balanceOf(address(yieldSource)), difference);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
+
+        // Set the tend to do nothing.
+        strategy.setDontTend(true);
+        assertTrue(strategy.dontTend());
+
+        vm.prank(keeper);
+        strategy.tend();
+
+        // Make sure the balances were updated correctly on both ends
+        assertEq(asset.balanceOf(address(strategy)), toWithdraw);
+        assertEq(asset.balanceOf(address(yieldSource)), difference);
+        checkStrategyTotals(strategy, _amount, difference, toWithdraw, _amount);
+    }
+
     function test_deployFundsViewReentrancy(
         address _address,
         uint256 _amount,
