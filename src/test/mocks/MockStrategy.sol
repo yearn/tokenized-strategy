@@ -55,7 +55,7 @@ contract MockStrategy is BaseTokenizedStrategy {
         MockYieldSource(yieldSource).withdraw(_amount);
     }
 
-    function tendTrigger() external view override returns (bool) {
+    function _tendTrigger() internal view override returns (bool) {
         return trigger;
     }
 

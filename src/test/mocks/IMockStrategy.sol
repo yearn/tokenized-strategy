@@ -4,11 +4,10 @@ pragma solidity 0.8.18;
 
 import {IStrategy} from "../../interfaces/IStrategy.sol";
 
-// Interface to use during testing that implements the 4626 standard 
+// Interface to use during testing that implements the 4626 standard
 // the implementation functions, the Strategies immutable functions
 // as well as the added functions for the Mock Strategy.
 interface IMockStrategy is IStrategy {
-    
     function setTrigger(bool _trigger) external;
 
     function onlyLetManagers() external;

@@ -254,14 +254,28 @@ abstract contract BaseTokenizedStrategy {
     function _tend(uint256 _totalIdle) internal virtual {}
 
     /**
-     * @notice Returns weather or not tend() should be called by a keeper.
      * @dev Optional trigger to override if tend() will be used by the strategy.
      * This must be implemented if the strategy hopes to invoke _tend().
      *
      * @return . Should return true if tend() should be called by keeper or false if not.
      */
-    function tendTrigger() external view virtual returns (bool) {
+    function _tendTrigger() internal view virtual returns (bool) {
         return false;
+    }
+
+    /**
+     * @notice Returns weather or not tend() should be called by a keeper.
+     *
+     * @return . Should return true if tend() should be called by keeper or false if not.
+     * @return . Calldata for the tend call.
+     */
+    function tendTrigger() external view virtual returns (bool, bytes memory) {
+        return (
+            // Return the status of the tend trigger.
+            _tendTrigger(),
+            // And the needed calldata either way.
+            abi.encodeWithSelector(ITokenizedStrategy.tend.selector)
+        );
     }
 
     /**

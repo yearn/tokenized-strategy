@@ -99,7 +99,7 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     /*//////////////////////////////////////////////////////////////
                             GETTERS
     //////////////////////////////////////////////////////////////*/
-    
+
     function apiVersion() external view returns (string memory);
 
     function pricePerShare() external view returns (uint256);
