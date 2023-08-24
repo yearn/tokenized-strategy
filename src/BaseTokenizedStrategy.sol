@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
 // TokenizedStrategy interface used for internal view delegateCalls.
 import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
 
@@ -115,7 +117,8 @@ abstract contract BaseTokenizedStrategy {
     ITokenizedStrategy internal immutable TokenizedStrategy;
 
     // Underlying asset the Strategy is earning yield on.
-    address public immutable asset;
+    // Stored here for cheap retrievals wihtin the strategy.
+    ERC20 internal immutable asset;
 
     /**
      * @notice Used to initialize the strategy on deployment.
@@ -129,7 +132,7 @@ abstract contract BaseTokenizedStrategy {
      * @param _name Name the strategy will use.
      */
     constructor(address _asset, string memory _name) {
-        asset = _asset;
+        asset = ERC20(_asset);
 
         // Set instance of the implementation for internal use.
         TokenizedStrategy = ITokenizedStrategy(address(this));

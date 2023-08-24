@@ -2,30 +2,13 @@
 
 pragma solidity 0.8.18;
 
-import {ITokenizedStrategy} from "../../interfaces/ITokenizedStrategy.sol";
+import {IStrategy} from "../../interfaces/IStrategy.sol";
 
-// Interface to use during testing that implements the 4626 standard the implementation functions and the Strategies immutable functions
-interface IMockStrategy is ITokenizedStrategy {
-    function availableDepositLimit(
-        address _owner
-    ) external view returns (uint256);
-
-    function availableWithdrawLimit(
-        address _owner
-    ) external view returns (uint256);
-
-    function deployFunds(uint256 _assets) external;
-
-    function freeFunds(uint256 _amount) external;
-
-    function harvestAndReport() external returns (uint256);
-
-    function tendThis(uint256 _totalIdle) external;
-
-    function shutdownWithdraw(uint256 _amount) external;
-
-    function tendTrigger() external view returns (bool);
-
+// Interface to use during testing that implements the 4626 standard 
+// the implementation functions, the Strategies immutable functions
+// as well as the added functions for the Mock Strategy.
+interface IMockStrategy is IStrategy {
+    
     function setTrigger(bool _trigger) external;
 
     function onlyLetManagers() external;

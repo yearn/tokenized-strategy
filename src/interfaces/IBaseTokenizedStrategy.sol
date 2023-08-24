@@ -6,8 +6,6 @@ interface IBaseTokenizedStrategy {
                             IMMUTABLE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function asset() external view returns (address);
-
     function availableDepositLimit(
         address _owner
     ) external view returns (uint256);

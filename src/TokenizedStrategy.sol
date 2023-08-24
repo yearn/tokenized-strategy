@@ -206,10 +206,7 @@ contract TokenizedStrategy {
     // prettier-ignore
     struct StrategyData {
         // The ERC20 compliant underlying asset that will be
-        // used by the Strategy. We can keep this as an ERC20
-        // instance because the `BaseTokenizedStrategy` holds
-        // the address of `asset` as an immutable variable to
-        // meet the 4626 standard.
+        // used by the Strategy
         ERC20 asset;
 
 
@@ -1319,6 +1316,14 @@ contract TokenizedStrategy {
     /*//////////////////////////////////////////////////////////////
                         GETTER FUNCIONS
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Get the underlying asset for the strategy.
+     * @return . The underlying asset.
+     */
+    function asset() external view returns (address) {
+        return address(_strategyStorage().asset);
+    }
 
     /**
      * @notice Get the API version for this TokenizedStrategy.
