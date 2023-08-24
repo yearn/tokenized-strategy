@@ -135,7 +135,12 @@ abstract contract BaseTokenizedStrategy {
         TokenizedStrategy = ITokenizedStrategy(address(this));
 
         // Initilize the strategies storage variables.
-        _init(_asset, _name, msg.sender, msg.sender, msg.sender);
+        _delegate(
+            abi.encodeCall(
+                ITokenizedStrategy.init,
+                (_asset, _name, msg.sender, msg.sender, msg.sender)
+            )
+        );
 
         // Store the tokenizedStrategyAddress at the standard implementation
         // address storage slot so etherscan picks up the interface. This gets
@@ -417,31 +422,33 @@ abstract contract BaseTokenizedStrategy {
     }
 
     /**
-     * @dev Funciton used on initialization to delegate call the
-     * TokenizedStrategy to setup the default storage for the strategy.
+     * @dev Funciton used to delegate call the TokenizedStrategy with
+     * certain `_calldata` and return any return values.
      *
-     * We cannot use the `TokenizedStrategy` variable call since this
-     * contract is not deployed fully yet. So we need to manually
-     * delegateCall the TokenizedStrategy.
+     * This is used to setup the intial storage of the strategy, and
+     * can be used by strategist to forward any other call to the
+     * TokenizedStrategy implementation.
      *
-     * This is the only time an internal delegateCall should not
-     * be for a view function
+     * @param _calldata The abi encoded calldata use in delegatecall.
+     * @return . The return value if the call was successful in bytes.
      */
-    function _init(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _performanceFeeRecipient,
-        address _keeper
-    ) private {
-        (bool success, ) = tokenizedStrategyAddress.delegatecall(
-            abi.encodeCall(
-                ITokenizedStrategy.init,
-                (_asset, _name, _management, _performanceFeeRecipient, _keeper)
-            )
-        );
+    function _delegate(bytes memory _calldata) internal returns (bytes memory) {
+        // Delegate call the tokenized strategy with provided calldata.
+        (bool success, bytes memory result) = tokenizedStrategyAddress
+            .delegatecall(_calldata);
 
-        require(success, "init failed");
+        // If the call reverted. Return the error.
+        if (!success) {
+            assembly {
+                let ptr := mload(0x40)
+                let size := returndatasize()
+                returndatacopy(ptr, 0, size)
+                revert(ptr, size)
+            }
+        }
+
+        // Return the result.
+        return result;
     }
 
     // exeute a function on the TokenizedStrategy and return any value.
