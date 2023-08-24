@@ -353,7 +353,7 @@ abstract contract BaseTokenizedStrategy {
      * @param _amount The amount of 'asset' that the strategy should
      * attemppt to deposit in the yield source.
      */
-    function deployFunds(uint256 _amount) external onlySelf {
+    function deployFunds(uint256 _amount) external virtual onlySelf {
         _deployFunds(_amount);
     }
 
@@ -367,7 +367,7 @@ abstract contract BaseTokenizedStrategy {
      *
      * @param _amount The amount of 'asset' that the strategy should attempt to free up.
      */
-    function freeFunds(uint256 _amount) external onlySelf {
+    function freeFunds(uint256 _amount) external virtual onlySelf {
         _freeFunds(_amount);
     }
 
@@ -383,7 +383,7 @@ abstract contract BaseTokenizedStrategy {
      * @return . A trusted and accurate account for the total amount
      * of 'asset' the strategy currently holds including idle funds.
      */
-    function harvestAndReport() external onlySelf returns (uint256) {
+    function harvestAndReport() external virtual onlySelf returns (uint256) {
         return _harvestAndReport();
     }
 
@@ -400,7 +400,7 @@ abstract contract BaseTokenizedStrategy {
      * @param _totalIdle The amount of current idle funds that can be
      * deployed during the tend
      */
-    function tendThis(uint256 _totalIdle) external onlySelf {
+    function tendThis(uint256 _totalIdle) external virtual onlySelf {
         _tend(_totalIdle);
     }
 
@@ -417,7 +417,7 @@ abstract contract BaseTokenizedStrategy {
      *
      * @param _amount The amount of asset to attempt to free.
      */
-    function shutdownWithdraw(uint256 _amount) external onlySelf {
+    function shutdownWithdraw(uint256 _amount) external virtual onlySelf {
         _emergencyWithdraw(_amount);
     }
 
