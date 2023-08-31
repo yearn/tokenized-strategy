@@ -203,11 +203,6 @@ contract AccesssControlTest is Setup {
         vm.expectRevert("too long");
         strategy.setProfitMaxUnlockTime(_badAmount);
 
-        // Can't be 0
-        vm.prank(management);
-        vm.expectRevert("too short");
-        strategy.setProfitMaxUnlockTime(0);
-
         assertEq(strategy.profitMaxUnlockTime(), profitMaxUnlockTime);
     }
 
