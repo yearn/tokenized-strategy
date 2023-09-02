@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 import {MockYieldSource} from "./MockYieldSource.sol";
-import {BaseTokenizedStrategy} from "../../BaseTokenizedStrategy.sol";
+import {BaseTokenizedStrategy, ERC20} from "../../BaseTokenizedStrategy.sol";
 
 contract MockStrategy is BaseTokenizedStrategy {
     address public yieldSource;

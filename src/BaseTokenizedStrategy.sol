@@ -446,7 +446,7 @@ abstract contract BaseTokenizedStrategy {
      * can be used by strategist to forward any other call to the
      * TokenizedStrategy implementation.
      *
-     * @param _calldata The abi encoded calldata use in delegatecall.
+     * @param _calldata The abi encoded calldata to use in delegatecall.
      * @return . The return value if the call was successful in bytes.
      */
     function _delegate(bytes memory _calldata) internal returns (bytes memory) {
