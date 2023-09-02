@@ -7,12 +7,12 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
 
 /**
- * @title Yearn Base Tokenized Strategy
+ * @title YearnV3 Base Strategy
  * @author yearn.finance
  * @notice
  *  BaseStrategy implements all of the required functionality to
  *  seamlessly integrate with the `TokenizedStrategy` implementation contract
- *  allowing anyone to easily build a fully permisionless ERC-4626 compliant
+ *  allowing anyone to easily build a fully permissionless ERC-4626 compliant
  *  Vault by inheriting this contract and overriding three simple functions.
 
  *  It utilizes an immutable proxy pattern that allows the BaseStrategy
@@ -23,8 +23,8 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *
  *  This contract should be inherited and the three main abstract methods
  *  `_deployFunds`, `_freeFunds` and `_harvestAndReport` implemented to adapt
- *  the Strategy to the particular needs it has to create a return. There are
- *  other optional methods that can be implemented to further customize of
+ *  the Strategy to the particular needs it has to generate yield. There are
+ *  other optional methods that can be implemented to further customize
  *  the strategy if desired.
  *
  *  All default storage for the strategy is controlled and updated by the
