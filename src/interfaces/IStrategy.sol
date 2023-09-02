@@ -2,6 +2,6 @@
 pragma solidity 0.8.18;
 
 import {ITokenizedStrategy} from "./ITokenizedStrategy.sol";
-import {IBaseTokenizedStrategy} from "./IBaseTokenizedStrategy.sol";
+import {IBaseStrategy} from "./IBaseStrategy.sol";
 
-interface IStrategy is IBaseTokenizedStrategy, ITokenizedStrategy {}
+interface IStrategy is IBaseStrategy, ITokenizedStrategy {}

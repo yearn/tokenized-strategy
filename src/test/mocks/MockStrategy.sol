@@ -2,9 +2,9 @@
 pragma solidity 0.8.18;
 
 import {MockYieldSource} from "./MockYieldSource.sol";
-import {BaseTokenizedStrategy, ERC20} from "../../BaseTokenizedStrategy.sol";
+import {BaseStrategy, ERC20} from "../../BaseStrategy.sol";
 
-contract MockStrategy is BaseTokenizedStrategy {
+contract MockStrategy is BaseStrategy {
     address public yieldSource;
     bool public trigger;
     bool public managed;
@@ -14,7 +14,7 @@ contract MockStrategy is BaseTokenizedStrategy {
     constructor(
         address _asset,
         address _yieldSource
-    ) BaseTokenizedStrategy(_asset, "Test Strategy") {
+    ) BaseStrategy(_asset, "Test Strategy") {
         initialize(_asset, _yieldSource);
     }
 

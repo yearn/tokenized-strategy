@@ -10,12 +10,12 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  * @title Yearn Base Tokenized Strategy
  * @author yearn.finance
  * @notice
- *  BaseTokenizedStrategy implements all of the required functionality to
+ *  BaseStrategy implements all of the required functionality to
  *  seamlessly integrate with the `TokenizedStrategy` implementation contract
  *  allowing anyone to easily build a fully permisionless ERC-4626 compliant
  *  Vault by inheriting this contract and overriding three simple functions.
 
- *  It utilizes an immutable proxy pattern that allows the BaseTokenizedStrategy
+ *  It utilizes an immutable proxy pattern that allows the BaseStrategy
  *  to remain simple and small. All standard logic is held within the
  *  `TokenizedStrategy` and is reused over any n strategies all using the
  *  `fallback` function to delegatecall the implementation so that strategists
@@ -35,7 +35,7 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *  can be viewed within the Strategy by a simple call using the
  *  `TokenizedStrategy` variable. IE: TokenizedStrategy.globalVariable();.
  */
-abstract contract BaseTokenizedStrategy {
+abstract contract BaseStrategy {
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
