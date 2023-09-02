@@ -39,7 +39,7 @@ contract TokenizedStrategy {
     event UpdatePendingManagement(address indexed newPendingManagement);
 
     /**
-     * @notice Emitted when the 'mangement' address is updated to 'newManagement'.
+     * @notice Emitted when the 'management' address is updated to 'newManagement'.
      */
     event UpdateManagement(address indexed newManagement);
 
@@ -49,7 +49,7 @@ contract TokenizedStrategy {
     event UpdateKeeper(address indexed newKeeper);
 
     /**
-     * @notice Emitted when the 'performaneFee' is updated to 'newPerformanceFee'.
+     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
      */
     event UpdatePerformanceFee(uint16 newPerformanceFee);
 
@@ -155,12 +155,12 @@ contract TokenizedStrategy {
     // prettier-ignore
     struct StrategyData {
         // The ERC20 compliant underlying asset that will be
-        // used by the Strategy. We can keep this as an ERC20 
-        // instance because the `BaseTokenizedStrategy` holds 
+        // used by the Strategy. We can keep this as an ERC20
+        // instance because the `BaseTokenizedStrategy` holds
         // the address of `asset` as an immutable variable to
         // meet the 4626 standard.
         ERC20 asset;
-        
+
 
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
@@ -172,14 +172,14 @@ contract TokenizedStrategy {
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
-        
+
 
         // Assets data to track totals the strategy holds.
         // We manually track idle instead of relying on asset.balanceOf(address(this))
         // to prevent PPS manipulation through airdrops.
         uint256 totalIdle; // The total amount of loose `asset` the strategy holds.
         uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy.
-        
+
 
         // Variables for profit reporting and locking.
         // We use uint128 for time stamps which is 1,025 years in the future.
@@ -386,7 +386,7 @@ contract TokenizedStrategy {
         // Make sure we aren't initiliazed.
         require(address(S.asset) == address(0));
 
-        // Set the strategys underlying asset
+        // Set the strategy's underlying asset
         S.asset = ERC20(_asset);
         // Set the Strategy Tokens name.
         S.name = _name;
@@ -776,7 +776,7 @@ contract TokenizedStrategy {
         IBaseTokenizedStrategy(address(this)).deployFunds(toDeploy);
 
         // Always get the actual amount deployed. We double check the
-        // diff agianst toDeploy for complete accuracy.
+        // diff against toDeploy for complete accuracy.
         uint256 deployed = Math.min(
             beforeBalance - _asset.balanceOf(address(this)),
             toDeploy
@@ -819,7 +819,7 @@ contract TokenizedStrategy {
         }
 
         StrategyData storage S = _strategyStorage();
-        // Expected beharvior is to need to free funds so we cache `_asset`.
+        // Expected behavior is to need to free funds so we cache `_asset`.
         ERC20 _asset = S.asset;
 
         uint256 idle = S.totalIdle;
@@ -852,7 +852,7 @@ contract TokenizedStrategy {
                 }
                 // If a non-default max loss parameter was set.
                 if (maxLoss < MAX_BPS) {
-                    // Make sure we are withen the acceptable range.
+                    // Make sure we are within the acceptable range.
                     require(
                         loss <= (assets * maxLoss) / MAX_BPS,
                         "too much loss"
