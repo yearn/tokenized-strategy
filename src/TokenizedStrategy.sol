@@ -1,6 +1,52 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
+/**$$$$$$$$$$$$$$$$$$$$$$$$$$$&Mr/|1+~>>iiiiiiiiiii>~+{|tuMW$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$B#j]->iiiiiiiiiiiiiiiiiiiiiiiiiiii>-?f*B$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$@zj}~iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii~}fv@$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$@z(+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii+)zB$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$Mf~iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii~t#@$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$@u[iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii?n@$$$$$$$$$$$$$
+$$$$$$$$$$$@z]iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii?u@$$$$$$$$$$$
+$$$$$$$$$$v]iiiiiiiiiiiiiiii,.';iiiiiiiiiiiiiiiiiiiiiiiiii;'."iiiiiiiiiiiiiiii?u$$$$$$$$$$
+$$$$$$$$%)>iiiiiiiiiiiiiii,.    ';iiiiiiiiiiiiiiiiiiiiii;'    ."iiiiiiiiiiiiiiii1%$$$$$$$$
+$$$$$$$c~iiiiiiiiiiiiiii,.        ';iiiiiiiiiiiiiiiiii;'        ."iiiiiiiiiiiiiii~u$$$$$$$
+$$$$$B/>iiiiiiiiiiiiii!'            `IiiiiiiiiiiiiiiI`            .Iiiiiiiiiiiiiii>|%$$$$$
+$$$$@)iiiiiiiiiiiiiiiii;'             `Iiiiiiiiiiil`             ';iiiiiiiiiiiiiiiii}@$$$$
+$$$B|iiiiiiiiiiiiiiiiiiii;'             `Iiiiiiil`             ';iiiiiiiiiiiiiiiiiiii1B$$$
+$$@)iiiiiiiiiiiiiiiiiiiiiii:'             `;iiI`             ':iiiiiiiiiiiiiiiiiiiiiii{B$$
+$$|iiiiiiiiiiiiiiiiiiiiiiiiii;'             ``             ':iiiiiiiiiiiiiiiiiiiiiiiiii1$$
+$v>iiiiiiiiiiiiiiiiiiiiiiiiiiii:'                        ':iiiiiiiiiiiiiiiiiiiiiiiiiiii>x$
+&?iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii:'                    .,iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii-W
+ziiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii:'                .,iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiv
+-iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii:'            .,iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii-
+<iiiiiiiiiiiiiiiiiiii!.':iiiiiiiiiiiiii,          "iiiiiiiiiiiiii;'.Iiiiiiiiiiiiiiiiiiiii<
+iiiiiiiiiiiiiiiiiiiii'   ';iiiiiiiiiiiii          Iiiiiiiiiiiii;'   .iiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiii,      ';iiiiiiiiiii          IiiiiiiiiiiI`      `iiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiii.        `Iiiiiiiiii          Iiiiiiiii!`         !iiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiii;          :iiiiiiiii          Iiiiiiiii!          ,iiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiii,          iiiiiiiiii          Iiiiiiiiii.         ^iiiiiiiiiiiiiiiiiii
+<iiiiiiiiiiiiiiiiii,          iiiiiiiiii          Iiiiiiiiii'         ^iiiiiiiiiiiiiiiiii<
+-iiiiiiiiiiiiiiiiii;          Iiiiiiiiii          Iiiiiiiiii.         "iiiiiiiiiiiiiiiiii-
+ziiiiiiiiiiiiiiiiiii.         'iiiiiiiii''''''''''liiiiiiii^          liiiiiiiiiiiiiiiiiiv
+&?iiiiiiiiiiiiiiiiii^          ^iiiiiiiiiiiiiiiiiiiiiiiiii,          `iiiiiiiiiiiiiiiiii_W
+$u>iiiiiiiiiiiiiiiiii.          `!iiiiiiiiiiiiiiiiiiiiiii^          .liiiiiiiiiiiiiiiiiir$
+$$(iiiiiiiiiiiiiiiiii;.          ."iiiiiiiiiiiiiiiiiiii,.           :iiiiiiiiiiiiiiiiii}$$
+$$@{iiiiiiiiiiiiiiiiii;.           .`:iiiiiiiiiiiiii;^.            :iiiiiiiiiiiiiiiiii}B$$
+$$$B)iiiiiiiiiiiiiiiiii!'              '`",::::,"`'.             .Iiiiiiiiiiiiiiiiiii{%$$$
+$$$$@1iiiiiiiiiiiiiiiiiii,.                                     ^iiiiiiiiiiiiiiiiiii[@$$$$
+$$$$$B|>iiiiiiiiiiiiiiiiii!^.                                 `liiiiiiiiiiiiiiiiii>)%$$$$$
+$$$$$$$c~iiiiiiiiiiiiiiiiiiii"'                            ."!iiiiiiiiiiiiiiiiiii~n$$$$$$$
+$$$$$$$$B)iiiiiiiiiiiiiiiiiiiii!,`.                    .'"liiiiiiiiiiiiiiiiiiiii1%$$$$$$$$
+$$$$$$$$$@u]iiiiiiiiiiiiiiiiiiiiiiil,^`'..      ..''^,liiiiiiiiiiiiiiiiiiiiiii-x@$$$$$$$$$
+$$$$$$$$$$$@v?iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii-x$$$$$$$$$$$$
+$$$$$$$$$$$$$@n?iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii-rB$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$/~iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii<\*@$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$Bc1~iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii~{v%$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$Bvf]<iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii<]tuB$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$%zt-+>iiiiiiiiiiiiiiiiiiiiiiiiiiiii+_tc%$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$W#u/|{+~>iiiiiiiiiiii><+{|/n#W$$$$$$$$$$$$$$$$$$$$$$$$$$$$*/
+
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -9,7 +55,7 @@ import {IFactory} from "./interfaces/IFactory.sol";
 import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
 
 /**
- * @title YearnV3 Tokenized Strategy
+ * @title Yearn Tokenized Strategy
  * @author yearn.finance
  * @notice
  *  This TokenizedStrategy can be used by anyone wishing to easily build
@@ -838,6 +884,8 @@ contract TokenizedStrategy {
         uint256 maxLoss
     ) private returns (uint256) {
         require(receiver != address(0), "ZERO ADDRESS");
+        require(maxLoss <= MAX_BPS, "max loss");
+
         // Spend allowance if applicable.
         if (msg.sender != owner) {
             _spendAllowance(owner, msg.sender, shares);

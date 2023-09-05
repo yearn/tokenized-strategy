@@ -5,7 +5,7 @@ pragma solidity 0.8.18;
 import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
 
 /**
- * @title YearnV3 Base Tokenized Strategy
+ * @title Yearn Base Tokenized Strategy
  * @author yearn.finance
  * @notice
  *  BaseTokenizedStrategy implements all of the required functionality to
