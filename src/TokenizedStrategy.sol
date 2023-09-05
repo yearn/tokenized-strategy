@@ -1239,7 +1239,7 @@ contract TokenizedStrategy {
      */
     function _updateBalances() internal {
         StrategyData storage S = _strategyStorage();
-        
+
         // Get the current loose balance.
         uint256 assetBalance = S.asset.balanceOf(address(this));
 
@@ -1248,7 +1248,7 @@ contract TokenizedStrategy {
 
         // Get the total assets the strategy should have.
         uint256 _totalAssets = totalAssets();
-        
+
         // If we have enough loose to cover all assets.
         if (assetBalance >= _totalAssets) {
             // Set idle to totalAssets.
