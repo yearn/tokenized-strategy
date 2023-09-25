@@ -109,7 +109,7 @@ contract AccesssControlTest is Setup {
         address _management = strategy.management();
 
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!management");
         strategy.setPendingManagement(address(69));
 
         assertEq(strategy.management(), _management);
@@ -121,7 +121,7 @@ contract AccesssControlTest is Setup {
         assertEq(strategy.management(), _management);
         assertEq(strategy.pendingManagement(), _address);
 
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!pending");
         vm.prank(management);
         strategy.acceptManagement();
     }
@@ -132,7 +132,7 @@ contract AccesssControlTest is Setup {
         address _keeper = strategy.keeper();
 
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!management");
         strategy.setKeeper(address(69));
 
         assertEq(strategy.keeper(), _keeper);
@@ -148,7 +148,7 @@ contract AccesssControlTest is Setup {
         uint256 _performanceFee = strategy.performanceFee();
 
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!management");
         strategy.setPerformanceFee(_amount);
 
         assertEq(strategy.performanceFee(), _performanceFee);
@@ -170,7 +170,7 @@ contract AccesssControlTest is Setup {
         address _performanceFeeRecipient = strategy.performanceFeeRecipient();
 
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!management");
         strategy.setPerformanceFeeRecipient(address(69));
 
         vm.prank(management);
@@ -193,7 +193,7 @@ contract AccesssControlTest is Setup {
         uint256 profitMaxUnlockTime = strategy.profitMaxUnlockTime();
 
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!management");
         strategy.setProfitMaxUnlockTime(amount);
 
         assertEq(strategy.profitMaxUnlockTime(), profitMaxUnlockTime);
@@ -207,18 +207,18 @@ contract AccesssControlTest is Setup {
     }
 
     function test_shutdown_reverts(address _address) public {
-        vm.assume(_address != management);
+        vm.assume(_address != management && _address != emergencyAdmin);
         assertTrue(!strategy.isShutdown());
 
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!emergency authorized");
         strategy.shutdownStrategy();
 
         assertTrue(!strategy.isShutdown());
     }
 
     function test_emergencyWithdraw_reverts(address _address) public {
-        vm.assume(_address != management);
+        vm.assume(_address != management && _address != emergencyAdmin);
 
         vm.prank(management);
         strategy.shutdownStrategy();
@@ -226,7 +226,7 @@ contract AccesssControlTest is Setup {
         assertTrue(strategy.isShutdown());
 
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!emergency authorized");
         strategy.emergencyWithdraw(0);
     }
 
@@ -263,11 +263,11 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!self");
         strategy.deployFunds(_amount);
 
         vm.prank(management);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!self");
         strategy.deployFunds(_amount);
 
         assertEq(asset.balanceOf(address(yieldSource)), 0);
@@ -295,13 +295,13 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!self");
         strategy.freeFunds(_amount);
         (_amount);
 
         // doesnt work from management either
         vm.prank(management);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!self");
         strategy.freeFunds(_amount);
 
         assertEq(asset.balanceOf(address(strategy)), 0);
@@ -329,12 +329,12 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!self");
         strategy.harvestAndReport();
 
         // doesnt work from management either
         vm.prank(management);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!self");
         strategy.harvestAndReport();
 
         vm.prank(address(strategy));
@@ -352,7 +352,7 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!self");
         strategy.tendThis(_amount);
 
         vm.prank(address(strategy));
@@ -367,7 +367,7 @@ contract AccesssControlTest is Setup {
 
         // doesnt work from random address
         vm.prank(_address);
-        vm.expectRevert("!Authorized");
+        vm.expectRevert("!keeper");
         strategy.tend();
 
         vm.prank(keeper);

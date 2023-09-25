@@ -1,6 +1,52 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
+/**$$$$$$$$$$$$$$$$$$$$$$$$$$$&Mr/|1+~>>iiiiiiiiiii>~+{|tuMW$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$B#j]->iiiiiiiiiiiiiiiiiiiiiiiiiiii>-?f*B$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$@zj}~iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii~}fv@$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$@z(+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii+)zB$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$Mf~iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii~t#@$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$@u[iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii?n@$$$$$$$$$$$$$
+$$$$$$$$$$$@z]iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii?u@$$$$$$$$$$$
+$$$$$$$$$$v]iiiiiiiiiiiiiiii,.';iiiiiiiiiiiiiiiiiiiiiiiiii;'."iiiiiiiiiiiiiiii?u$$$$$$$$$$
+$$$$$$$$%)>iiiiiiiiiiiiiii,.    ';iiiiiiiiiiiiiiiiiiiiii;'    ."iiiiiiiiiiiiiiii1%$$$$$$$$
+$$$$$$$c~iiiiiiiiiiiiiii,.        ';iiiiiiiiiiiiiiiiii;'        ."iiiiiiiiiiiiiii~u$$$$$$$
+$$$$$B/>iiiiiiiiiiiiii!'            `IiiiiiiiiiiiiiiI`            .Iiiiiiiiiiiiiii>|%$$$$$
+$$$$@)iiiiiiiiiiiiiiiii;'             `Iiiiiiiiiiil`             ';iiiiiiiiiiiiiiiii}@$$$$
+$$$B|iiiiiiiiiiiiiiiiiiii;'             `Iiiiiiil`             ';iiiiiiiiiiiiiiiiiiii1B$$$
+$$@)iiiiiiiiiiiiiiiiiiiiiii:'             `;iiI`             ':iiiiiiiiiiiiiiiiiiiiiii{B$$
+$$|iiiiiiiiiiiiiiiiiiiiiiiiii;'             ``             ':iiiiiiiiiiiiiiiiiiiiiiiiii1$$
+$v>iiiiiiiiiiiiiiiiiiiiiiiiiiii:'                        ':iiiiiiiiiiiiiiiiiiiiiiiiiiii>x$
+&?iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii:'                    .,iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii-W
+ziiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii:'                .,iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiv
+-iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii:'            .,iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii-
+<iiiiiiiiiiiiiiiiiiii!.':iiiiiiiiiiiiii,          "iiiiiiiiiiiiii;'.Iiiiiiiiiiiiiiiiiiiii<
+iiiiiiiiiiiiiiiiiiiii'   ';iiiiiiiiiiiii          Iiiiiiiiiiiii;'   .iiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiii,      ';iiiiiiiiiii          IiiiiiiiiiiI`      `iiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiii.        `Iiiiiiiiii          Iiiiiiiii!`         !iiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiii;          :iiiiiiiii          Iiiiiiiii!          ,iiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiii,          iiiiiiiiii          Iiiiiiiiii.         ^iiiiiiiiiiiiiiiiiii
+<iiiiiiiiiiiiiiiiii,          iiiiiiiiii          Iiiiiiiiii'         ^iiiiiiiiiiiiiiiiii<
+-iiiiiiiiiiiiiiiiii;          Iiiiiiiiii          Iiiiiiiiii.         "iiiiiiiiiiiiiiiiii-
+ziiiiiiiiiiiiiiiiiii.         'iiiiiiiii''''''''''liiiiiiii^          liiiiiiiiiiiiiiiiiiv
+&?iiiiiiiiiiiiiiiiii^          ^iiiiiiiiiiiiiiiiiiiiiiiiii,          `iiiiiiiiiiiiiiiiii_W
+$u>iiiiiiiiiiiiiiiiii.          `!iiiiiiiiiiiiiiiiiiiiiii^          .liiiiiiiiiiiiiiiiiir$
+$$(iiiiiiiiiiiiiiiiii;.          ."iiiiiiiiiiiiiiiiiiii,.           :iiiiiiiiiiiiiiiiii}$$
+$$@{iiiiiiiiiiiiiiiiii;.           .`:iiiiiiiiiiiiii;^.            :iiiiiiiiiiiiiiiiii}B$$
+$$$B)iiiiiiiiiiiiiiiiii!'              '`",::::,"`'.             .Iiiiiiiiiiiiiiiiiii{%$$$
+$$$$@1iiiiiiiiiiiiiiiiiii,.                                     ^iiiiiiiiiiiiiiiiiii[@$$$$
+$$$$$B|>iiiiiiiiiiiiiiiiii!^.                                 `liiiiiiiiiiiiiiiiii>)%$$$$$
+$$$$$$$c~iiiiiiiiiiiiiiiiiiii"'                            ."!iiiiiiiiiiiiiiiiiii~n$$$$$$$
+$$$$$$$$B)iiiiiiiiiiiiiiiiiiiii!,`.                    .'"liiiiiiiiiiiiiiiiiiiii1%$$$$$$$$
+$$$$$$$$$@u]iiiiiiiiiiiiiiiiiiiiiiil,^`'..      ..''^,liiiiiiiiiiiiiiiiiiiiiii-x@$$$$$$$$$
+$$$$$$$$$$$@v?iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii-x$$$$$$$$$$$$
+$$$$$$$$$$$$$@n?iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii-rB$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$/~iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii<\*@$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$Bc1~iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii~{v%$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$Bvf]<iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii<]tuB$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$%zt-+>iiiiiiiiiiiiiiiiiiiiiiiiiiiii+_tc%$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$W#u/|{+~>iiiiiiiiiiii><+{|/n#W$$$$$$$$$$$$$$$$$$$$$$$$$$$$*/
+
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -9,7 +55,7 @@ import {IFactory} from "./interfaces/IFactory.sol";
 import {IBaseTokenizedStrategy} from "./interfaces/IBaseTokenizedStrategy.sol";
 
 /**
- * @title YearnV3 Tokenized Strategy
+ * @title Yearn Tokenized Strategy
  * @author yearn.finance
  * @notice
  *  This TokenizedStrategy can be used by anyone wishing to easily build
@@ -49,7 +95,12 @@ contract TokenizedStrategy {
     event UpdateKeeper(address indexed newKeeper);
 
     /**
-     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
+     * @notice Emitted when the 'emergencyAdmin' address is updated to 'newEmergencyAdmin'.
+     */
+    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
+
+    /**
+     * @notice Emitted when the 'performaneFee' is updated to 'newPerformanceFee'.
      */
     event UpdatePerformanceFee(uint16 newPerformanceFee);
 
@@ -194,7 +245,8 @@ contract TokenizedStrategy {
         // Access management variables.
         address management; // Main address that can set all configurable variables.
         address keeper; // Address given permission to call {report} and {tend}.
-        address pendingManagement; // Address that is pending to take over 'management'.
+        address pendingManagement; // Address that is pending to take over `management`.
+        address emergencyAdmin; // Address to act in emergencies as well as `management`.
         bool entered; // Bool to prevent reentrancy.
         bool shutdown; // Bool that can be used to stop deposits into the strategy.
     }
@@ -220,6 +272,11 @@ contract TokenizedStrategy {
         _;
     }
 
+    modifier onlyEmergencyAuthorized() {
+        isEmergencyAuthorized(msg.sender);
+        _;
+    }
+
     /**
      * @dev Prevents a contract from calling itself, directly or indirectly.
      * Placed over all state changing functions for increased safety.
@@ -239,23 +296,19 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @dev Will stop new deposits if the strategy has been shutdown.
-     * This will not effect withdraws which can never be paused or stopped.
-     */
-    modifier notShutdown() {
-        require(!isShutdown(), "shutdown");
-        _;
-    }
-
-    /**
      * @notice To check if a sender is the management for a specific strategy.
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
+     *
+     * Will return `true` if the check passed.
+     *
+     * @param _sender The original msg.sender.
      */
-    function isManagement(address _sender) public view {
-        require(_sender == _strategyStorage().management, "!Authorized");
+    function isManagement(address _sender) public view returns (bool) {
+        require(_sender == _strategyStorage().management, "!management");
+        return true;
     }
 
     /**
@@ -265,21 +318,36 @@ contract TokenizedStrategy {
      *
      * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
+     *
+     * Will return `true` if the check passed.
+     *
+     * @param _sender The original msg.sender.
      */
-    function isKeeperOrManagement(address _sender) public view {
+    function isKeeperOrManagement(address _sender) public view returns (bool) {
         StrategyData storage S = _strategyStorage();
-        require(_sender == S.keeper || _sender == S.management, "!Authorized");
+        require(_sender == S.keeper || _sender == S.management, "!keeper");
+        return true;
     }
 
     /**
-     * @notice To check if the strategy has been shutdown.
+     * @notice To check if a sender is the keeper or emergency admin
+     * for a specific strategy.
      * @dev Is left public so that it can be used by the Strategy.
      *
-     * We don't revert here so this can be used for the external getter
-     * for the `shutdown` variable as well.
+     * When the Strategy calls this the msg.sender would be the
+     * address of the strategy so we need to specify the sender.
+     *
+     * Will return `true` if the check passed.
+     *
+     * @param _sender The original msg.sender.
      */
-    function isShutdown() public view returns (bool) {
-        return _strategyStorage().shutdown;
+    function isEmergencyAuthorized(address _sender) public view returns (bool) {
+        StrategyData storage S = _strategyStorage();
+        require(
+            _sender == S.emergencyAdmin || _sender == S.management,
+            "!emergency authorized"
+        );
+        return true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -434,7 +502,12 @@ contract TokenizedStrategy {
     function deposit(
         uint256 assets,
         address receiver
-    ) external notShutdown nonReentrant returns (uint256 shares) {
+    ) external nonReentrant returns (uint256 shares) {
+        // Checking max deposit will also check if shutdown.
+        require(
+            assets <= maxDeposit(receiver),
+            "ERC4626: deposit more than max"
+        );
         // Check for rounding error.
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
 
@@ -451,7 +524,9 @@ contract TokenizedStrategy {
     function mint(
         uint256 shares,
         address receiver
-    ) external notShutdown nonReentrant returns (uint256 assets) {
+    ) external nonReentrant returns (uint256 assets) {
+        // Checking max mint will also check if shutdown.
+        require(shares <= maxMint(receiver), "ERC4626: mint more than max");
         // Check for rounding error.
         require((assets = previewMint(shares)) != 0, "ZERO_ASSETS");
 
@@ -491,7 +566,11 @@ contract TokenizedStrategy {
         address owner,
         uint256 maxLoss
     ) public nonReentrant returns (uint256 shares) {
-        // Check for rounding error.
+        require(
+            assets <= maxWithdraw(owner),
+            "ERC4626: withdraw more than max"
+        );
+        // Check for rounding error or 0 value.
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
 
         // Withdraw and track the actual amount withdrawn for loss check.
@@ -532,8 +611,9 @@ contract TokenizedStrategy {
         address owner,
         uint256 maxLoss
     ) public nonReentrant returns (uint256) {
+        require(shares <= maxRedeem(owner), "ERC4626: redeem more than max");
         uint256 assets;
-        // Check for rounding error.
+        // Check for rounding error or 0 value.
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
         // We need to return the actual amount withdrawn in case of a loss.
@@ -637,7 +717,7 @@ contract TokenizedStrategy {
      * be deposited by `_owner` into the strategy, where `_owner`
      * corresponds to the receiver of a {deposit} call.
      */
-    function maxDeposit(address _owner) external view returns (uint256) {
+    function maxDeposit(address _owner) public view returns (uint256) {
         if (_strategyStorage().shutdown) return 0;
 
         return
@@ -649,7 +729,7 @@ contract TokenizedStrategy {
      * into the strategy, where `_owner` corresponds to the receiver
      * of a {mint} call.
      */
-    function maxMint(address _owner) external view returns (uint256 _maxMint) {
+    function maxMint(address _owner) public view returns (uint256 _maxMint) {
         if (_strategyStorage().shutdown) return 0;
 
         _maxMint = IBaseTokenizedStrategy(address(this)).availableDepositLimit(
@@ -667,7 +747,7 @@ contract TokenizedStrategy {
      */
     function maxWithdraw(
         address _owner
-    ) external view returns (uint256 _maxWithdraw) {
+    ) public view returns (uint256 _maxWithdraw) {
         _maxWithdraw = IBaseTokenizedStrategy(address(this))
             .availableWithdrawLimit(_owner);
         if (_maxWithdraw == type(uint256).max) {
@@ -750,14 +830,6 @@ contract TokenizedStrategy {
         uint256 shares
     ) private {
         require(receiver != address(this), "ERC4626: mint to self");
-        // Saves a redundant "shutdown" check to manually retrieve deposit limit.
-        require(
-            assets <=
-                IBaseTokenizedStrategy(address(this)).availableDepositLimit(
-                    receiver
-                ),
-            "ERC4626: deposit more than max"
-        );
 
         // Cache storage variables used more than once.
         StrategyData storage S = _strategyStorage();
@@ -812,8 +884,9 @@ contract TokenizedStrategy {
         uint256 maxLoss
     ) private returns (uint256) {
         require(receiver != address(0), "ZERO ADDRESS");
-        require(shares <= maxRedeem(owner), "ERC4626: withdraw more than max");
+        require(maxLoss <= MAX_BPS, "exceeds MAX_BPS");
 
+        // Spend allowance if applicable.
         if (msg.sender != owner) {
             _spendAllowance(owner, msg.sender, shares);
         }
@@ -1190,7 +1263,7 @@ contract TokenizedStrategy {
 
     /**
      * @notice Used to shutdown the strategy preventing any further deposits.
-     * @dev Can only be called by the current `management`.
+     * @dev Can only be called by the current `management` or `emergencyAdmin`.
      *
      * This will stop any new {deposit} or {mint} calls but will
      * not prevent {withdraw} or {redeem}. It will also still allow for
@@ -1200,7 +1273,7 @@ contract TokenizedStrategy {
      *
      * This is a one way switch and can never be set back once shutdown.
      */
-    function shutdownStrategy() external onlyManagement {
+    function shutdownStrategy() external onlyEmergencyAuthorized {
         _strategyStorage().shutdown = true;
 
         emit StrategyShutdown();
@@ -1221,7 +1294,7 @@ contract TokenizedStrategy {
      */
     function emergencyWithdraw(
         uint256 _amount
-    ) external nonReentrant onlyManagement {
+    ) external nonReentrant onlyEmergencyAuthorized {
         StrategyData storage S = _strategyStorage();
         // Make sure the strategy has been shutdown.
         require(S.shutdown, "not shutdown");
@@ -1304,6 +1377,14 @@ contract TokenizedStrategy {
     }
 
     /**
+     * @notice Get the current address that can shutdown and emergency withdraw.
+     * @return . Address of the emergencyAdmin
+     */
+    function emergencyAdmin() external view returns (address) {
+        return _strategyStorage().emergencyAdmin;
+    }
+
+    /**
      * @notice Get the current performance fee charged on profits.
      * denominated in Basis Points where 10_000 == 100%
      * @return . Current performance fee.
@@ -1364,6 +1445,14 @@ contract TokenizedStrategy {
         return convertToAssets(10 ** _strategyStorage().decimals);
     }
 
+    /**
+     * @notice To check if the strategy has been shutdown.
+     * @return . Whether or not the strategy is shutdown.
+     */
+    function isShutdown() public view returns (bool) {
+        return _strategyStorage().shutdown;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         SETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -1390,10 +1479,7 @@ contract TokenizedStrategy {
      * @dev Can only be called by the current `pendingManagement`.
      */
     function acceptManagement() external {
-        require(
-            msg.sender == _strategyStorage().pendingManagement,
-            "!Authorized"
-        );
+        require(msg.sender == _strategyStorage().pendingManagement, "!pending");
         _strategyStorage().management = msg.sender;
         _strategyStorage().pendingManagement = address(0);
 
@@ -1410,6 +1496,20 @@ contract TokenizedStrategy {
         _strategyStorage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
+    }
+
+    /**
+     * @notice Sets a new address to be able to shutdown the strategy.
+     * @dev Can only be called by the current `management`.
+     *
+     * @param _emergencyAdmin New address to set `emergencyAdmin` to.
+     */
+    function setEmergencyAdmin(
+        address _emergencyAdmin
+    ) external onlyManagement {
+        _strategyStorage().emergencyAdmin = _emergencyAdmin;
+
+        emit UpdateEmergencyAdmin(_emergencyAdmin);
     }
 
     /**

@@ -37,9 +37,22 @@ contract ShutdownTest is Setup {
         vm.prank(_address);
         asset.approve(address(strategy), _amount);
 
-        vm.expectRevert("shutdown");
+        vm.expectRevert("ERC4626: deposit more than max");
         vm.prank(_address);
         strategy.deposit(_amount, _address);
+
+        vm.expectRevert("ERC4626: mint more than max");
+        vm.prank(_address);
+        strategy.mint(_amount, _address);
+
+        // Also can't deposit 0.
+        vm.expectRevert("ZERO_SHARES");
+        vm.prank(_address);
+        strategy.deposit(0, _address);
+
+        vm.expectRevert("ZERO_ASSETS");
+        vm.prank(_address);
+        strategy.mint(0, _address);
 
         checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
     }
@@ -64,7 +77,7 @@ contract ShutdownTest is Setup {
         vm.expectEmit(true, true, true, true, address(strategy));
         emit StrategyShutdown();
 
-        vm.prank(management);
+        vm.prank(emergencyAdmin);
         strategy.shutdownStrategy();
 
         assertTrue(strategy.isShutdown());
@@ -75,7 +88,7 @@ contract ShutdownTest is Setup {
         vm.prank(_address);
         asset.approve(address(strategy), _amount);
 
-        vm.expectRevert("shutdown");
+        vm.expectRevert("ERC4626: deposit more than max");
         vm.prank(_address);
         strategy.deposit(_amount, _address);
 
@@ -124,7 +137,7 @@ contract ShutdownTest is Setup {
         vm.prank(_address);
         asset.approve(address(strategy), _amount);
 
-        vm.expectRevert("shutdown");
+        vm.expectRevert("ERC4626: deposit more than max");
         vm.prank(_address);
         strategy.deposit(_amount, _address);
 
@@ -177,7 +190,7 @@ contract ShutdownTest is Setup {
         // Withdra half and make sure it records properly
         uint256 toWithdraw = _amount / 2;
 
-        vm.prank(management);
+        vm.prank(emergencyAdmin);
         strategy.emergencyWithdraw(toWithdraw);
 
         // Make sure it pulled out the correct amount.
@@ -282,7 +295,7 @@ contract ShutdownTest is Setup {
         vm.expectEmit(true, true, true, true, address(strategy));
         emit StrategyShutdown();
 
-        vm.prank(management);
+        vm.prank(emergencyAdmin);
         strategy.shutdownStrategy();
 
         assertTrue(strategy.isShutdown());
