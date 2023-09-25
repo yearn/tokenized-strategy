@@ -763,8 +763,9 @@ contract TokenizedStrategy {
     function maxWithdraw(
         address owner
     ) public view returns (uint256 _maxWithdraw) {
-        _maxWithdraw = IBaseStrategy(address(this))
-            .availableWithdrawLimit(owner);
+        _maxWithdraw = IBaseStrategy(address(this)).availableWithdrawLimit(
+            owner
+        );
         if (_maxWithdraw == type(uint256).max) {
             // Saves a min check if there is no withdrawal limit.
             _maxWithdraw = convertToAssets(balanceOf(owner));
