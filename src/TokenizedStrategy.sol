@@ -884,7 +884,7 @@ contract TokenizedStrategy {
         uint256 maxLoss
     ) private returns (uint256) {
         require(receiver != address(0), "ZERO ADDRESS");
-        require(maxLoss <= MAX_BPS, "max loss");
+        require(maxLoss <= MAX_BPS, "exceeds MAX_BPS");
 
         // Spend allowance if applicable.
         if (msg.sender != owner) {
