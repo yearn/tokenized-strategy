@@ -1312,7 +1312,7 @@ contract TokenizedStrategy {
         // Withdraw from the yield source.
         IBaseTokenizedStrategy(address(this)).shutdownWithdraw(_amount);
 
-        // Record the updated baloance based on the new amounts.
+        // Record the updated balances based on the new amounts.
         _updateBalances();
     }
 
