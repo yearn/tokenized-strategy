@@ -264,7 +264,7 @@ abstract contract BaseStrategy {
     }
 
     /**
-     * @notice Returns weather or not tend() should be called by a keeper.
+     * @notice Returns if tend() should be called by a keeper.
      *
      * @return . Should return true if tend() should be called by keeper or false if not.
      * @return . Calldata for the tend call.
