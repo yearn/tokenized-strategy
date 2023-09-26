@@ -16,7 +16,7 @@ interface IPappa {
 
 contract MockFaultyStrategy is BaseTokenizedStrategy {
     address public yieldSource;
-
+    bool public dontTend;
     address public pappa;
     uint256 public fault;
     bool public doCallBack;
@@ -53,11 +53,16 @@ contract MockFaultyStrategy is BaseTokenizedStrategy {
     }
 
     function _tend(uint256 _idle) internal override {
+        if (dontTend) return;
         if (doCallBack) callBack(_idle);
         uint256 balance = ERC20(asset).balanceOf(address(this));
         if (balance > 0) {
             MockYieldSource(yieldSource).deposit(balance);
         }
+    }
+
+    function setDontTend(bool _dontTend) external {
+        dontTend = _dontTend;
     }
 
     function setFaultAmount(uint256 _fault) public {

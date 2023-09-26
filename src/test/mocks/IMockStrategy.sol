@@ -41,4 +41,8 @@ interface IMockStrategy is ITokenizedStrategy {
     function kept() external view returns (bool);
 
     function emergentizated() external view returns (bool);
+
+    function dontTend() external view returns (bool);
+
+    function setDontTend(bool _dontTend) external;
 }

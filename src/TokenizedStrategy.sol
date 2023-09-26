@@ -1221,40 +1221,51 @@ contract TokenizedStrategy {
      * A report() call will be needed to record the profit.
      */
     function tend() external nonReentrant onlyKeepers {
+        // Tend the strategy with the current totalIdle.
+        IBaseTokenizedStrategy(address(this)).tendThis(
+            _strategyStorage().totalIdle
+        );
+
+        // Update balances based on ending state.
+        _updateBalances();
+    }
+
+    /**
+     * @notice Update the internal balances that make up `totalAssets`.
+     * @dev This will update the ratio of debt and idle that make up
+     * totalAssets based on the actual current loose amount of `asset`
+     * in a safe way. But will keep `totalAssets` the same, thus having
+     * no effect on Price Per Share.
+     */
+    function _updateBalances() internal {
         StrategyData storage S = _strategyStorage();
-        // Expected Behavior is this will get used twice so we cache it
-        uint256 _totalIdle = S.totalIdle;
-        ERC20 _asset = S.asset;
 
-        uint256 beforeBalance = _asset.balanceOf(address(this));
-        IBaseTokenizedStrategy(address(this)).tendThis(_totalIdle);
-        uint256 afterBalance = _asset.balanceOf(address(this));
+        // Get the current loose balance.
+        uint256 assetBalance = S.asset.balanceOf(address(this));
 
-        uint256 diff;
-        // Adjust storage according to the changes without adjusting totalAssets().
-        if (beforeBalance > afterBalance) {
-            // Idle funds were deposited.
-            unchecked {
-                diff = beforeBalance - afterBalance;
-            }
-            uint256 deposited = Math.min(diff, _totalIdle);
+        // If its already accurate do nothing.
+        if (S.totalIdle == assetBalance) return;
 
-            unchecked {
-                S.totalIdle -= deposited;
-                S.totalDebt += deposited;
-            }
-        } else if (afterBalance > beforeBalance) {
-            // We default to use any funds freed as idle for cheaper withdraw/redeems.
-            unchecked {
-                diff = afterBalance - beforeBalance;
-            }
-            uint256 harvested = Math.min(diff, S.totalDebt);
+        // Get the total assets the strategy should have.
+        uint256 _totalAssets = totalAssets();
 
+        // If we have enough loose to cover all assets.
+        if (assetBalance >= _totalAssets) {
+            // Set idle to totalAssets.
+            S.totalIdle = _totalAssets;
+            // Set debt to 0.
+            S.totalDebt = 0;
+        } else {
+            // Otherwise idle is the actual loose balance.
+            S.totalIdle = assetBalance;
             unchecked {
-                S.totalIdle += harvested;
-                S.totalDebt -= harvested;
+                // And debt is the difference.
+                S.totalDebt = _totalAssets - assetBalance;
             }
         }
+
+        // Enforce the invariant.
+        require(_totalAssets == totalAssets(), "!totalAssets");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1295,33 +1306,14 @@ contract TokenizedStrategy {
     function emergencyWithdraw(
         uint256 _amount
     ) external nonReentrant onlyEmergencyAuthorized {
-        StrategyData storage S = _strategyStorage();
         // Make sure the strategy has been shutdown.
-        require(S.shutdown, "not shutdown");
+        require(_strategyStorage().shutdown, "not shutdown");
 
-        // Cache current assets for post withdraw updates.
-        uint256 _totalAssets = totalAssets();
-
-        // Tell the strategy to try and withdraw the `_amount`.
+        // Withdraw from the yield source.
         IBaseTokenizedStrategy(address(this)).shutdownWithdraw(_amount);
 
-        // Record the updated totalAssets based on the new amounts.
-        uint256 looseBalance = S.asset.balanceOf(address(this));
-
-        // If we have enough loose to cover all assets.
-        if (looseBalance >= _totalAssets) {
-            // Set idle to totalAssets.
-            S.totalIdle = _totalAssets;
-            // Set debt to 0.
-            S.totalDebt = 0;
-        } else {
-            // Otherwise idle is the actual loose balance.
-            S.totalIdle = looseBalance;
-            unchecked {
-                // And debt is the difference.
-                S.totalDebt = _totalAssets - looseBalance;
-            }
-        }
+        // Record the updated balances based on the new amounts.
+        _updateBalances();
     }
 
     /*//////////////////////////////////////////////////////////////
