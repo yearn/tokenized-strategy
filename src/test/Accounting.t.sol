@@ -372,7 +372,7 @@ contract AccountingTest is Setup {
         strategy.report();
 
         assertEq(strategy.totalAssets(), _amount + toAirdrop);
-  
+
         assertEq(
             asset.balanceOf(address(yieldSource)),
             (_amount + toAirdrop) / 2

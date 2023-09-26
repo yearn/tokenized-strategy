@@ -32,7 +32,7 @@ contract CustomImplementationsTest is Setup {
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         uint256 idle = strategy.totalIdle();
-    
+
         // Assure we have a withdraw limit
         assertEq(strategy.availableWithdrawLimit(_address), idle);
         assertGt(strategy.totalAssets(), idle);
@@ -58,7 +58,7 @@ contract CustomImplementationsTest is Setup {
         increaseTimeAndCheckBuffer(strategy, 5 days, profit / 2);
 
         idle = strategy.totalIdle();
- 
+
         // Assure we have a withdraw limit
         assertEq(strategy.availableWithdrawLimit(_address), idle);
         assertGt(strategy.totalAssets(), idle);
@@ -80,7 +80,9 @@ contract CustomImplementationsTest is Setup {
         strategy.withdraw(_amount, _address, _address);
 
         uint256 before = asset.balanceOf(_address);
-        uint256 redeem = strategy.previewWithdraw(asset.balanceOf(address(strategy)));
+        uint256 redeem = strategy.previewWithdraw(
+            asset.balanceOf(address(strategy))
+        );
         /*
         vm.prank(_address);
         strategy.redeem(redeem, _address, _address);
