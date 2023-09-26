@@ -1242,9 +1242,7 @@ contract TokenizedStrategy {
      */
     function tend() external nonReentrant onlyKeepers {
         // Tend the strategy with the current totalIdle.
-        IBaseStrategy(address(this)).tendThis(
-            _strategyStorage().totalIdle
-        );
+        IBaseStrategy(address(this)).tendThis(_strategyStorage().totalIdle);
 
         // Update balances based on ending state.
         _updateBalances();
