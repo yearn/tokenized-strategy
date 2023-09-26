@@ -293,7 +293,7 @@ abstract contract BaseTokenizedStrategy {
      * or sandwichable strategies. It should never be lower than `totalIdle`.
      *
      *   EX:
-     *       return TokenIzedStrategy.totalIdle();
+     *       return TokenizedStrategy.totalIdle();
      *
      * This does not need to take into account the `_owner`'s share balance
      * or conversion rates from shares to assets.
@@ -346,7 +346,7 @@ abstract contract BaseTokenizedStrategy {
      * and thus can be sandwiched or otherwise manipulated.
      *
      * @param _amount The amount of 'asset' that the strategy should
-     * attemppt to deposit in the yield source.
+     * attempt to deposit in the yield source.
      */
     function deployFunds(uint256 _amount) external onlySelf {
         _deployFunds(_amount);
