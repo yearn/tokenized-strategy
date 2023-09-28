@@ -10,3 +10,4 @@ Fixes # (issue)
 - [ ] I have run the tests on my machine
 - [ ] I have followed commitlint guidelines
 - [ ] I have rebased my changes to the latest version of the main branch
+- [ ] I have updated the SPECIFICATION.md for any relevant changes
