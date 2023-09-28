@@ -11,47 +11,50 @@ This makes the strategy specific contract as simple and specific to that yield g
 - Shares: ERC20-compliant token that tracks Asset balance in the strategy for every distributor.
 - Strategy: ERC4626 compliant smart contract that receives Assets from Depositors (vault or otherwise) to deposit in any external protocol to generate yield.
 - Tokenized Strategy: The implementation contract that all strategies delegateCall to for the standard ERC4626 and profit locking functions.
-- BaseTokenizedStrategy: The abstract contract that a strategy should inherit from that handles all communication with the Tokenized Strategy contract.
+- BaseStrategy: The abstract contract that a strategy should inherit from that handles all communication with the Tokenized Strategy contract.
 - Strategist: The developer of a specific strategy.
 - Depositor: Account that holds Shares
 - Vault: Or "Meta Vault" is an ERC4626 compliant Smart contract that receives Assets from Depositors to then distribute them among the different Strategies added to the vault, managing accounting and Assets distribution. 
 - Management: The owner of the specific strategy that can set fees, profit unlocking time etc.
+- Emergency Admin: A address specified by management to be able to call certain emergency functions.
 - Keeper: the address of a contract allowed to call report() and tend() on a strategy.
-- Factory: The factory that all meta vaults of a specific API version are cloned from that also controls the protocol fee amount and recipient.
+- Factory: The factory that all meta vaults of a specific API version are deployed from that also controls the protocol fee amount and recipient.
 
 ## Storage
 In order to standardize all high risk and complex logic associated with ERC4626, ERC20 and profit locking, all core logic has been moved to the 'TokenizedStrategy.sol' and is used by each strategy through a fallback function that delegatecall's this contract to do all necessary checks, logic and storage updates for the strategy.
 
-The TokenizedStrategy will only need to be deployed once on each chain and can then be used by an unlimited number of strategies. Allowing the BaseTokenizedStrategy.sol to be much smaller, simpler and cheaper to deploy.
+The TokenizedStrategy will only need to be deployed once on each chain and can then be used by an unlimited number of strategies. Allowing the BaseStrategy.sol to be much smaller, simpler and cheaper to deploy.
 
-Using delegate call the external TokenizedStrategyy will be able read and write to any and all of the strategies specific storage variables during all calls. This does open the strategy up to the possibility of storage collisions due to non-standardized storage calls and means extra precautions need to be taken when reading and writing to storage.
+Using delegate call the external TokenizedStrategy will be able read and write to any and all of the strategies specific storage variables during all calls. This does open the strategy up to the possibility of storage collisions due to non-standardized storage calls and means extra precautions need to be taken when reading and writing to storage.
 
 In order to limit the strategists need to think about their storage variables all TokenizedStrategy specific variables are held within and controlled by the TokenizedStrategy. A `StrategyData` struct is held at a custom storage location that is high enough that no normal implementation should be worried about hitting.
 
 This means all high risk storage updates will always be handled by the TokenizedStrategy, should not be able to be overridden by a reckless strategist and will be entirely standardized across every strategy deployed, no matter the chain or specific implementation.
 
-## BaseTokenizedStrategy
+## BaseStrategy
 
-The base tokenized strategy is a simple abstract contract to be inherited by the strategist that handles all communication with the TokenizedStrategy.
+The base strategy is a simple abstract contract to be inherited by the strategist that handles all communication with the TokenizedStrategy.
 
 ### Modifiers
-`onlySelf`: This modifier is placed on any callback functions for the TokenizedStrategy to call during deposits, withdraws, reports and tends. The modifier should revert if msg.sender is not equal to itself. In order for a call to be forwarded to the TokenizedStrategy it must not be defined in the Strategy and hit the fallback function which will delegatecall the TokenizedStrategy. If within that call, the TokenizedStrategy makes an external static call back to the BaseTokenizedStrategy the msg.sender of that call will be the original caller, which should be the Strategy itself.
+`onlySelf`: This modifier is placed on callback functions for the TokenizedStrategy to use during deposits, withdraws, reports and tends. The modifier should revert if msg.sender is not equal to itself. In order for a call to be forwarded to the TokenizedStrategy it must not be defined in the Strategy and hit the fallback function which will delegatecall the TokenizedStrategy. If within that call, the TokenizedStrategy makes an external call back to the BaseStrategy the msg.sender of that call will be the original caller, which should be the Strategy itself.
 
-`OnlyManagement`: Should be placed on function that only the Strategies specific management address can call. This uses the isManagement(address) function defined in TokenizedStrategy by sending the original msg.sender address.
+`onlyManagement`: Should be placed on function that only the Strategies specific management address can call. This uses the isManagement(address) function defined in TokenizedStrategy by sending the original msg.sender address.
 
 `onlyKeepers`: Should be placed on functions that only the Strategies specific management or keeper can call. This uses the isManagementOrKeeper(address) defined in TokenizedStrategy sending the original msg.sender address.
+
+`onlyEmergencyAuthorized`: Should be placed on functions that only the strategy specific management OR emergencyAdmin can call. This uses the isEmergencyAuthorized(address) function defined in TokenizedStrategy by sending the original msg.sender address.
 
 ### Variables
 
 `tokenizedStrategyAddress`: This is the address the fallback function will use to delegatecall to and is set before deployment to a constant so it can never be changed.
 
-`TokenizedStrategy`: This is an immutable set on deployment setting an ITokenizedStrategy interface to address(this). The variable should be used in a similar manner as a linked library would be to have a simple method to read from the Strategies storage internally. Setting it to address(this) means anything using this variable will static call itself which should hit the fallback and then delegatecall the TokenizedStrategy retrieving the correct variables.
+`TokenizedStrategy`: This is an immutable set on deployment by casting address(this) through an ITokenizedStrategy interface. The variable should be used in a similar manner as a linked library would be to have a simple method to read from the Strategies storage internally. Setting it to address(this) means anything using this variable will static call itself which should hit the fallback and then delegatecall the TokenizedStrategy retrieving the correct variables.
 
-`asset`: The immutable address of the underlying asset being used.
+`asset`: The immutable ERC20 instance of the underlying asset being used.
 
 ### Functions 
 
-The majority of function in the BaseTokenizedStrategy are either external functions with onlySelf modifiers used for the TokenizedStrategy to call. Or the internal functions that correspond to those external functions that should or can be overridden by a strategist with the strategy specific logic.
+The majority of functions in the BaseStrategy are either external functions with onlySelf modifiers used for the TokenizedStrategy to call. Or the internal functions that correspond to those external functions that can be overridden by a strategist with the strategy specific logic.
 
 `deployFunds(uint256)/_DeployFunds(uint256)`: Called by the TokenizedStrategy during deposits into the strategy to tell the strategy it can deposit up to the amount passed in as a parameter if desired.
 
@@ -61,22 +64,22 @@ The majority of function in the BaseTokenizedStrategy are either external functi
 
 `tendThis(uint256)/_tend(uint256)`: Called by the TokenizedStrategy during tend calls to tell the strategy a trusted address has called tend and it has the uint256 parameter of loose asset available to deposit. NOTE: we use `tendThis` to avoid function signature collisions so that `tend` will be forwarded to the TokenizedStrategy.
 
-`tendTrigger()`: View function to return if a tend call is needed.
+`tendTrigger()/_tendTrigger()`: View function to return if a tend call is needed.
 
-`availableDepositLimt(address)/availableWithdrawLimit(address)`: Optional functions a strategist can override that default to uint256 max to implement any deposit or withdraw limits.
+`availableDepositLimit(address)/availableWithdrawLimit(address)`: Optional functions a strategist can override that default to uint256 max to implement any deposit or withdraw limits.
 
 `shutdownWithdraw(uint256)/_emergencyWithdraw(uint256)`: Optional function for a strategist to implement that will allow management to manually withdraw a specified amount from the yield source if a strategy is shutdown in the case of emergencies.
 
-`_init(...)`: Used only once during initialization to manually delegatecall the TokenizedStrategy to tell it to set up the storage for a new strategy.
+`_delegateCall(bytes)`: Internal function to manually forward calls to the TokenizedStrategy. This should be used with care and caution.
 
 ## TokenizedStrategy
 
-The tokenized strategy contract should implement all ERC-4626, ERC-20, ERC-2612 and custom TokenizedStrategy specific report and tending logic within it.
+The tokenized strategy contract implements all ERC-4626, ERC-20, ERC-2612 and custom TokenizedStrategy specific report and tending logic within it.
 
-For deposits, withdraws, report, tend and emergency withdraw calls it casts address(this) into a custom IBaseTokenizedStrategy() interface to static call back the initial calling contract when it needs to interact with the Strategy.
+For deposits, withdraws, report, tend and emergency withdraw calls it casts address(this) into a custom IBaseStrategy() interface to call back the contract that delegated to it when it needs to interact with the Strategy.
 
 ### Normal Operation
- The TokenizedStrategy is responsible for handling the logic associated with all the following functionality.
+The TokenizedStrategy is responsible for handling the logic associated with all the following functionality.
  
 #### Deposits / Mints
 Users can deposit ASSET tokens to receive shares.
@@ -129,7 +132,7 @@ Issue of new shares due to fees will also unlock profit so that PPS does not go 
 Both of this offsets will prevent front running (as the profit was already earned and was not distributed yet)
 
 ### Strategy Management
-Strategy management is held by the 'management' address that can be updated by the current 'managment'. Changing 'management' is a two step process, so first the current management will have to set 'pendingManagement' then that pending management will need to accept the role.
+Strategy management is held by the 'management' address that can be updated by the current 'management'. Changing 'management' is a two step process, so first the current management will have to set 'pendingManagement' then that pending management will need to accept the role.
 
 Management has the ability to set all the configurable variables for their specific Strategy.
 
@@ -145,6 +148,9 @@ This allows the current 'pendingManagement' to accept the ownership of the contr
 
 #### Setting the keeper
 Setting the address that is also allowed to call report and tend functions.
+
+#### Setting the Emergency Admin
+A strategies management can set another address to serve as an `emergencyAdmin`. Which gives that address the ability to shutdown a strategy and call `emergencyWithdraw`.
 
 #### Setting Performance Fee
 Setting the percent in terms of basis points for the amount of profit to be charged as a fee.
@@ -178,7 +184,7 @@ Withdrawals can't be paused under any circumstance unless built in a specific im
 
 
 ## Use
-A strategist can simply inherit the BaseTokenizedStrategy.sol contract and override 3 simple functions with their specific needs. 
+A strategist can simply inherit the BaseStrategy.sol contract and override 3 simple functions with their specific needs. 
 
 The strategies code has been designed as a non-opinionated system to distribute funds of depositors to a single yield generating opportunity while managing accounting in a robust way.
 
@@ -203,7 +209,7 @@ Example constraints:
 - ...
 
 ## Development
-Strategists should be able to use a pre-built "Strategy Mix" that will contain the imported BaseTokenizedStrategy.sol as well as standardized tests for any 4626 vault. Developing a strategy can be as simple as overriding three functions, with the potential for any number of other constraints or actions to be built on top of it. The Base implementation is only ~2KB, meaning there is plenty of room for strategists to build complex implementations while not having to be concerned with the generic functionality.
+Strategists should be able to use a pre-built "Strategy Mix" that will contain the imported BaseStrategy.sol as well as standardized tests for any 4626 vault. Developing a strategy can be as simple as overriding three functions, with the potential for any number of other constraints or actions to be built on top of it. The Base implementation is only ~2KB, meaning there is plenty of room for strategists to build complex implementations while not having to be concerned with the generic functionality.
 
 
 ### Needed to Override
@@ -218,7 +224,7 @@ Strategists should be able to use a pre-built "Strategy Mix" that will contain t
 
 While it can be possible to deploy a completely ERC-4626 compliant vault with just those three functions it does allow for further customization if the strategist desires.
 
-*_tend* and *tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports.
+*_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports.
 
 *maxAvailableDeposit(address _owner)* can be overridden to implement any type of deposit limit.
 
