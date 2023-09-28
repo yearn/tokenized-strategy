@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 import {MockYieldSource} from "./MockYieldSource.sol";
-import {BaseTokenizedStrategy} from "../../BaseTokenizedStrategy.sol";
+import {BaseStrategy, ERC20} from "../../BaseStrategy.sol";
 
-contract MockStrategy is BaseTokenizedStrategy {
+contract MockStrategy is BaseStrategy {
     address public yieldSource;
     bool public trigger;
     bool public managed;
@@ -16,7 +14,7 @@ contract MockStrategy is BaseTokenizedStrategy {
     constructor(
         address _asset,
         address _yieldSource
-    ) BaseTokenizedStrategy(_asset, "Test Strategy") {
+    ) BaseStrategy(_asset, "Test Strategy") {
         initialize(_asset, _yieldSource);
     }
 
@@ -55,7 +53,7 @@ contract MockStrategy is BaseTokenizedStrategy {
         MockYieldSource(yieldSource).withdraw(_amount);
     }
 
-    function tendTrigger() external view override returns (bool) {
+    function _tendTrigger() internal view override returns (bool) {
         return trigger;
     }
 

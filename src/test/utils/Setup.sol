@@ -48,7 +48,7 @@ contract Setup is ExtendedTest, IEvents {
         // Deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
 
-        // Finally deploy the implementation for deterministic location
+        // Deploy the implementation for deterministic location
         tokenizedStrategy = new TokenizedStrategy();
 
         // create asset we will be using as the underlying asset
