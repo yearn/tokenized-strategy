@@ -218,7 +218,7 @@ Strategists should be able to use a pre-built "Strategy Mix" that will contain t
 
 *_freeFunds(uint256 _amount)*: This function is called during every withdraw or redeem and should attempt to simply withdraw the '_amount' of 'asset'. Any difference between _amount and whats actually withdrawn will be counted as a loss
 
-*_harvestandReport()*: This function is used during a report and should accrue all rewards and return the total amount of 'asset' the strategy currently has in its control.
+*_harvestAndReport()*: This function is used during a report and should accrue all rewards and return the total amount of 'asset' the strategy currently has in its control.
 
 ### Optional to Override
 
