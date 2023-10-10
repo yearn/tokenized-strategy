@@ -9,7 +9,7 @@ abstract contract BaseInvariant is Setup {
         super.setUp();
     }
 
-    // Simple version used by the straegy to calculate what should be unlocked shares
+    // Simple version used by the strategy to calculate what should be unlocked shares
     function _unlockedShares() internal view returns (uint256 unlockedShares) {
         uint256 _fullProfitUnlockDate = strategy.fullProfitUnlockDate();
         if (_fullProfitUnlockDate > block.timestamp) {

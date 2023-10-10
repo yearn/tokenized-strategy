@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 import "forge-std/console.sol";
 import {Setup} from "./utils/Setup.sol";
 
-contract AccesssControlTest is Setup {
+contract AccessControlTest is Setup {
     function setUp() public override {
         super.setUp();
     }
@@ -261,7 +261,7 @@ contract AccesssControlTest is Setup {
 
         asset.mint(address(strategy), _amount);
 
-        // doesnt work from random address
+        // doesn't work from random address
         vm.prank(_address);
         vm.expectRevert("!self");
         strategy.deployFunds(_amount);
@@ -293,13 +293,13 @@ contract AccesssControlTest is Setup {
         assertEq(asset.balanceOf(address(yieldSource)), _amount);
         assertEq(asset.balanceOf(address(strategy)), 0);
 
-        // doesnt work from random address
+        // doesn't work from random address
         vm.prank(_address);
         vm.expectRevert("!self");
         strategy.freeFunds(_amount);
         (_amount);
 
-        // doesnt work from management either
+        // doesn't work from management either
         vm.prank(management);
         vm.expectRevert("!self");
         strategy.freeFunds(_amount);
@@ -327,12 +327,12 @@ contract AccesssControlTest is Setup {
         assertEq(asset.balanceOf(address(yieldSource)), _amount);
         assertEq(asset.balanceOf(address(strategy)), 0);
 
-        // doesnt work from random address
+        // doesn't work from random address
         vm.prank(_address);
         vm.expectRevert("!self");
         strategy.harvestAndReport();
 
-        // doesnt work from management either
+        // doesn't work from management either
         vm.prank(management);
         vm.expectRevert("!self");
         strategy.harvestAndReport();
@@ -350,7 +350,7 @@ contract AccesssControlTest is Setup {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(strategy));
 
-        // doesnt work from random address
+        // doesn't work from random address
         vm.prank(_address);
         vm.expectRevert("!self");
         strategy.tendThis(_amount);
@@ -365,7 +365,7 @@ contract AccesssControlTest is Setup {
 
         asset.mint(address(strategy), _amount);
 
-        // doesnt work from random address
+        // doesn't work from random address
         vm.prank(_address);
         vm.expectRevert("!keeper");
         strategy.tend();

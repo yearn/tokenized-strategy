@@ -69,7 +69,7 @@ import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 
  *  A strategist only needs to override a few simple functions that are
  *  focused entirely on the strategy specific needs to easily and cheaply
- *  deploy their own permisionless 4626 compliant vault.
+ *  deploy their own permissionless 4626 compliant vault.
  */
 contract TokenizedStrategy {
     using Math for uint256;
@@ -80,7 +80,7 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Emitted when the 'pendingMangement' address is updated to 'newPendingManagement'.
+     * @notice Emitted when the 'pendingManagement' address is updated to 'newPendingManagement'.
      */
     event UpdatePendingManagement(address indexed newPendingManagement);
 
@@ -100,7 +100,7 @@ contract TokenizedStrategy {
     event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
 
     /**
-     * @notice Emitted when the 'performaneFee' is updated to 'newPerformanceFee'.
+     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
      */
     event UpdatePerformanceFee(uint16 newPerformanceFee);
 
@@ -215,8 +215,8 @@ contract TokenizedStrategy {
         uint8 decimals; // The amount of decimals that `asset` and strategy use.
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued.
-        uint256 INITIAL_CHAIN_ID; // The intitial chain id when the strategy was created.
-        bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain seperator used for permits on the intitial chain.
+        uint256 INITIAL_CHAIN_ID; // The initial chain id when the strategy was created.
+        bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain separator used for permits on the initial chain.
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
@@ -360,7 +360,7 @@ contract TokenizedStrategy {
     uint256 private constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
     // Minimum in Basis points the Performance fee can be set to.
-    // Used to disincentivize forking strategies just to lower fees.
+    // Used to disincentive forking strategies just to lower fees.
     uint16 public constant MIN_FEE = 500; // 5%
     // Maximum in Basis Points the Performance Fee can be set to.
     uint16 public constant MAX_FEE = 5_000; // 50%
@@ -448,7 +448,7 @@ contract TokenizedStrategy {
         // Cache storage pointer
         StrategyData storage S = _strategyStorage();
 
-        // Make sure we aren't initiliazed.
+        // Make sure we aren't initialized.
         require(address(S.asset) == address(0), "initialized");
 
         // Set the strategy's underlying asset
@@ -459,7 +459,7 @@ contract TokenizedStrategy {
         S.decimals = ERC20(_asset).decimals();
         // Set initial chain id for permit replay protection
         S.INITIAL_CHAIN_ID = block.chainid;
-        // Set the inital domain seperator for permit functions
+        // Set the initial domain separator for permit functions
         S.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
 
         // Default to a 10 day profit unlock period
@@ -661,7 +661,7 @@ contract TokenizedStrategy {
      * @dev This will round down.
      *
      * @param assets The amount of `asset` to deposits.
-     * @return . Exepected shares that would be issued.
+     * @return . Expected shares that would be issued.
      */
     function previewDeposit(uint256 assets) public view returns (uint256) {
         return convertToShares(assets);
@@ -715,7 +715,7 @@ contract TokenizedStrategy {
      * @dev This will round down.
      *
      * @param shares The amount of shares that would be redeemed.
-     * @return . The amoun of `asset` that would be returned.
+     * @return . The amount of `asset` that would be returned.
      */
     function previewRedeem(uint256 shares) public view returns (uint256) {
         return convertToAssets(shares);
@@ -726,7 +726,7 @@ contract TokenizedStrategy {
      * be deposited by `_owner` into the strategy, where `owner`
      * corresponds to the receiver of a {deposit} call.
      *
-     * @param owner The addres depositing.
+     * @param owner The address depositing.
      * @return . The max that `owner` can deposit in `asset`.
      */
     function maxDeposit(address owner) public view returns (uint256) {
@@ -740,7 +740,7 @@ contract TokenizedStrategy {
      * into the strategy, where `_owner` corresponds to the receiver
      * of a {mint} call.
      *
-     * @param owner The addres minting.
+     * @param owner The address minting.
      * @return _maxMint The max that `owner` can mint in shares.
      */
     function maxMint(address owner) public view returns (uint256 _maxMint) {
@@ -782,7 +782,7 @@ contract TokenizedStrategy {
      * redeemed from the strategy by `owner`, where `owner`
      * corresponds to the msg.sender of a {redeem} call.
      *
-     * @param owner The owener of the shares.
+     * @param owner The owner of the shares.
      * @return _maxRedeem Max amount of shares that can be redeemed.
      */
     function maxRedeem(address owner) public view returns (uint256 _maxRedeem) {
@@ -927,7 +927,7 @@ contract TokenizedStrategy {
                 IBaseStrategy(address(this)).freeFunds(assets - idle);
             }
 
-            // Return the actual amount withdrawn. Adjust for potential overwithdraws.
+            // Return the actual amount withdrawn. Adjust for potential over withdraws.
             uint256 withdrawn = Math.min(
                 _asset.balanceOf(address(this)) - before,
                 S.totalDebt
@@ -1024,14 +1024,14 @@ contract TokenizedStrategy {
         // account for deployed and loose `asset` so we can accurately
         // account for all funds including those potentially airdropped
         // by a trade factory. It is safe here to use asset.balanceOf()
-        // instead of totalIdle because any profits are immediatly locked.
+        // instead of totalIdle because any profits are immediately locked.
         uint256 newTotalAssets = IBaseStrategy(address(this))
             .harvestAndReport();
 
         // Burn unlocked shares.
         _burnUnlockedShares();
 
-        // Initialize varaibles needed throughout.
+        // Initialize variables needed throughout.
         uint256 totalFees;
         uint256 protocolFees;
         uint256 sharesToLock;
@@ -1073,7 +1073,7 @@ contract TokenizedStrategy {
                 }
             }
 
-            // we have a net profit. Check if we are locking proifit.
+            // we have a net profit. Check if we are locking profit.
             if (_profitMaxUnlockTime != 0) {
                 // lock (profit - fees)
                 unchecked {
@@ -1335,7 +1335,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        GETTER FUNCIONS
+                        GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**

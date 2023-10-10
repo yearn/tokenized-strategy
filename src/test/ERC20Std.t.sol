@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 import "forge-std/console.sol";
 import {Setup, MockStrategy, IMockStrategy} from "./utils/Setup.sol";
 
-// Adapted from Maple finace's ERC20 standard testing package
+// Adapted from Maple finance's ERC20 standard testing package
 // see: https://github.com/maple-labs/erc20/blob/main/contracts/test/ERC20.t.sol
 contract ERC20BaseTest is Setup {
     address internal immutable self = address(this);
@@ -131,7 +131,7 @@ contract ERC20BaseTest is Setup {
         );
     }
 
-    function testFuzz_decreaseAllowance_underflows(
+    function testFuzz_decreaseAllowance_underFlows(
         address account_,
         uint256 initialAmount_,
         uint256 subtractedAmount_

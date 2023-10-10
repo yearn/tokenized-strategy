@@ -7,8 +7,8 @@ import {BaseStrategy, ERC20} from "../../BaseStrategy.sol";
 interface IPappa {
     function callBack(
         uint256 _pps,
-        uint256 _converAmountToShares,
-        uint256 _converAmountToAssets
+        uint256 _convertAmountToShares,
+        uint256 _convertAmountToAssets
     ) external;
 }
 

@@ -7,17 +7,17 @@ interface IEvents {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Emitted whent the 'pendingMangement' address is updtaed to 'newPendingManagement'.
+     * @notice Emitted when the 'pendingManagement' address is updated to 'newPendingManagement'.
      */
     event UpdatePendingManagement(address indexed newPendingManagement);
 
     /**
-     * @notice Emitted whent the 'mangement' address is updtaed to 'newManagement'.
+     * @notice Emitted when the 'management' address is updated to 'newManagement'.
      */
     event UpdateManagement(address indexed newManagement);
 
     /**
-     * @notice Emitted whent the 'keeper' address is updtaed to 'newKeeper'.
+     * @notice Emitted when the 'keeper' address is updated to 'newKeeper'.
      */
     event UpdateKeeper(address indexed newKeeper);
 
@@ -27,20 +27,20 @@ interface IEvents {
     event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
 
     /**
-     * @notice Emitted whent the 'performaneFee' is updtaed to 'newPerformanceFee'.
+     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
      */
     event UpdatePerformanceFee(uint16 newPerformanceFee);
 
     /**
-     * @notice Emitted whent the 'performanceFeeRecipient' address is
-     * updtaed to 'newPerformanceFeeRecipient'.
+     * @notice Emitted when the 'performanceFeeRecipient' address is
+     * updated to 'newPerformanceFeeRecipient'.
      */
     event UpdatePerformanceFeeRecipient(
         address indexed newPerformanceFeeRecipient
     );
 
     /**
-     * @notice Emitted whent the 'profitMaxUnlockTime' is updtaed to 'newProfitMaxUnlockTime'.
+     * @notice Emitted when the 'profitMaxUnlockTime' is updated to 'newProfitMaxUnlockTime'.
      */
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 

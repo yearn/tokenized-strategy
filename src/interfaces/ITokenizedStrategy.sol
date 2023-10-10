@@ -37,7 +37,7 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     );
 
     /*//////////////////////////////////////////////////////////////
-                           INITILIZATION
+                           INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
     function init(
