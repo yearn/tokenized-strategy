@@ -174,7 +174,7 @@ contract AccesssControlTest is Setup {
         strategy.setPerformanceFeeRecipient(address(69));
 
         vm.prank(management);
-        vm.expectRevert("Can't be self");
+        vm.expectRevert("Can not be self");
         strategy.setPerformanceFeeRecipient(address(strategy));
 
         assertEq(strategy.performanceFeeRecipient(), _performanceFeeRecipient);

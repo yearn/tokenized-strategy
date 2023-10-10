@@ -90,7 +90,7 @@ abstract contract BaseInvariant is Setup {
         }
     }
 
-    function assert_previewMinAndConvertToAssets() public {
+    function assert_previewMintAndConvertToAssets() public {
         assertApproxEq(
             strategy.previewMint(wad),
             strategy.convertToAssets(wad),
@@ -106,7 +106,7 @@ abstract contract BaseInvariant is Setup {
         );
     }
 
-    function assert_balanceToCoverAssets() public {
+    function assert_balanceAndTotalAssets() public {
         assertLe(
             strategy.totalAssets(),
             yieldSource.balance() + asset.balanceOf(address(strategy))
