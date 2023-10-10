@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import "forge-std/Script.sol";
 
-// Deploy a contract to a deterministic address with create2
+// Deploy a contract to a deterministic address with create2 factory.
 contract Deploy is Script {
 
     Deployer public deployer = Deployer(0x8D85e7c9A4e369E53Acc8d5426aE1568198b0112);
