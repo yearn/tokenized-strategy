@@ -137,7 +137,7 @@ abstract contract BaseStrategy {
         // Set instance of the implementation for internal use.
         TokenizedStrategy = ITokenizedStrategy(address(this));
 
-        // Initialize the strategies storage variables.
+        // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(
                 ITokenizedStrategy.init,

@@ -7,25 +7,25 @@ This makes the strategy specific contract as simple and specific to that yield g
 
 
 ### Definitions
-- Asset: Any ERC20-compliant token
+- Asset: Any ERC20-compliant token.
 - Shares: ERC20-compliant token that tracks Asset balance in the strategy for every distributor.
 - Strategy: ERC4626 compliant smart contract that receives Assets from Depositors (vault or otherwise) to deposit in any external protocol to generate yield.
 - Tokenized Strategy: The implementation contract that all strategies delegateCall to for the standard ERC4626 and profit locking functions.
 - BaseStrategy: The abstract contract that a strategy should inherit from that handles all communication with the Tokenized Strategy contract.
 - Strategist: The developer of a specific strategy.
-- Depositor: Account that holds Shares
-- Vault: Or "Meta Vault" is an ERC4626 compliant Smart contract that receives Assets from Depositors to then distribute them among the different Strategies added to the vault, managing accounting and Assets distribution. 
+- Depositor: Account that holds Shares.
+- Vault: Or "Allocator Vault" is an ERC4626 compliant Smart contract that receives Assets from Depositors to then distribute them among the different Strategies added to the vault, managing accounting and Assets distribution. 
 - Management: The owner of the specific strategy that can set fees, profit unlocking time etc.
 - Emergency Admin: A address specified by management to be able to call certain emergency functions.
 - Keeper: the address of a contract allowed to call report() and tend() on a strategy.
-- Factory: The factory that all meta vaults of a specific API version are deployed from that also controls the protocol fee amount and recipient.
+- Factory: The factory that all allocator vaults of a specific API version are deployed from that also controls the protocol fee amount and recipient.
 
 ## Storage
-In order to standardize all high risk and complex logic associated with ERC4626, ERC20 and profit locking, all core logic has been moved to the 'TokenizedStrategy.sol' and is used by each strategy through a fallback function that delegatecall's this contract to do all necessary checks, logic and storage updates for the strategy.
+In order to standardize all high risk and complex logic associated with ERC4626, ERC20 and profit locking, all core logic has been moved to the 'TokenizedStrategy.sol' and is used by each strategy through a fallback function that delegatecalls this contract to do all necessary checks, logic and storage updates for the strategy.
 
 The TokenizedStrategy will only need to be deployed once on each chain and can then be used by an unlimited number of strategies. Allowing the BaseStrategy.sol to be much smaller, simpler and cheaper to deploy.
 
-Using delegate call the external TokenizedStrategy will be able read and write to any and all of the strategies specific storage variables during all calls. This does open the strategy up to the possibility of storage collisions due to non-standardized storage calls and means extra precautions need to be taken when reading and writing to storage.
+Using delegate call the external TokenizedStrategy will be able read and write to any and all of the strategy specific storage variables during all calls. This does open the strategy up to the possibility of storage collisions due to non-standardized storage calls and means extra precautions need to be taken when reading from and writing to storage.
 
 In order to limit the strategists need to think about their storage variables all TokenizedStrategy specific variables are held within and controlled by the TokenizedStrategy. A `StrategyData` struct is held at a custom storage location that is high enough that no normal implementation should be worried about hitting.
 
@@ -33,7 +33,7 @@ This means all high risk storage updates will always be handled by the Tokenized
 
 ## BaseStrategy
 
-The base strategy is a simple abstract contract to be inherited by the strategist that handles all communication with the TokenizedStrategy.
+The base strategy is a simple abstract contract designed to be inherited by the strategist. Doing this will automatically handle all communication with the TokenizedStrategy, saving a lot of effort
 
 ### Modifiers
 `onlySelf`: This modifier is placed on callback functions for the TokenizedStrategy to use during deposits, withdraws, reports and tends. The modifier should revert if msg.sender is not equal to itself. In order for a call to be forwarded to the TokenizedStrategy it must not be defined in the Strategy and hit the fallback function which will delegatecall the TokenizedStrategy. If within that call, the TokenizedStrategy makes an external call back to the BaseStrategy the msg.sender of that call will be the original caller, which should be the Strategy itself.
