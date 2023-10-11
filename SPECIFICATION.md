@@ -13,11 +13,11 @@ This makes the strategy specific contract as simple and specific to that yield g
 - Tokenized Strategy: The implementation contract that all strategies delegateCall to for the standard ERC4626 and profit locking functions.
 - BaseStrategy: The abstract contract that a strategy should inherit from that handles all communication with the Tokenized Strategy contract.
 - Strategist: The developer of a specific strategy.
-- Depositor: Account that holds Shares.
-- Vault: Or "Allocator Vault" is an ERC4626 compliant Smart contract that receives Assets from Depositors to then distribute them among the different Strategies added to the vault, managing accounting and Assets distribution. 
+- Depositor: Account that holds shares.
+- Vault: Or "Allocator Vault" is an ERC4626 compliant smart contract that receives assets from depositors to then distribute them among the different strategies added to the vault, managing accounting and sssets distribution. 
 - Management: The owner of the specific strategy that can set fees, profit unlocking time etc.
-- Emergency Admin: A address specified by management to be able to call certain emergency functions.
-- Keeper: the address of a contract allowed to call report() and tend() on a strategy.
+- Emergency Admin: An address specified by management to be able to call certain emergency functions.
+- Keeper: The address of a contract allowed to call report() and tend() on a strategy.
 - Factory: The factory that all allocator vaults of a specific API version are deployed from that also controls the protocol fee amount and recipient.
 
 ## Storage
