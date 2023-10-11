@@ -435,7 +435,7 @@ contract FaultyStrategy is Setup {
         strategy.tend();
     }
 
-    // This function simulates being called during a extenal call of a deposit withdraw or report.
+    // This function simulates being called during a external call of a deposit withdraw or report.
     // This should return the same values as will be stored right before the call and checked right after the call.
     function callBack(
         uint256 _pps,

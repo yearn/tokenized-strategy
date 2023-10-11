@@ -117,7 +117,7 @@ abstract contract BaseStrategy {
     ITokenizedStrategy internal immutable TokenizedStrategy;
 
     // Underlying asset the Strategy is earning yield on.
-    // Stored here for cheap retrievals wihtin the strategy.
+    // Stored here for cheap retrievals within the strategy.
     ERC20 internal immutable asset;
 
     /**
@@ -126,7 +126,7 @@ abstract contract BaseStrategy {
      * This will set the `TokenizedStrategy` variable for easy
      * internal view calls to the implementation. As well as
      * initializing the default storage variables based on the
-     * parameters and using the deployer for the permisioned roles.
+     * parameters and using the deployer for the permissioned roles.
      *
      * @param _asset Address of the underlying asset.
      * @param _name Name the strategy will use.
@@ -137,7 +137,7 @@ abstract contract BaseStrategy {
         // Set instance of the implementation for internal use.
         TokenizedStrategy = ITokenizedStrategy(address(this));
 
-        // Initilize the strategies storage variables.
+        // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(
                 ITokenizedStrategy.init,
@@ -281,7 +281,7 @@ abstract contract BaseStrategy {
     /**
      * @notice Gets the max amount of `asset` that an address can deposit.
      * @dev Defaults to an unlimited amount for any address. But can
-     * be overriden by strategists.
+     * be overridden by strategists.
      *
      * This function will be called before any deposit or mints to enforce
      * any limits desired by the strategist. This can be used for either a
@@ -308,7 +308,7 @@ abstract contract BaseStrategy {
     /**
      * @notice Gets the max amount of `asset` that can be withdrawn.
      * @dev Defaults to an unlimited amount for any address. But can
-     * be overriden by strategists.
+     * be overridden by strategists.
      *
      * This function will be called before any withdraw or redeem to enforce
      * any limits desired by the strategist. This can be used for illiquid
@@ -368,7 +368,7 @@ abstract contract BaseStrategy {
      * and thus can be sandwiched or otherwise manipulated.
      *
      * @param _amount The amount of 'asset' that the strategy should
-     * attemppt to deposit in the yield source.
+     * attempt to deposit in the yield source.
      */
     function deployFunds(uint256 _amount) external virtual onlySelf {
         _deployFunds(_amount);
@@ -439,10 +439,10 @@ abstract contract BaseStrategy {
     }
 
     /**
-     * @dev Funciton used to delegate call the TokenizedStrategy with
+     * @dev Function used to delegate call the TokenizedStrategy with
      * certain `_calldata` and return any return values.
      *
-     * This is used to setup the intial storage of the strategy, and
+     * This is used to setup the initial storage of the strategy, and
      * can be used by strategist to forward any other call to the
      * TokenizedStrategy implementation.
      *
@@ -470,7 +470,7 @@ abstract contract BaseStrategy {
         return result;
     }
 
-    // exeute a function on the TokenizedStrategy and return any value.
+    // execute a function on the TokenizedStrategy and return any value.
     fallback() external {
         // load our target address
         address _tokenizedStrategyAddress = tokenizedStrategyAddress;

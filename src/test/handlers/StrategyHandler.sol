@@ -138,7 +138,7 @@ contract StrategyHandler is ExtendedTest {
     function reportLoss(uint256 _amount) public countCall("reportLoss") {
         _amount = bound(_amount, 0, strategy.totalAssets() / 2);
 
-        // Simulate lossing money
+        // Simulate losing money
         vm.prank(address(setup.yieldSource()));
         asset.transfer(address(69), _amount);
 
@@ -210,7 +210,7 @@ contract StrategyHandler is ExtendedTest {
     ) public countCall("unreportedLoss") {
         _amount = bound(_amount, 0, strategy.totalAssets() / 10);
 
-        // Simulate lossing money
+        // Simulate losing money
         vm.prank(address(setup.yieldSource()));
         asset.transfer(address(69), _amount);
 

@@ -58,17 +58,17 @@ contract SingleStrategyInvariantTest is BaseInvariant {
         //assert_unlockedShares();
     }
 
-    function invariant_previewMinAndConvertToAssets() public {
-        assert_previewMinAndConvertToAssets();
+    function invariant_previewMintAndConvertToAssets() public {
+        assert_previewMintAndConvertToAssets();
     }
 
     function invariant_previewWithdrawAndConvertToShares() public {
         assert_previewWithdrawAndConvertToShares();
     }
 
-    function invariant_balanceToCoverAssets() public {
+    function invariant_balanceAndTotalAssets() public {
         if (!strategyHandler.unreported()) {
-            assert_balanceToCoverAssets();
+            assert_balanceAndTotalAssets();
         }
     }
 
