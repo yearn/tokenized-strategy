@@ -1176,8 +1176,8 @@ contract TokenizedStrategy {
      * so future calculations remain correct.
      */
     function _burnUnlockedShares() private {
-        uint256 unlockedShares = _unlockedShares();
-        if (unlockedShares == 0) {
+        uint256 unlocked = _unlockedShares();
+        if (unlocked == 0) {
             return;
         }
 
@@ -1186,7 +1186,21 @@ contract TokenizedStrategy {
             _strategyStorage().lastReport = uint128(block.timestamp);
         }
 
-        _burn(address(this), unlockedShares);
+        _burn(address(this), unlocked);
+    }
+
+    /**
+     * @notice Get how many shares have been unlocked since last report.
+     * @dev To determine how many of the shares that were locked during the last
+     * report have since unlocked.
+     *
+     * If the `fullProfitUnlockDate` has passed the full strategy's balance will
+     * count as unlocked.
+     *
+     * @return . The amount of shares that have unlocked.
+     */
+    function unlockedShares() external view returns (uint256) {
+        return _unlockedShares();
     }
 
     /**
@@ -1196,21 +1210,21 @@ contract TokenizedStrategy {
      * If the `fullProfitUnlockDate` has passed the full strategy's balance will
      * count as unlocked.
      *
-     * @return unlockedShares The amount of shares that have unlocked.
+     * @return unlocked The amount of shares that have unlocked.
      */
-    function _unlockedShares() private view returns (uint256 unlockedShares) {
+    function _unlockedShares() private view returns (uint256 unlocked) {
         // should save 2 extra calls for most scenarios.
         StrategyData storage S = _strategyStorage();
         uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         if (_fullProfitUnlockDate > block.timestamp) {
             unchecked {
-                unlockedShares =
+                unlocked =
                     (S.profitUnlockingRate * (block.timestamp - S.lastReport)) /
                     MAX_BPS_EXTENDED;
             }
         } else if (_fullProfitUnlockDate != 0) {
             // All shares have been unlocked.
-            unlockedShares = S.balances[address(this)];
+            unlocked = S.balances[address(this)];
         }
     }
 

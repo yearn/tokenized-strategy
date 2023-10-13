@@ -130,6 +130,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function isShutdown() external view returns (bool);
 
+    function unlockedShares() external view returns (uint256);
+
     /*//////////////////////////////////////////////////////////////
                             SETTERS
     //////////////////////////////////////////////////////////////*/
