@@ -1191,12 +1191,6 @@ contract TokenizedStrategy {
 
     /**
      * @notice Get how many shares have been unlocked since last report.
-     * @dev To determine how many of the shares that were locked during the last
-     * report have since unlocked.
-     *
-     * If the `fullProfitUnlockDate` has passed the full strategy's balance will
-     * count as unlocked.
-     *
      * @return . The amount of shares that have unlocked.
      */
     function unlockedShares() external view returns (uint256) {
