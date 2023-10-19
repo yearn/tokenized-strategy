@@ -2,6 +2,8 @@
 pragma solidity 0.8.18;
 
 interface IBaseStrategy {
+    function tokenizedStrategyAddress() external view returns (address);
+
     /*//////////////////////////////////////////////////////////////
                             IMMUTABLE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
