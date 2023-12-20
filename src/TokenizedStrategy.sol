@@ -352,7 +352,7 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     // API version this TokenizedStrategy implements.
-    string private constant API_VERSION = "3.0.1";
+    string private constant API_VERSION = "3.0.2";
 
     // Used for fee calculations.
     uint256 private constant MAX_BPS = 10_000;
