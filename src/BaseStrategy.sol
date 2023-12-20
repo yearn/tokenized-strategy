@@ -245,9 +245,7 @@ abstract contract BaseStrategy {
      *       sandwiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
-     * The TokenizedStrategy contract will do all needed debt and idle updates
-     * after this has finished and will have no effect on PPS of the strategy
-     * till report() is called.
+     * This will have no effect on PPS of the strategy till report() is called.
      *
      * @param _totalIdle The current amount of idle funds that are available to deploy.
      */

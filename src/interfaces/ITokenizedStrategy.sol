@@ -104,10 +104,6 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function pricePerShare() external view returns (uint256);
 
-    function totalIdle() external view returns (uint256);
-
-    function totalDebt() external view returns (uint256);
-
     function management() external view returns (address);
 
     function pendingManagement() external view returns (address);

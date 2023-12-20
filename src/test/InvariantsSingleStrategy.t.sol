@@ -34,10 +34,6 @@ contract SingleStrategyInvariantTest is BaseInvariant {
         assert_totalAssets();
     }
 
-    function invariant_idle() public {
-        assert_idle();
-    }
-
     function invariant_maxWithdraw() public {
         assert_maxWithdraw();
     }
