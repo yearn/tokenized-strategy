@@ -17,7 +17,7 @@ import {TokenizedStrategy} from "../../TokenizedStrategy.sol";
 import {IEvents} from "../../interfaces/IEvents.sol";
 
 contract Setup is ExtendedTest, IEvents {
-    // Contract instancees that we will use repeatedly.
+    // Contract instances that we will use repeatedly.
     ERC20Mock public asset;
     IMockStrategy public strategy;
     MockFactory public mockFactory;
@@ -48,7 +48,7 @@ contract Setup is ExtendedTest, IEvents {
         // Deploy the mock factory next for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
 
-        // Finally deploy the implementation for deterministic location
+        // Deploy the implementation for deterministic location
         tokenizedStrategy = new TokenizedStrategy();
 
         // create asset we will be using as the underlying asset
@@ -275,20 +275,20 @@ contract Setup is ExtendedTest, IEvents {
         bytes32 data = bytes4(
             uint32(IMockStrategy(_strategy).profitMaxUnlockTime())
         );
-        // Free up space for the uint16 of performancFee
+        // Free up space for the uint16 of performanceFee
         data = data >> 16;
         // Store 0 in the performance fee spot.
         data |= bytes2(0);
         // Shit 160 bits for an address
         data = data >> 160;
-        // Store the strategies peformance fee recipient
+        // Store the strategies performance fee recipient
         data |= bytes20(
             uint160(IMockStrategy(_strategy).performanceFeeRecipient())
         );
         // Shift the remainder of padding.
         data = data >> 48;
 
-        // Manually set the storage slot that holds the perfomance fee to 0
+        // Manually set the storage slot that holds the performance fee to 0
         vm.store(_strategy, slot, data);
     }
 

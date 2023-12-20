@@ -334,7 +334,7 @@ contract ProfitLockingTest is Setup {
                 _address != performanceFeeRecipient &&
                 _address != address(yieldSource)
         );
-        // set perf fee to 10% protcol fee to 100 bps
+        // set perf fee to 10% protocol fee to 100 bps
         uint16 protocolFee = 1_000;
         uint16 performanceFee = 1_000;
         setFees(protocolFee, performanceFee);
@@ -348,7 +348,7 @@ contract ProfitLockingTest is Setup {
         uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
             MAX_BPS;
 
-        // Adjust what the percormance fee expects to get when there is a protocol fee.
+        // Adjust what the performance fee expects to get when there is a protocol fee.
         expectedPerformanceFee = expectedPerformanceFee - expectedProtocolFee;
 
         uint256 totalExpectedFees = expectedPerformanceFee +
@@ -868,7 +868,7 @@ contract ProfitLockingTest is Setup {
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
         uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
             MAX_BPS;
-        // Adjust what the percormance fee expects to get when there is a protocol fee.
+        // Adjust what the performance fee expects to get when there is a protocol fee.
         expectedPerformanceFee = expectedPerformanceFee - expectedProtocolFee;
 
         uint256 totalExpectedFees = expectedPerformanceFee +
@@ -1100,7 +1100,7 @@ contract ProfitLockingTest is Setup {
             strategy,
             loss,
             expectedProtocolFee,
-            false // Dont check protocol fees with overall loss
+            false // Don't check protocol fees with overall loss
         );
 
         assertRelApproxEq(
@@ -1213,7 +1213,7 @@ contract ProfitLockingTest is Setup {
             _amount + loss * 2
         );
 
-        // Half way through we should have the full loss still as abuffer
+        // Half way through we should have the full loss still as a buffer
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime / 2, loss);
 
         checkStrategyTotals(
@@ -1239,7 +1239,7 @@ contract ProfitLockingTest is Setup {
             strategy.balanceOf(address(strategy)),
             toNotBurn,
             1,
-            "!strat bal"
+            "!strategy bal"
         );
 
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime / 2, 0);
@@ -1322,7 +1322,7 @@ contract ProfitLockingTest is Setup {
             _amount + loss * 2
         );
 
-        // Half way through we should have the full loss still as abuffer
+        // Half way through we should have the full loss still as a buffer
         increaseTimeAndCheckBuffer(
             strategy,
             profitMaxUnlockTime / 2,
@@ -1347,7 +1347,7 @@ contract ProfitLockingTest is Setup {
             strategy,
             loss,
             expectedProtocolFee,
-            false // Dont check protocol fees with overall loss
+            false // Don't check protocol fees with overall loss
         );
 
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime / 2, 0);
@@ -1629,7 +1629,7 @@ contract ProfitLockingTest is Setup {
             _amount
         );
 
-        // Should be able to withdaw all right away
+        // Should be able to withdraw all right away
         uint256 beforeBalance = asset.balanceOf(_address);
 
         vm.prank(_address);

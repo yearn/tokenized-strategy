@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 import {MockYieldSource} from "./MockYieldSource.sol";
-import {BaseTokenizedStrategy} from "../../BaseTokenizedStrategy.sol";
+import {BaseStrategy, ERC20} from "../../BaseStrategy.sol";
 
 interface IPappa {
     function callBack(
         uint256 _pps,
-        uint256 _converAmountToShares,
-        uint256 _converAmountToAssets
+        uint256 _convertAmountToShares,
+        uint256 _convertAmountToAssets
     ) external;
 }
 
-contract MockFaultyStrategy is BaseTokenizedStrategy {
+contract MockFaultyStrategy is BaseStrategy {
     address public yieldSource;
     bool public dontTend;
     address public pappa;
@@ -24,7 +22,7 @@ contract MockFaultyStrategy is BaseTokenizedStrategy {
     constructor(
         address _asset,
         address _yieldSource
-    ) BaseTokenizedStrategy(_asset, "Test Strategy") {
+    ) BaseStrategy(_asset, "Test Strategy") {
         yieldSource = _yieldSource;
         ERC20(_asset).approve(_yieldSource, type(uint256).max);
         pappa = msg.sender;

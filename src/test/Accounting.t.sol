@@ -37,7 +37,7 @@ contract AccountingTest is Setup {
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
 
-        // aidrop to strategy
+        // airdrop to strategy
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
 
@@ -79,7 +79,7 @@ contract AccountingTest is Setup {
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
 
-        // aidrop to strategy
+        // airdrop to strategy
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
 
@@ -160,7 +160,7 @@ contract AccountingTest is Setup {
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
 
-        // aidrop to strategy
+        // airdrop to strategy
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(yieldSource), toAirdrop);
 
@@ -180,7 +180,7 @@ contract AccountingTest is Setup {
         assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
     }
 
-    function test_earningYieldDoesNotIncreasePPS_reportRecodsIt(
+    function test_earningYieldDoesNotIncreasePPS_reportRecordsIt(
         address _address,
         uint256 _amount,
         uint16 _profitFactor
@@ -206,7 +206,7 @@ contract AccountingTest is Setup {
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
 
-        // aidrop to strategy
+        // airdrop to strategy
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(yieldSource), toAirdrop);
         assertEq(asset.balanceOf(address(yieldSource)), _amount + toAirdrop);
@@ -279,7 +279,7 @@ contract AccountingTest is Setup {
         // should still be 1
         assertEq(strategy.pricePerShare(), pricePerShare);
 
-        // aidrop to strategy to simulate a harvesting of rewards
+        // airdrop to strategy to simulate a harvesting of rewards
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
         assertEq(asset.balanceOf(address(strategy)), toAirdrop);
@@ -294,7 +294,7 @@ contract AccountingTest is Setup {
         assertEq(
             asset.balanceOf(address(yieldSource)),
             _amount + toAirdrop,
-            "!yieldsource"
+            "!yieldSource"
         );
         assertEq(strategy.pricePerShare(), wad, "!pps");
 
@@ -328,7 +328,7 @@ contract AccountingTest is Setup {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 1, MAX_BPS));
 
-        // Use the illiquid mock strategy so it doesnt deposit all funds
+        // Use the illiquid mock strategy so it doesn't deposit all funds
         strategy = IMockStrategy(setUpIlliquidStrategy());
 
         setFees(0, 0);
@@ -344,12 +344,12 @@ contract AccountingTest is Setup {
         assertEq(
             asset.balanceOf(address(yieldSource)),
             expectedDeposit,
-            "!yieldsource"
+            "!yieldSource"
         );
         // should still be 1
         assertEq(strategy.pricePerShare(), wad);
 
-        // aidrop to strategy to simulate a harvesting of rewards
+        // airdrop to strategy to simulate a harvesting of rewards
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
         assertEq(

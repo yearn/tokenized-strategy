@@ -50,7 +50,7 @@ contract e2eTest is Setup {
 
             setPerformanceFeeToZero(address(newStrategy));
 
-            // Depsit a unique amount for each one
+            // Deposit a unique amount for each one
             uint256 toDeposit = _amount + i;
 
             mintAndDepositIntoStrategy(newStrategy, _address, toDeposit);
@@ -145,7 +145,7 @@ contract e2eTest is Setup {
 
             setPerformanceFeeToZero(address(newStrategy));
 
-            // Depsit a unique amount for each one
+            // Deposit a unique amount for each one
             uint256 toDeposit = _amount + i;
 
             // Use mint instead of deposit
@@ -264,7 +264,7 @@ contract e2eTest is Setup {
 
             setPerformanceFeeToZero(address(newStrategy));
 
-            // Depsit a unique amount for each one
+            // Deposit a unique amount for each one
             uint256 toDeposit = _amount + i;
 
             mintAndDepositIntoStrategy(newStrategy, _address, toDeposit);

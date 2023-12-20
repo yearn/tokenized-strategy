@@ -151,18 +151,24 @@ contract CustomImplementationsTest is Setup {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(_address != address(0) && _address != address(strategy));
 
+        bool trigger;
+        bytes memory data;
         // Should be false
-        assertTrue(!strategy.tendTrigger());
+        (trigger, data) = strategy.tendTrigger();
+        assertTrue(!trigger);
+        assertEq(data, abi.encodeWithSelector(strategy.tend.selector));
 
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
         // Should still be false
-        assertTrue(!strategy.tendTrigger());
+        (trigger, ) = strategy.tendTrigger();
+        assertTrue(!trigger);
 
         strategy.setTrigger(true);
 
         // Make sure it overrides correctly
-        assertTrue(strategy.tendTrigger());
+        (trigger, ) = strategy.tendTrigger();
+        assertTrue(trigger);
     }
 
     function test_onlyManagementModifier(address _address) public {
@@ -202,7 +208,7 @@ contract CustomImplementationsTest is Setup {
 
         assertTrue(strategy.kept());
 
-        // Reset the slot holding the bools all to false.
+        // Reset the slot holding the bool's all to false.
         vm.store(address(strategy), bytes32(uint256(0)), bytes32(0));
 
         assertTrue(!strategy.kept());

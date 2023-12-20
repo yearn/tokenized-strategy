@@ -37,7 +37,7 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     );
 
     /*//////////////////////////////////////////////////////////////
-                           INITILIZATION
+                           INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
     function init(
@@ -129,6 +129,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     function lastReport() external view returns (uint256);
 
     function isShutdown() external view returns (bool);
+
+    function unlockedShares() external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                             SETTERS

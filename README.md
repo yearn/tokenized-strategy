@@ -5,13 +5,13 @@ This repository contains the base code for the Yearn V3 "Tokenized Strategy" imp
 
 The implementation address that calls are delegated to is pre-set to a constant and can never be changed post deployment. The implementation contract itself is ownerless and can never be updated in any way.
 
-NOTE: The master branch has these pre-set addresses set based on the deterministic address that testing on a local device will render. These contracts should not be used in production and any live versions should use an official [release](https://github.com/yearn/tokenized-strategy/releases).
+NOTE: The master branch has these pre-set addresses set based on the deterministic address that testing on a local device will render. These contracts should NOT be used in production and any live versions should use an official [release](https://github.com/yearn/tokenized-strategy/releases).
 
-A Strategy contract can become a fully ERC-4626 compliant vault by inheriting the `BaseTokenizedStrategy` contract, that uses the fallback function to delegateCall the previously deployed version of `TokenizedStrategy`. A strategist then only needs to override three simple functions in their specific strategy.
+A Strategy contract can become a fully ERC-4626 compliant vault by inheriting the `BaseStrategy` contract, that uses the fallback function to delegateCall the previously deployed version of `TokenizedStrategy`. A strategist then only needs to override three simple functions in their specific strategy.
 
 [TokenizedStrategy](https://github.com/yearn/tokenized-strategy/blob/master/src/TokenizedStrategy.sol) - The implementation contract that holds all logic for every strategy.
 
-[BaseTokenizedStrategy](https://github.com/yearn/tokenized-strategy/blob/master/src/BaseTokenizedStrategy.sol) - Abstract contract to inherit that communicates with the `TokenizedStrategy`.
+[BaseStrategy](https://github.com/yearn/tokenized-strategy/blob/master/src/BaseStrategy.sol) - Abstract contract to inherit that communicates with the `TokenizedStrategy`.
 
 Full tech spech can be found [here](https://github.com/yearn/tokenized-strategy/blob/master/SPECIFICATION.md)
 

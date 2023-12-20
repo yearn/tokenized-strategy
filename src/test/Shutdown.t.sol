@@ -187,7 +187,7 @@ contract ShutdownTest is Setup {
 
         assertTrue(strategy.isShutdown());
 
-        // Withdra half and make sure it records properly
+        // Withdraw half and make sure it records properly
         uint256 toWithdraw = _amount / 2;
 
         vm.prank(emergencyAdmin);
