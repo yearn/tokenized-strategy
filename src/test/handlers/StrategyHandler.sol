@@ -193,12 +193,14 @@ contract StrategyHandler is ExtendedTest {
 
         amount = bound(amount, 0, strategy.balanceOf(from));
         uint256 allowance = strategy.allowance(actor, from);
-        if (allowance == 0) {
+        if (allowance != 0) {
             vm.prank(from);
-            strategy.approve(actor, amount);
-        } else if (allowance < amount) {
-            strategy.increaseAllowance(actor, amount - allowance);
+            strategy.approve(actor, 0);
         }
+
+        vm.prank(from);
+        strategy.approve(actor, amount);
+
         if (amount == 0) ghost_zeroTransferFroms++;
 
         vm.prank(actor);
