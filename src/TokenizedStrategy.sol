@@ -1756,66 +1756,6 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Atomically increases the allowance granted to `spender` by the caller.
-     *
-     * @dev This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
-     *
-     * Emits an {Approval} event indicating the updated allowance.
-     *
-     * Requirements:
-     *
-     * - `spender` cannot be the zero address.
-     * - cannot give spender over uint256.max allowance
-     *
-     * @param spender the account that will be able to move the senders shares.
-     * @param addedValue the extra amount to add to the current allowance.
-     * @return . a boolean value indicating whether the operation succeeded.
-     */
-    function increaseAllowance(
-        address spender,
-        uint256 addedValue
-    ) external returns (bool) {
-        address owner = msg.sender;
-        StrategyData storage S = _strategyStorage();
-        _approve(S, owner, spender, _allowance(S, owner, spender) + addedValue);
-        return true;
-    }
-
-    /**
-     * @notice Atomically decreases the allowance granted to `spender` by the caller.
-     *
-     * @dev This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
-     *
-     * Emits an {Approval} event indicating the updated allowance.
-     *
-     * Requirements:
-     *
-     * - `spender` cannot be the zero address.
-     * - `spender` must have allowance for the caller of at least
-     * `subtractedValue`.
-     *
-     * @param spender the account that will be able to move less of the senders shares.
-     * @param subtractedValue the amount to decrease the current allowance by.
-     * @return . a boolean value indicating whether the operation succeeded.
-     */
-    function decreaseAllowance(
-        address spender,
-        uint256 subtractedValue
-    ) external returns (bool) {
-        address owner = msg.sender;
-        StrategyData storage S = _strategyStorage();
-        _approve(
-            S,
-            owner,
-            spender,
-            _allowance(S, owner, spender) - subtractedValue
-        );
-        return true;
-    }
-
-    /**
      * @dev Moves `amount` of tokens from `from` to `to`.
      *
      * This internal function is equivalent to {transfer}, and can be used to
