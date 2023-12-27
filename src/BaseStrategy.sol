@@ -74,6 +74,9 @@ abstract contract BaseStrategy {
         _;
     }
 
+    /**
+     * @dev Require that the msg.sender is this address.
+     */
     function _onlySelf() internal view {
         require(msg.sender == address(this), "!self");
     }
@@ -83,7 +86,7 @@ abstract contract BaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * This is the address of the TokenizedStrategy implementation
+     * @dev This is the address of the TokenizedStrategy implementation
      * contract that will be used by all strategies to handle the
      * accounting, logic, storage etc.
      *
@@ -103,7 +106,7 @@ abstract contract BaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * This variable is set to address(this) during initialization of each strategy.
+     * @dev This variable is set to address(this) during initialization of each strategy.
      *
      * This can be used to retrieve storage data within the strategy
      * contract as if it were a linked library.
@@ -116,8 +119,10 @@ abstract contract BaseStrategy {
      */
     ITokenizedStrategy internal immutable TokenizedStrategy;
 
-    // Underlying asset the Strategy is earning yield on.
-    // Stored here for cheap retrievals within the strategy.
+    /**
+     * @dev Underlying asset the Strategy is earning yield on.
+     * Stored here for cheap retrievals within the strategy.
+     */
     ERC20 internal immutable asset;
 
     /**
@@ -467,7 +472,17 @@ abstract contract BaseStrategy {
         return result;
     }
 
-    // execute a function on the TokenizedStrategy and return any value.
+    /**
+     * @dev execute a function on the TokenizedStrategy and return any value.
+     *
+     * This fallback function will be execute when any of the standard functions
+     * defined in the TokenizedStrategy are called since they wont be defined in
+     * this contract.
+     *
+     * It will delegatecall the TokenizedStrategy implementation with the exact
+     * calldata and return any relevant values.
+     *
+     */
     fallback() external {
         // load our target address
         address _tokenizedStrategyAddress = tokenizedStrategyAddress;
