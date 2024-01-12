@@ -1204,8 +1204,8 @@ contract TokenizedStrategy {
             );
         } else {
             // Only setting this to 0 will turn in the desired effect,
-            // no need to update fullProfitUnlockDate.
-            S.profitUnlockingRate = 0;
+            // no need to update profitUnlockingRate.
+            S.fullProfitUnlockDate = 0;
         }
 
         // Update the new total assets value.
@@ -1225,8 +1225,7 @@ contract TokenizedStrategy {
      * @dev Called during reports to burn shares that have been unlocked
      * since the last report.
      *
-     * Will reset the `lastReport` if haven't unlocked the full amount yet
-     * so future calculations remain correct.
+     * Will reset the `lastReport` since this is only called during reports.
      */
     function _burnUnlockedShares(StrategyData storage S) internal {
         uint256 unlocked = _unlockedShares(S);
