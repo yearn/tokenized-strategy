@@ -1168,7 +1168,6 @@ contract TokenizedStrategy {
 
             // Check in case else was due to being equal.
             if (loss != 0) {
-                // Add the equivalent shares to the amount to try and burn.
                 // We will try and burn the unlocked shares and as much from any
                 // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
                 sharesToBurn = Math.min(
