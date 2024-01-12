@@ -1146,8 +1146,8 @@ contract TokenizedStrategy {
             );
         } else {
             // Only setting this to 0 will turn in the desired effect,
-            // no need to update fullProfitUnlockDate.
-            S.profitUnlockingRate = 0;
+            // no need to update profitUnlockingRate.
+            S.fullProfitUnlockDate = 0;
         }
 
         // Update storage we use the actual loose here since it should have
@@ -1156,8 +1156,6 @@ contract TokenizedStrategy {
         uint256 newIdle = S.asset.balanceOf(address(this));
         S.totalIdle = newIdle;
         S.totalDebt = newTotalAssets - newIdle;
-
-        S.lastReport = uint128(block.timestamp);
 
         // Emit event with info
         emit Reported(
@@ -1172,18 +1170,16 @@ contract TokenizedStrategy {
      * @dev Called during reports to burn shares that have been unlocked
      * since the last report.
      *
-     * Will reset the `lastReport` if haven't unlocked the full amount yet
-     * so future calculations remain correct.
+     * Will reset the `lastReport` since this is only called during reports.
      */
     function _burnUnlockedShares() private {
         uint256 unlocked = _unlockedShares();
+
+        // Reset lastReport no matter what.
+        _strategyStorage().lastReport = uint128(block.timestamp);
+
         if (unlocked == 0) {
             return;
-        }
-
-        // update variables (done here to keep _unlockedShares() as a view function)
-        if (_strategyStorage().fullProfitUnlockDate > block.timestamp) {
-            _strategyStorage().lastReport = uint128(block.timestamp);
         }
 
         _burn(address(this), unlocked);
