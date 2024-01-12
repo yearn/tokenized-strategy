@@ -1029,7 +1029,7 @@ contract TokenizedStrategy {
             .harvestAndReport();
 
         // Get the amount of shares we need to burn
-        uint256 unlocked = _unlockedShares();
+        uint256 sharesToBurn = _unlockedShares();
 
         // Initialize variables needed throughout.
         uint256 totalFees;
@@ -1079,16 +1079,16 @@ contract TokenizedStrategy {
                     sharesToLock = convertToShares(profit - totalFees);
                 }
 
-                // If we are unlocking more than re-locking.
-                if (unlocked > sharesToLock) {
+                // If we are burning more than re-locking.
+                if (sharesToBurn > sharesToLock) {
                     // Burn the difference
                     unchecked {
-                        _burn(address(this), unlocked - sharesToLock);
+                        _burn(address(this), sharesToBurn - sharesToLock);
                     }
-                } else if (sharesToLock > unlocked) {
+                } else if (sharesToLock > sharesToBurn) {
                     // Mint the shares to lock the strategy.
                     unchecked {
-                        _mint(address(this), sharesToLock - unlocked);
+                        _mint(address(this), sharesToLock - sharesToBurn);
                     }
                 }
             }
@@ -1115,17 +1115,15 @@ contract TokenizedStrategy {
             // Check in case else was due to being equal.
             if (loss != 0) {
                 // Add the equivalent shares to the amount to try and burn.
-                unlocked += convertToShares(loss);
+                // We will try and burn the unlocked shares and as much from any
+                // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
+                sharesToBurn = Math.min(
+                    // Cannot burn more than we have.
+                    S.balances[address(this)],
+                    // Try and burn both the shares unlocked and the amount for the loss.
+                    convertToShares(loss) + sharesToBurn
+                );
             }
-
-            // We will try and burn the unlocked shares and as much from any
-            // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
-            uint256 sharesToBurn = Math.min(
-                // Cannot burn more than we have.
-                S.balances[address(this)],
-                // Try and burn both the shares unlocked and the amount for the loss.
-                unlocked
-            );
 
             // Check if there is anything to burn.
             if (sharesToBurn != 0) {
