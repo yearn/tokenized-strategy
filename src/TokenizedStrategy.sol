@@ -1046,10 +1046,14 @@ contract TokenizedStrategy {
             }
 
             address protocolFeesRecipient;
-            uint256 performanceFeeShares;
+            uint256 totalFeeShares;
             uint256 protocolFeeShares;
             // If performance fees are 0 so will protocol fees.
             if (totalFees != 0) {
+                // We need to get the shares to issue for the fees at
+                // current PPS before any minting or burning.
+                totalFeeShares = convertToShares(totalFees);
+
                 // Get the config from the factory.
                 uint16 protocolFeeBps;
                 (protocolFeeBps, protocolFeesRecipient) = IFactory(FACTORY)
@@ -1057,19 +1061,14 @@ contract TokenizedStrategy {
 
                 // Check if there is a protocol fee to charge.
                 if (protocolFeeBps != 0) {
-                    // Calculate protocol fees based on the performance Fees.
-                    protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
-                }
-
-                // We need to get the shares to issue for the fees at
-                // current PPS before any minting or burning.
-                unchecked {
-                    performanceFeeShares = convertToShares(
-                        totalFees - protocolFees
-                    );
-                }
-                if (protocolFees != 0) {
-                    protocolFeeShares = convertToShares(protocolFees);
+                    unchecked {
+                        // Calculate protocol fees based on the performance Fees.
+                        protocolFeeShares =
+                            (totalFeeShares * protocolFeeBps) /
+                            MAX_BPS;
+                        // Need amount in underlying for event.
+                        protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
+                    }
                 }
             }
 
@@ -1095,26 +1094,31 @@ contract TokenizedStrategy {
             }
 
             // Mint fees shares to recipients.
-            if (performanceFeeShares != 0) {
-                _mint(S.performanceFeeRecipient, performanceFeeShares);
+            if (totalFeeShares != 0) {
+                unchecked {
+                    _mint(
+                        S.performanceFeeRecipient,
+                        totalFeeShares - protocolFeeShares
+                    );
+                }
             }
 
             if (protocolFeeShares != 0) {
                 _mint(protocolFeesRecipient, protocolFeeShares);
             }
         } else {
-            // Check in case else was due to being equal.
-            if (oldTotalAssets > newTotalAssets) {
-                // We have a loss.
-                unchecked {
-                    loss = oldTotalAssets - newTotalAssets;
-                }
+            // Expect we have a loss.
+            unchecked {
+                loss = oldTotalAssets - newTotalAssets;
+            }
 
+            // Check in case else was due to being equal.
+            if (loss != 0) {
                 // Add the equivalent shares to the amount to try and burn.
                 unlocked += convertToShares(loss);
             }
 
-            // We will try and burn the unlocked shares and as much from any 
+            // We will try and burn the unlocked shares and as much from any
             // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
             uint256 sharesToBurn = Math.min(
                 // Cannot burn more than we have.

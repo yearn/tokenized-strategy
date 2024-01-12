@@ -921,8 +921,8 @@ contract ProfitLockingTest is Setup {
         uint256 newAmount = _amount + profit;
 
         uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            expectedPerformanceFee
-        ) + strategy.convertToShares(expectedProtocolFee);
+            expectedPerformanceFee + expectedProtocolFee
+        );
 
         createAndCheckProfit(
             strategy,
