@@ -1028,8 +1028,8 @@ contract TokenizedStrategy {
         uint256 newTotalAssets = IBaseStrategy(address(this))
             .harvestAndReport();
 
-        // Burn unlocked shares.
-        _burnUnlockedShares();
+        // Get the amount of shares we need to burn
+        uint256 unlocked = _unlockedShares();
 
         // Initialize variables needed throughout.
         uint256 totalFees;
@@ -1079,8 +1079,19 @@ contract TokenizedStrategy {
                 unchecked {
                     sharesToLock = convertToShares(profit - totalFees);
                 }
-                // Mint the shares to lock the strategy.
-                _mint(address(this), sharesToLock);
+
+                // If we are unlocking more than re-locking.
+                if (unlocked > sharesToLock) {
+                    // Burn the difference
+                    unchecked {
+                        _burn(address(this), unlocked - sharesToLock);
+                    }
+                } else if (sharesToLock > unlocked) {
+                    // Mint the shares to lock the strategy.
+                    unchecked {
+                        _mint(address(this), sharesToLock - unlocked);
+                    }
+                }
             }
 
             // Mint fees shares to recipients.
@@ -1092,24 +1103,29 @@ contract TokenizedStrategy {
                 _mint(protocolFeesRecipient, protocolFeeShares);
             }
         } else {
-            // We have a loss.
-            unchecked {
-                loss = oldTotalAssets - newTotalAssets;
+            // Check in case else was due to being equal.
+            if (oldTotalAssets > newTotalAssets) {
+                // We have a loss.
+                unchecked {
+                    loss = oldTotalAssets - newTotalAssets;
+                }
+
+                // Add the equivalent shares to the amount to try and burn.
+                unlocked += convertToShares(loss);
             }
 
-            // Check in case else was due to being equal.
-            if (loss != 0) {
-                // We will try and burn shares from any pending profit still unlocking
-                // to offset the loss to prevent any PPS decline post report.
-                uint256 sharesToBurn = Math.min(
-                    S.balances[address(this)],
-                    convertToShares(loss)
-                );
+            // We will try and burn the unlocked shares and as much from any 
+            // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
+            uint256 sharesToBurn = Math.min(
+                // Cannot burn more than we have.
+                S.balances[address(this)],
+                // Try and burn both the shares unlocked and the amount for the loss.
+                unlocked
+            );
 
-                // Check if there is anything to burn.
-                if (sharesToBurn != 0) {
-                    _burn(address(this), sharesToBurn);
-                }
+            // Check if there is anything to burn.
+            if (sharesToBurn != 0) {
+                _burn(address(this), sharesToBurn);
             }
         }
 
@@ -1157,6 +1173,9 @@ contract TokenizedStrategy {
         S.totalIdle = newIdle;
         S.totalDebt = newTotalAssets - newIdle;
 
+        // Reset lastReport.
+        _strategyStorage().lastReport = uint128(block.timestamp);
+
         // Emit event with info
         emit Reported(
             profit,
@@ -1164,25 +1183,6 @@ contract TokenizedStrategy {
             protocolFees, // Protocol fees
             totalFees - protocolFees // Performance Fees
         );
-    }
-
-    /**
-     * @dev Called during reports to burn shares that have been unlocked
-     * since the last report.
-     *
-     * Will reset the `lastReport` since this is only called during reports.
-     */
-    function _burnUnlockedShares() private {
-        uint256 unlocked = _unlockedShares();
-
-        // Reset lastReport no matter what.
-        _strategyStorage().lastReport = uint128(block.timestamp);
-
-        if (unlocked == 0) {
-            return;
-        }
-
-        _burn(address(this), unlocked);
     }
 
     /**
