@@ -52,7 +52,7 @@ abstract contract BaseStrategy {
      * @dev Use to assure that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
-        TokenizedStrategy.isManagement(msg.sender);
+        require(TokenizedStrategy.isManagement(msg.sender), "!management");
         _;
     }
 
@@ -61,7 +61,7 @@ abstract contract BaseStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        TokenizedStrategy.isKeeperOrManagement(msg.sender);
+        require(TokenizedStrategy.isKeeperOrManagement(msg.sender), "!keeper");
         _;
     }
 
@@ -70,7 +70,10 @@ abstract contract BaseStrategy {
      * management or the emergency admin.
      */
     modifier onlyEmergencyAuthorized() {
-        TokenizedStrategy.isEmergencyAuthorized(msg.sender);
+        require(
+            TokenizedStrategy.isEmergencyAuthorized(msg.sender),
+            "!emergency authorized"
+        );
         _;
     }
 
@@ -145,7 +148,7 @@ abstract contract BaseStrategy {
         // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(
-                ITokenizedStrategy.init,
+                ITokenizedStrategy.initialize,
                 (_asset, _name, msg.sender, msg.sender, msg.sender)
             )
         );

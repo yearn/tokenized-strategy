@@ -254,7 +254,7 @@ contract TokenizedStrategy {
      * @dev Require that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
-        isManagement(msg.sender);
+        require(isManagement(msg.sender), "!management");
         _;
     }
 
@@ -263,7 +263,7 @@ contract TokenizedStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        isKeeperOrManagement(msg.sender);
+        require(isKeeperOrManagement(msg.sender), "!keeper");
         _;
     }
 
@@ -272,7 +272,7 @@ contract TokenizedStrategy {
      * management or the emergency admin.
      */
     modifier onlyEmergencyAuthorized() {
-        isEmergencyAuthorized(msg.sender);
+        require(isEmergencyAuthorized(msg.sender), "!emergency authorized");
         _;
     }
 
@@ -306,8 +306,7 @@ contract TokenizedStrategy {
      * @param _sender The original msg.sender.
      */
     function isManagement(address _sender) public view returns (bool) {
-        require(_sender == _strategyStorage().management, "!management");
-        return true;
+        return _sender == _strategyStorage().management;
     }
 
     /**
@@ -324,8 +323,7 @@ contract TokenizedStrategy {
      */
     function isKeeperOrManagement(address _sender) public view returns (bool) {
         StrategyData storage S = _strategyStorage();
-        require(_sender == S.keeper || _sender == S.management, "!keeper");
-        return true;
+        return _sender == S.keeper || _sender == S.management;
     }
 
     /**
@@ -342,11 +340,7 @@ contract TokenizedStrategy {
      */
     function isEmergencyAuthorized(address _sender) public view returns (bool) {
         StrategyData storage S = _strategyStorage();
-        require(
-            _sender == S.emergencyAdmin || _sender == S.management,
-            "!emergency authorized"
-        );
-        return true;
+        return _sender == S.emergencyAdmin || _sender == S.management;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -440,7 +434,7 @@ contract TokenizedStrategy {
      * @param _performanceFeeRecipient Address to receive performance fees.
      * @param _keeper Address to set as strategies `keeper`.
      */
-    function init(
+    function initialize(
         address _asset,
         string memory _name,
         address _management,

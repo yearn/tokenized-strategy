@@ -40,7 +40,7 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
                            INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
-    function init(
+    function initialize(
         address _asset,
         string memory _name,
         address _management,
