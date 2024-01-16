@@ -240,7 +240,7 @@ contract AccessControlTest is Setup {
         assertEq(tokenizedStrategy.keeper(), address(0));
 
         vm.expectRevert("initialized");
-        tokenizedStrategy.init(
+        tokenizedStrategy.initialize(
             address(asset),
             name_,
             _address,
