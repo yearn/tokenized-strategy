@@ -201,7 +201,7 @@ contract TokenizedStrategy {
      *
      * Loading the corresponding storage slot for the struct does not
      * load any of the contents of the struct into memory. So the size
-     * has no effect on gas usage.
+     * wont increase gas usage.
      */
     // prettier-ignore
     struct StrategyData {
@@ -488,7 +488,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                      ERC4626 WRITE FUNCTIONS
+                      ERC4626 WRITE METHODS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -631,6 +631,33 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Get the total amount of assets this strategy holds
+     * as of the last report.
+     *
+     * We manually track `totalAssets` to avoid any PPS manipulation.
+     *
+     * @return . Total assets the strategy holds.
+     */
+    function totalAssets() public view returns (uint256) {
+        return _totalAssets(_strategyStorage());
+    }
+
+    /**
+     * @notice Get the current supply of the strategies shares.
+     *
+     * Locked shares issued to the strategy from profits are not
+     * counted towards the full supply until they are unlocked.
+     *
+     * As more shares slowly unlock the totalSupply will decrease
+     * causing the PPS of the strategy to increase.
+     *
+     * @return . Total amount of shares issued.
+     */
+    function totalSupply() external view returns (uint256) {
+        return _totalSupply(_strategyStorage());
+    }
+
+    /**
      * @notice The amount of shares that the strategy would
      *  exchange for the amount of assets provided, in an
      * ideal scenario where all the conditions are met.
@@ -759,6 +786,20 @@ contract TokenizedStrategy {
     /*//////////////////////////////////////////////////////////////
                     INTERNAL 4626 VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Internal implementation of {totalAssets}.
+    function _totalAssets(
+        StrategyData storage S
+    ) internal view returns (uint256) {
+        return S.totalAssets;
+    }
+
+    /// @dev Internal implementation of {totalSupply}.
+    function _totalSupply(
+        StrategyData storage S
+    ) internal view returns (uint256) {
+        return S.totalSupply - _unlockedShares(S);
+    }
 
     /// @dev Internal implementation of {convertToShares}.
     function _convertToShares(
@@ -902,49 +943,8 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            ACCOUNTING LOGIC
+                    INTERNAL 4626 WRITE METHODS
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Get the total amount of assets this strategy holds
-     * as of the last report.
-     *
-     * We manually track `totalAssets` to avoid any PPS manipulation.
-     *
-     * @return . Total assets the strategy holds.
-     */
-    function totalAssets() public view returns (uint256) {
-        return _totalAssets(_strategyStorage());
-    }
-
-    /**
-     * @notice Get the current supply of the strategies shares.
-     *
-     * Locked shares issued to the strategy from profits are not
-     * counted towards the full supply until they are unlocked.
-     *
-     * As more shares slowly unlock the totalSupply will decrease
-     * causing the PPS of the strategy to increase.
-     *
-     * @return . Total amount of shares issued.
-     */
-    function totalSupply() external view returns (uint256) {
-        return _totalSupply(_strategyStorage());
-    }
-
-    /// @dev Internal implementation of {totalAssets}.
-    function _totalAssets(
-        StrategyData storage S
-    ) internal view returns (uint256) {
-        return S.totalAssets;
-    }
-
-    /// @dev Internal implementation of {totalSupply}.
-    function _totalSupply(
-        StrategyData storage S
-    ) internal view returns (uint256) {
-        return S.totalSupply - _unlockedShares(S);
-    }
 
     /**
      * @dev Function to be called during {deposit} and {mint}.
@@ -1298,7 +1298,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        TENDING LOGIC
+                            TENDING
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -1625,7 +1625,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        ERC20 FUNCTIONS
+                        ERC20 METHODS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -1923,7 +1923,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                             EIP-2612 LOGIC
+                            EIP-2612 LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /**
