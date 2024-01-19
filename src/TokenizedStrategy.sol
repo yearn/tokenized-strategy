@@ -1225,9 +1225,6 @@ contract TokenizedStrategy {
         S.totalAssets = newTotalAssets;
         S.lastReport = uint96(block.timestamp);
 
-        // Reset lastReport.
-        _strategyStorage().lastReport = uint128(block.timestamp);
-
         // Emit event with info
         emit Reported(
             profit,
