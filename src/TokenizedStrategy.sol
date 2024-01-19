@@ -528,6 +528,7 @@ contract TokenizedStrategy {
         _deposit(S, receiver, assets, shares);
     }
 
+
     /**
      * @notice Withdraws exactly `assets` from `owners` shares and sends
      * the underlying tokens to `receiver`.
