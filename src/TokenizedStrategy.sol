@@ -1193,14 +1193,14 @@ contract TokenizedStrategy {
      * This will callback the internal '_tend' call in the BaseStrategy
      * with the total current amount available to the strategy to deploy.
      *
-     * Keepers are expected to use protected relays in tend calls so this
-     * can be used for illiquid or manipulatable strategies to compound
+     * This is a permissioned function so if desired it could
+     * be used for illiquid or manipulatable strategies to compound
      * rewards, perform maintenance or deposit/withdraw funds.
      *
-     * This will not cause an increase in PPS. Total assets will
+     * This will not cause any change in PPS. Total assets will
      * be the same before and after.
      *
-     * A report() call will be needed to record the profit.
+     * A report() call will be needed to record any profits or losses.
      */
     function tend() external nonReentrant onlyKeepers {
         // Tend the strategy with the current loose balance.

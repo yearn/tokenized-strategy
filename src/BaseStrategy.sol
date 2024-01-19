@@ -169,7 +169,7 @@ abstract contract BaseStrategy {
      * be entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
-     * @param _amount The amount of 'asset' that the strategy should attempt
+     * @param _amount The amount of 'asset' that the strategy can attempt
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal virtual;
@@ -365,7 +365,7 @@ abstract contract BaseStrategy {
      * Unless a whitelist is implemented this will be entirely permissionless
      * and thus can be sandwiched or otherwise manipulated.
      *
-     * @param _amount The amount of 'asset' that the strategy should
+     * @param _amount The amount of 'asset' that the strategy can
      * attempt to deposit in the yield source.
      */
     function deployFunds(uint256 _amount) external virtual onlySelf {
@@ -410,7 +410,7 @@ abstract contract BaseStrategy {
      * so msg.sender == address(this).
      *
      * We name the function `tendThis` so that `tend` calls are forwarded to
-     * the TokenizedStrategy so it can do the necessary accounting.
+     * the TokenizedStrategy.
 
      * @param _totalIdle The amount of current idle funds that can be
      * deployed during the tend
@@ -427,8 +427,7 @@ abstract contract BaseStrategy {
      * the TokenizedStrategy so msg.sender == address(this).
      *
      * We name the function `shutdownWithdraw` so that `emergencyWithdraw`
-     * calls are forwarded to the TokenizedStrategy so it can do the necessary
-     * accounting after the withdraw.
+     * calls are forwarded to the TokenizedStrategy.
      *
      * @param _amount The amount of asset to attempt to free.
      */
