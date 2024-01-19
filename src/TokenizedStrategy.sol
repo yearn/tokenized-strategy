@@ -839,6 +839,7 @@ contract TokenizedStrategy {
         StrategyData storage S,
         address owner
     ) internal view returns (uint256) {
+        // Cannot deposit when shutdown.
         if (S.shutdown) return 0;
 
         return IBaseStrategy(address(this)).availableDepositLimit(owner);
@@ -849,6 +850,7 @@ contract TokenizedStrategy {
         StrategyData storage S,
         address owner
     ) internal view returns (uint256 maxMint_) {
+        // Cannot mint when shutdown.
         if (S.shutdown) return 0;
 
         maxMint_ = IBaseStrategy(address(this)).availableDepositLimit(owner);
@@ -862,10 +864,12 @@ contract TokenizedStrategy {
         StrategyData storage S,
         address owner
     ) internal view returns (uint256 maxWithdraw_) {
+        // Get the max the owner could withdraw currently.
         maxWithdraw_ = IBaseStrategy(address(this)).availableWithdrawLimit(
             owner
         );
 
+        // If there is no limit enforced.
         if (maxWithdraw_ == type(uint256).max) {
             // Saves a min check if there is no withdrawal limit.
             maxWithdraw_ = _convertToAssets(S, _balanceOf(S, owner));
@@ -882,7 +886,9 @@ contract TokenizedStrategy {
         StrategyData storage S,
         address owner
     ) internal view returns (uint256 maxRedeem_) {
+        // Get the max the owner could withdraw currently.
         maxRedeem_ = IBaseStrategy(address(this)).availableWithdrawLimit(owner);
+
         // Conversion would overflow and saves a min check if there is no withdrawal limit.
         if (maxRedeem_ == type(uint256).max) {
             maxRedeem_ = _balanceOf(S, owner);
