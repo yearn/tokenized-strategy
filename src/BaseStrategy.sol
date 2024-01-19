@@ -169,7 +169,7 @@ abstract contract BaseStrategy {
      * be entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
-     * @param _amount The amount of 'asset' that the strategy should attempt
+     * @param _amount The amount of 'asset' that the strategy can attempt
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal virtual;
@@ -245,9 +245,7 @@ abstract contract BaseStrategy {
      *       sandwiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
-     * The TokenizedStrategy contract will do all needed debt and idle updates
-     * after this has finished and will have no effect on PPS of the strategy
-     * till report() is called.
+     * This will have no effect on PPS of the strategy till report() is called.
      *
      * @param _totalIdle The current amount of idle funds that are available to deploy.
      */
@@ -367,7 +365,7 @@ abstract contract BaseStrategy {
      * Unless a whitelist is implemented this will be entirely permissionless
      * and thus can be sandwiched or otherwise manipulated.
      *
-     * @param _amount The amount of 'asset' that the strategy should
+     * @param _amount The amount of 'asset' that the strategy can
      * attempt to deposit in the yield source.
      */
     function deployFunds(uint256 _amount) external virtual onlySelf {
@@ -412,7 +410,7 @@ abstract contract BaseStrategy {
      * so msg.sender == address(this).
      *
      * We name the function `tendThis` so that `tend` calls are forwarded to
-     * the TokenizedStrategy so it can do the necessary accounting.
+     * the TokenizedStrategy.
 
      * @param _totalIdle The amount of current idle funds that can be
      * deployed during the tend
@@ -429,8 +427,7 @@ abstract contract BaseStrategy {
      * the TokenizedStrategy so msg.sender == address(this).
      *
      * We name the function `shutdownWithdraw` so that `emergencyWithdraw`
-     * calls are forwarded to the TokenizedStrategy so it can do the necessary
-     * accounting after the withdraw.
+     * calls are forwarded to the TokenizedStrategy.
      *
      * @param _amount The amount of asset to attempt to free.
      */

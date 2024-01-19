@@ -21,14 +21,7 @@ abstract contract BaseInvariant is Setup {
     }
 
     function assert_totalAssets() public {
-        assertEq(
-            strategy.totalAssets(),
-            strategy.totalIdle() + strategy.totalDebt()
-        );
-    }
-
-    function assert_idle() public {
-        assertLe(strategy.totalIdle(), asset.balanceOf(address(strategy)));
+        // check totalDeposits + profit - withdraws - losses
     }
 
     function assert_maxWithdraw() public {

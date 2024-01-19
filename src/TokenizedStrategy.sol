@@ -222,11 +222,9 @@ contract TokenizedStrategy {
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
 
 
-        // Assets data to track totals the strategy holds.
-        // We manually track idle instead of relying on asset.balanceOf(address(this))
-        // to prevent PPS manipulation through airdrops.
-        uint256 totalIdle; // The total amount of loose `asset` the strategy holds.
-        uint256 totalDebt; // The total amount `asset` that is currently deployed by the strategy.
+        // Assets data to track total the strategy holds.
+        // We manually track `totalAssets` to prevent PPS manipulation through airdrops.
+        uint256 totalAssets;
 
 
         // Variables for profit reporting and locking.
@@ -807,16 +805,12 @@ contract TokenizedStrategy {
      * @notice Get the total amount of assets this strategy holds
      * as of the last report.
      *
-     * We manually track debt and idle to avoid any PPS manipulation
-     * from donations, touch values of debt etc.
+     * We manually track `totalAssets` to avoid any PPS manipulation.
      *
      * @return . Total assets the strategy holds.
      */
     function totalAssets() public view returns (uint256) {
-        StrategyData storage S = _strategyStorage();
-        unchecked {
-            return S.totalIdle + S.totalDebt;
-        }
+        return _strategyStorage().totalAssets;
     }
 
     /**
@@ -858,28 +852,13 @@ contract TokenizedStrategy {
         // Need to transfer before minting or ERC777s could reenter.
         _asset.safeTransferFrom(msg.sender, address(this), assets);
 
-        // We will deposit up to current idle plus the new amount added
-        uint256 toDeploy = S.totalIdle + assets;
-
-        // Cache for post {deployFunds} checks.
-        uint256 beforeBalance = _asset.balanceOf(address(this));
-
-        // Deploy up to all loose funds.
-        IBaseStrategy(address(this)).deployFunds(toDeploy);
-
-        // Always get the actual amount deployed. We double check the
-        // diff against toDeploy for complete accuracy.
-        uint256 deployed = Math.min(
-            beforeBalance - _asset.balanceOf(address(this)),
-            toDeploy
+        // We can deploy the full loose balance currently held.
+        IBaseStrategy(address(this)).deployFunds(
+            _asset.balanceOf(address(this))
         );
 
         // Adjust total Assets.
-        S.totalDebt += deployed;
-        unchecked {
-            // Cant't underflow due to previous min check.
-            S.totalIdle = toDeploy - deployed;
-        }
+        S.totalAssets += assets;
 
         // mint shares
         _mint(receiver, shares);
@@ -915,29 +894,18 @@ contract TokenizedStrategy {
         // Expected behavior is to need to free funds so we cache `_asset`.
         ERC20 _asset = S.asset;
 
-        uint256 idle = S.totalIdle;
-
+        uint256 idle = _asset.balanceOf(address(this));
+        uint256 loss;
         // Check if we need to withdraw funds.
         if (idle < assets) {
-            // Cache before balance for diff checks.
-            uint256 before = _asset.balanceOf(address(this));
-
             // Tell Strategy to free what we need.
             unchecked {
                 IBaseStrategy(address(this)).freeFunds(assets - idle);
             }
 
-            // Return the actual amount withdrawn. Adjust for potential over withdraws.
-            uint256 withdrawn = Math.min(
-                _asset.balanceOf(address(this)) - before,
-                S.totalDebt
-            );
+            // Return the actual amount withdrawn. Adjust for potential under withdraws.
+            idle = _asset.balanceOf(address(this));
 
-            unchecked {
-                idle += withdrawn;
-            }
-
-            uint256 loss;
             // If we didn't get enough out then we have a loss.
             if (idle < assets) {
                 unchecked {
@@ -954,16 +922,15 @@ contract TokenizedStrategy {
                 // Lower the amount to be withdrawn.
                 assets = idle;
             }
-
-            // Update debt storage.
-            S.totalDebt -= (withdrawn + loss);
         }
 
-        // Update idle based on how much we took.
-        S.totalIdle = idle - assets;
+        // Update assets based on how much we took.
+        S.totalAssets -= (assets + loss);
 
+        // Burn the owners shares.
         _burn(owner, shares);
 
+        // Transfer the amount of underlying to the receiver.
         _asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
@@ -1013,18 +980,13 @@ contract TokenizedStrategy {
         // Cache storage pointer since its used repeatedly.
         StrategyData storage S = _strategyStorage();
 
-        uint256 oldTotalAssets;
-        unchecked {
-            // Manually calculate totalAssets to save a SLOAD.
-            oldTotalAssets = S.totalIdle + S.totalDebt;
-        }
+        uint256 oldTotalAssets = S.totalAssets;
 
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and redepositing now and
         // account for deployed and loose `asset` so we can accurately
         // account for all funds including those potentially airdropped
-        // by a trade factory. It is safe here to use asset.balanceOf()
-        // instead of totalIdle because any profits are immediately locked.
+        // and then have any profits immediately locked.
         uint256 newTotalAssets = IBaseStrategy(address(this))
             .harvestAndReport();
 
@@ -1150,13 +1112,8 @@ contract TokenizedStrategy {
             S.profitUnlockingRate = 0;
         }
 
-        // Update storage we use the actual loose here since it should have
-        // been accounted for in `harvestAndReport` and any airdropped amounts
-        // would have been locked to prevent PPS manipulation.
-        uint256 newIdle = S.asset.balanceOf(address(this));
-        S.totalIdle = newIdle;
-        S.totalDebt = newTotalAssets - newIdle;
-
+        // Update the new total assets value.
+        S.totalAssets = newTotalAssets;
         S.lastReport = uint128(block.timestamp);
 
         // Emit event with info
@@ -1236,62 +1193,20 @@ contract TokenizedStrategy {
      * This will callback the internal '_tend' call in the BaseStrategy
      * with the total current amount available to the strategy to deploy.
      *
-     * Keepers are expected to use protected relays in tend calls so this
-     * can be used for illiquid or manipulatable strategies to compound
+     * This is a permissioned function so if desired it could
+     * be used for illiquid or manipulatable strategies to compound
      * rewards, perform maintenance or deposit/withdraw funds.
      *
-     * All accounting for totalDebt and totalIdle updates will be done
-     * here post '_tend'.
+     * This will not cause any change in PPS. Total assets will
+     * be the same before and after.
      *
-     * This should never cause an increase in PPS. Total assets should
-     * be the same before and after
-     *
-     * A report() call will be needed to record the profit.
+     * A report() call will be needed to record any profits or losses.
      */
     function tend() external nonReentrant onlyKeepers {
-        // Tend the strategy with the current totalIdle.
-        IBaseStrategy(address(this)).tendThis(_strategyStorage().totalIdle);
-
-        // Update balances based on ending state.
-        _updateBalances();
-    }
-
-    /**
-     * @notice Update the internal balances that make up `totalAssets`.
-     * @dev This will update the ratio of debt and idle that make up
-     * totalAssets based on the actual current loose amount of `asset`
-     * in a safe way. But will keep `totalAssets` the same, thus having
-     * no effect on Price Per Share.
-     */
-    function _updateBalances() internal {
-        StrategyData storage S = _strategyStorage();
-
-        // Get the current loose balance.
-        uint256 assetBalance = S.asset.balanceOf(address(this));
-
-        // If its already accurate do nothing.
-        if (S.totalIdle == assetBalance) return;
-
-        // Get the total assets the strategy should have.
-        uint256 _totalAssets = totalAssets();
-
-        // If we have enough loose to cover all assets.
-        if (assetBalance >= _totalAssets) {
-            // Set idle to totalAssets.
-            S.totalIdle = _totalAssets;
-            // Set debt to 0.
-            S.totalDebt = 0;
-        } else {
-            // Otherwise idle is the actual loose balance.
-            S.totalIdle = assetBalance;
-            unchecked {
-                // And debt is the difference.
-                S.totalDebt = _totalAssets - assetBalance;
-            }
-        }
-
-        // Enforce the invariant.
-        require(_totalAssets == totalAssets(), "!totalAssets");
+        // Tend the strategy with the current loose balance.
+        IBaseStrategy(address(this)).tendThis(
+            _strategyStorage().asset.balanceOf(address(this))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1321,8 +1236,8 @@ contract TokenizedStrategy {
      * strategy has been shutdown.
      * @dev This can only be called post {shutdownStrategy}.
      *
-     * This will update totalDebt and totalIdle based on the amount of
-     * loose `asset` after the withdraw leaving `totalAssets` unchanged.
+     * This will never cause a change in PPS. Total assets will
+     * be the same before and after.
      *
      * A strategist will need to override the {_emergencyWithdraw} function
      * in their strategy for this to work.
@@ -1337,9 +1252,6 @@ contract TokenizedStrategy {
 
         // Withdraw from the yield source.
         IBaseStrategy(address(this)).shutdownWithdraw(amount);
-
-        // Record the updated balances based on the new amounts.
-        _updateBalances();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1360,22 +1272,6 @@ contract TokenizedStrategy {
      */
     function apiVersion() external pure returns (string memory) {
         return API_VERSION;
-    }
-
-    /**
-     * @notice Get the current total idle for a strategy.
-     * @return . The current amount of idle funds.
-     */
-    function totalIdle() external view returns (uint256) {
-        return _strategyStorage().totalIdle;
-    }
-
-    /**
-     * @notice Get the current total debt for a strategy.
-     * @return . The current amount of debt.
-     */
-    function totalDebt() external view returns (uint256) {
-        return _strategyStorage().totalDebt;
     }
 
     /**

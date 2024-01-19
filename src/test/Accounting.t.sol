@@ -4,8 +4,6 @@ pragma solidity 0.8.18;
 import "forge-std/console.sol";
 import {Setup, IMockStrategy} from "./utils/Setup.sol";
 
-// TODO: add checkStrategyTotals to all of these tests
-
 contract AccountingTest is Setup {
     function setUp() public override {
         super.setUp();
@@ -41,20 +39,25 @@ contract AccountingTest is Setup {
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
 
-        // nothing should change
+        // PPS shouldn't change but the balance does.
         assertEq(strategy.pricePerShare(), pricePerShare);
-        assertEq(strategy.totalDebt(), _amount);
-        assertEq(strategy.totalIdle(), 0);
+        checkStrategyTotals(
+            strategy,
+            _amount,
+            _amount - toAirdrop,
+            toAirdrop,
+            _amount
+        );
 
         uint256 beforeBalance = asset.balanceOf(_address);
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
 
-        // should have pulled out just the deposit amount
+        // should have pulled out just the deposited amount leaving the rest deployed.
         assertEq(asset.balanceOf(_address), beforeBalance + _amount);
-        assertEq(strategy.totalDebt(), 0);
-        assertEq(strategy.totalIdle(), 0);
-        assertEq(asset.balanceOf(address(strategy)), toAirdrop);
+        assertEq(asset.balanceOf(address(strategy)), 0);
+        assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
     function test_airdropDoesNotIncreasePPS_reportRecordsIt(
@@ -87,10 +90,15 @@ contract AccountingTest is Setup {
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
 
-        // nothing should change
+        // PPS shouldn't change but the balance does.
         assertEq(strategy.pricePerShare(), pricePerShare);
-        assertEq(strategy.totalDebt(), _amount);
-        assertEq(strategy.totalIdle(), 0);
+        checkStrategyTotals(
+            strategy,
+            _amount,
+            _amount - toAirdrop,
+            toAirdrop,
+            _amount
+        );
 
         // process a report to realize the gain from the airdrop
         uint256 profit;
@@ -99,8 +107,13 @@ contract AccountingTest is Setup {
 
         assertEq(strategy.pricePerShare(), pricePerShare);
         assertEq(profit, toAirdrop);
-        assertEq(strategy.totalDebt(), _amount + toAirdrop);
-        assertEq(strategy.totalIdle(), 0);
+        checkStrategyTotals(
+            strategy,
+            _amount + toAirdrop,
+            _amount + toAirdrop,
+            0,
+            _amount + toAirdrop
+        );
 
         // allow some profit to come unlocked
         skip(profitMaxUnlockTime / 2);
@@ -121,8 +134,9 @@ contract AccountingTest is Setup {
             wad + ((wad * _profitFactor) / MAX_BPS),
             MAX_BPS
         );
-        assertEq(strategy.totalDebt(), _amount + toAirdrop);
-        assertEq(strategy.totalIdle(), 0);
+
+        // Total is the same but balance has adjusted again
+        checkStrategyTotals(strategy, _amount + toAirdrop, _amount, toAirdrop);
 
         uint256 beforeBalance = asset.balanceOf(_address);
         vm.prank(_address);
@@ -133,9 +147,9 @@ contract AccountingTest is Setup {
             asset.balanceOf(_address),
             beforeBalance + _amount + toAirdrop
         );
-        assertEq(strategy.totalDebt(), 0);
-        assertEq(strategy.totalIdle(), 0);
-        assertEq(asset.balanceOf(address(strategy)), toAirdrop);
+        assertEq(asset.balanceOf(address(strategy)), 0);
+        assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
     function test_earningYieldDoesNotIncreasePPS(
@@ -170,8 +184,7 @@ contract AccountingTest is Setup {
 
         // nothing should change
         assertEq(strategy.pricePerShare(), pricePerShare);
-        assertEq(strategy.totalDebt(), _amount);
-        assertEq(strategy.totalIdle(), 0);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         uint256 beforeBalance = asset.balanceOf(_address);
         vm.prank(_address);
@@ -179,9 +192,8 @@ contract AccountingTest is Setup {
 
         // should have pulled out just the deposit amount
         assertEq(asset.balanceOf(_address), beforeBalance + _amount);
-        assertEq(strategy.totalDebt(), 0);
-        assertEq(strategy.totalIdle(), 0);
         assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
     function test_earningYieldDoesNotIncreasePPS_reportRecordsIt(
@@ -214,10 +226,10 @@ contract AccountingTest is Setup {
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(yieldSource), toAirdrop);
         assertEq(asset.balanceOf(address(yieldSource)), _amount + toAirdrop);
+
         // nothing should change
         assertEq(strategy.pricePerShare(), pricePerShare);
-        assertEq(strategy.totalDebt(), _amount);
-        assertEq(strategy.totalIdle(), 0);
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
 
         // process a report to realize the gain from the airdrop
         uint256 profit;
@@ -226,8 +238,14 @@ contract AccountingTest is Setup {
 
         assertEq(strategy.pricePerShare(), pricePerShare);
         assertEq(profit, toAirdrop);
-        assertEq(strategy.totalDebt(), _amount + toAirdrop);
-        assertEq(strategy.totalIdle(), 0);
+
+        checkStrategyTotals(
+            strategy,
+            _amount + toAirdrop,
+            _amount + toAirdrop,
+            0,
+            _amount + toAirdrop
+        );
 
         // allow some profit to come unlocked
         skip(profitMaxUnlockTime / 2);
@@ -248,8 +266,14 @@ contract AccountingTest is Setup {
             wad + ((wad * _profitFactor) / MAX_BPS),
             MAX_BPS
         );
-        assertEq(strategy.totalDebt(), _amount + toAirdrop);
-        assertEq(strategy.totalIdle(), 0);
+
+        // Total is the same.
+        checkStrategyTotals(
+            strategy,
+            _amount + toAirdrop,
+            _amount + toAirdrop,
+            0
+        );
 
         uint256 beforeBalance = asset.balanceOf(_address);
         vm.prank(_address);
@@ -260,9 +284,9 @@ contract AccountingTest is Setup {
             asset.balanceOf(_address),
             beforeBalance + _amount + toAirdrop
         );
-        assertEq(strategy.totalDebt(), 0);
-        assertEq(strategy.totalIdle(), 0);
+
         assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
     function test_tend_noIdle_harvestProfit(
@@ -287,14 +311,13 @@ contract AccountingTest is Setup {
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         asset.mint(address(strategy), toAirdrop);
         assertEq(asset.balanceOf(address(strategy)), toAirdrop);
+        checkStrategyTotals(strategy, _amount, _amount - toAirdrop, toAirdrop);
 
         vm.prank(keeper);
         strategy.tend();
 
         // Should have deposited the toAirdrop amount but no other changes
-        assertEq(strategy.totalAssets(), _amount, "!assets");
-        assertEq(strategy.totalDebt(), _amount, "1debt");
-        assertEq(strategy.totalIdle(), 0, "!idle");
+        checkStrategyTotals(strategy, _amount, _amount, 0);
         assertEq(
             asset.balanceOf(address(yieldSource)),
             _amount + toAirdrop,
@@ -320,9 +343,8 @@ contract AccountingTest is Setup {
 
         // should have pulled out the deposit plus profit that was reported but not the second airdrop
         assertEq(asset.balanceOf(user), beforeBalance + _amount + toAirdrop);
-        assertEq(strategy.totalDebt(), 0);
-        assertEq(strategy.totalIdle(), 0);
         assertEq(asset.balanceOf(address(yieldSource)), 0);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
     function test_tend_idleFunds_harvestProfit(
@@ -344,9 +366,14 @@ contract AccountingTest is Setup {
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
         uint256 expectedDeposit = _amount / 2;
-        assertEq(strategy.totalAssets(), _amount, "!assets");
-        assertEq(strategy.totalDebt(), expectedDeposit, "1debt");
-        assertEq(strategy.totalIdle(), _amount - expectedDeposit, "!idle");
+        checkStrategyTotals(
+            strategy,
+            _amount,
+            expectedDeposit,
+            _amount - expectedDeposit,
+            _amount
+        );
+
         assertEq(
             asset.balanceOf(address(yieldSource)),
             expectedDeposit,
@@ -367,9 +394,7 @@ contract AccountingTest is Setup {
         strategy.tend();
 
         // Should have withdrawn all the funds from the yield source
-        assertEq(strategy.totalAssets(), _amount, "!assets");
-        assertEq(strategy.totalDebt(), 0, "1debt");
-        assertEq(strategy.totalIdle(), _amount, "!idle");
+        checkStrategyTotals(strategy, _amount, 0, _amount, _amount);
         assertEq(asset.balanceOf(address(yieldSource)), 0, "!yieldSource");
         assertEq(asset.balanceOf(address(strategy)), _amount + toAirdrop);
         assertEq(strategy.pricePerShare(), wad, "!pps");
@@ -378,10 +403,10 @@ contract AccountingTest is Setup {
         vm.prank(keeper);
         strategy.report();
 
-        assertEq(strategy.totalAssets(), _amount + toAirdrop);
-        assertEq(strategy.totalDebt(), (_amount + toAirdrop) / 2);
-        assertEq(
-            strategy.totalIdle(),
+        checkStrategyTotals(
+            strategy,
+            _amount + toAirdrop,
+            (_amount + toAirdrop) / 2,
             (_amount + toAirdrop) - ((_amount + toAirdrop) / 2)
         );
         assertEq(
@@ -454,10 +479,8 @@ contract AccountingTest is Setup {
         uint256 afterBalance = asset.balanceOf(_address);
 
         assertEq(afterBalance - beforeBalance, expectedOut);
-        assertEq(strategy.totalDebt(), 0);
-        assertEq(strategy.totalIdle(), 0);
-        assertEq(strategy.totalSupply(), 0);
         assertEq(strategy.pricePerShare(), wad);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
     function test_redeemWithUnrealizedLoss(
@@ -490,10 +513,8 @@ contract AccountingTest is Setup {
         uint256 afterBalance = asset.balanceOf(_address);
 
         assertEq(afterBalance - beforeBalance, expectedOut);
-        assertEq(strategy.totalDebt(), 0);
-        assertEq(strategy.totalIdle(), 0);
-        assertEq(strategy.totalSupply(), 0);
         assertEq(strategy.pricePerShare(), wad);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
     function test_redeemWithUnrealizedLoss_allowNoLoss_reverts(
@@ -558,9 +579,7 @@ contract AccountingTest is Setup {
         uint256 afterBalance = asset.balanceOf(_address);
 
         assertEq(afterBalance - beforeBalance, expectedOut);
-        assertEq(strategy.totalDebt(), 0);
-        assertEq(strategy.totalIdle(), 0);
-        assertEq(strategy.totalSupply(), 0);
         assertEq(strategy.pricePerShare(), wad);
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 }
