@@ -1581,8 +1581,11 @@ contract TokenizedStrategy {
 
         // If we are setting to 0 we need to adjust amounts.
         if (_profitMaxUnlockTime == 0) {
-            // Burn all shares if applicable.
-            _burn(S, address(this), S.balances[address(this)]);
+            uint256 shares = S.balances[address(this)];
+            if (shares != 0) {
+                // Burn all shares if applicable.
+                _burn(S, address(this), shares);
+            }
             // Reset unlocking variables
             S.profitUnlockingRate = 0;
             S.fullProfitUnlockDate = 0;
