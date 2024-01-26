@@ -16,3 +16,4 @@ docs/
 
 node_modules/
 .gas-snapshot
+lcov.info
