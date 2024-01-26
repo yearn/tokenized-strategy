@@ -201,7 +201,7 @@ contract TokenizedStrategy {
      *
      * Loading the corresponding storage slot for the struct does not
      * load any of the contents of the struct into memory. So the size
-     * wont increase gas usage.
+     * will not increase gas usage.
      */
     // prettier-ignore
     struct StrategyData {
@@ -638,7 +638,7 @@ contract TokenizedStrategy {
      *
      * @return . Total assets the strategy holds.
      */
-    function totalAssets() public view returns (uint256) {
+    function totalAssets() external view returns (uint256) {
         return _totalAssets(_strategyStorage());
     }
 
@@ -1490,7 +1490,7 @@ contract TokenizedStrategy {
      * @notice To check if the strategy has been shutdown.
      * @return . Whether or not the strategy is shutdown.
      */
-    function isShutdown() public view returns (bool) {
+    function isShutdown() external view returns (bool) {
         return _strategyStorage().shutdown;
     }
 

@@ -9,17 +9,6 @@ abstract contract BaseInvariant is Setup {
         super.setUp();
     }
 
-    // Simple version used by the strategy to calculate what should be unlocked shares
-    function _unlockedShares() internal view returns (uint256 unlockedShares) {
-        uint256 _fullProfitUnlockDate = strategy.fullProfitUnlockDate();
-        if (_fullProfitUnlockDate > block.timestamp) {
-            unlockedShares =
-                (strategy.profitUnlockingRate() *
-                    (block.timestamp - strategy.lastReport())) /
-                1_000_000_000_000;
-        }
-    }
-
     function assert_totalAssets() public {
         // check totalDeposits + profit - withdraws - losses
     }
@@ -48,7 +37,7 @@ abstract contract BaseInvariant is Setup {
     function assert_unlockingTime() public {
         uint256 unlockingDate = strategy.fullProfitUnlockDate();
         uint256 balance = strategy.balanceOf(address(strategy));
-        uint256 unlockedShares = _unlockedShares();
+        uint256 unlockedShares = strategy.unlockedShares();
         if (unlockingDate != 0 && strategy.profitUnlockingRate() > 0) {
             if (block.timestamp == strategy.lastReport()) {
                 assertEq(unlockedShares, 0);
@@ -67,7 +56,7 @@ abstract contract BaseInvariant is Setup {
     }
 
     function assert_unlockedShares() public {
-        uint256 unlockedShares = _unlockedShares();
+        uint256 unlockedShares = strategy.unlockedShares();
         uint256 fullBalance = strategy.balanceOf(address(strategy)) +
             unlockedShares;
         uint256 unlockingDate = strategy.fullProfitUnlockDate();

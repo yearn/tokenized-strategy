@@ -225,6 +225,8 @@ contract CustomImplementationsTest is Setup {
                 _address != address(strategy)
         );
 
+        assertEq(strategy.emergencyAdmin(), emergencyAdmin);
+
         assertTrue(!strategy.emergentizated());
 
         vm.expectRevert("!emergency authorized");
