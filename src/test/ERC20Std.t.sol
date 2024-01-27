@@ -16,13 +16,14 @@ contract ERC20BaseTest is Setup {
         super.setUp();
     }
 
-    function invariant_metadata() public {
+    function test_metadata() public {
         assertEq(strategy.name(), "Test Strategy");
         assertEq(
             strategy.symbol(),
             string(abi.encodePacked("ys", asset.symbol()))
         );
         assertEq(strategy.decimals(), 18);
+        assertEq(strategy.apiVersion(), "3.0.2");
     }
 
     function testFuzz_mint(address account_, uint256 amount_) public {

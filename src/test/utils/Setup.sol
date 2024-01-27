@@ -214,6 +214,8 @@ contract Setup is ExtendedTest, IEvents {
             startingAssets + profit,
             "total assets wrong"
         );
+        assertEq(_strategy.lastReport(), block.timestamp, "last report");
+        assertEq(_strategy.unlockedShares(), 0, "unlocked Shares");
     }
 
     function createAndCheckLoss(
@@ -239,6 +241,7 @@ contract Setup is ExtendedTest, IEvents {
             startingAssets - loss,
             "total assets wrong"
         );
+        assertEq(_strategy.lastReport(), block.timestamp, "last report");
     }
 
     function increaseTimeAndCheckBuffer(
