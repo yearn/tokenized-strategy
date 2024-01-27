@@ -1066,8 +1066,6 @@ contract TokenizedStrategy {
         // Cache storage pointer since its used repeatedly.
         StrategyData storage S = _strategyStorage();
 
-        uint256 oldTotalAssets = S.totalAssets;
-
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and redepositing now and
         // account for deployed and loose `asset` so we can accurately
@@ -1076,7 +1074,9 @@ contract TokenizedStrategy {
         uint256 newTotalAssets = IBaseStrategy(address(this))
             .harvestAndReport();
 
-        // Get the amount of shares we need to burn
+        uint256 oldTotalAssets = _totalAssets(S);
+
+        // Get the amount of shares we need to burn from previous reports.
         uint256 sharesToBurn = _unlockedShares(S);
 
         // Initialize variables needed throughout.
@@ -1159,7 +1159,6 @@ contract TokenizedStrategy {
                     _mint(S, protocolFeesRecipient, protocolFeeShares);
                 }
             }
-
         } else {
             // Expect we have a loss.
             unchecked {
