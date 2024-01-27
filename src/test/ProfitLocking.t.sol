@@ -780,9 +780,9 @@ contract ProfitLockingTest is Setup {
 
         uint256 newAmount = _amount + profit;
 
-        uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            expectedProtocolFee + expectedPerformanceFee
-        );
+        uint256 secondExpectedSharesForFees = (strategy.convertToShares(
+            profit
+        ) * performanceFee) / MAX_BPS;
 
         createAndCheckProfit(
             strategy,
@@ -920,9 +920,9 @@ contract ProfitLockingTest is Setup {
 
         uint256 newAmount = _amount + profit;
 
-        uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            expectedPerformanceFee + expectedProtocolFee
-        );
+        uint256 secondExpectedSharesForFees = (strategy.convertToShares(
+            profit
+        ) * performanceFee) / MAX_BPS;
 
         createAndCheckProfit(
             strategy,
@@ -938,10 +938,7 @@ contract ProfitLockingTest is Setup {
             0,
             newAmount -
                 ((profit - totalExpectedFees) / 2) +
-                strategy.previewWithdraw(
-                    profit - (expectedProtocolFee + expectedPerformanceFee)
-                ) +
-                secondExpectedSharesForFees
+                strategy.convertToShares(profit)
         );
 
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);

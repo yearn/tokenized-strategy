@@ -1089,24 +1089,32 @@ contract TokenizedStrategy {
             // We have a profit.
             unchecked {
                 profit = newTotalAssets - oldTotalAssets;
-                // Asses performance fees.
-                totalFees = (profit * S.performanceFee) / MAX_BPS;
             }
 
-            address protocolFeesRecipient;
+            // We need to get the equivalent amount of shares
+            // at the current PPS before any minting or burning.
+            sharesToLock = _convertToShares(S, profit);
+
+            // Cache the performance fee.
+            uint16 fee = S.performanceFee;
             uint256 totalFeeShares;
-            uint256 protocolFeeShares;
-            // If performance fees are 0 so will protocol fees.
-            if (totalFees != 0) {
-                // We need to get the shares to issue for the fees at
-                // current PPS before any minting or burning.
-                totalFeeShares = _convertToShares(S, totalFees);
+            // If we are charging a performance fee
+            if (fee != 0) {
+                // Asses performance fees.
+                unchecked {
+                    // Get in `asset` for the event.
+                    totalFees = (profit * fee) / MAX_BPS;
+                    // And in shares for the payment.
+                    totalFeeShares = (sharesToLock * fee) / MAX_BPS;
+                }
 
-                // Get the config from the factory.
-                uint16 protocolFeeBps;
-                (protocolFeeBps, protocolFeesRecipient) = IFactory(FACTORY)
-                    .protocol_fee_config();
+                // Get the protocol fee config from the factory.
+                (
+                    uint16 protocolFeeBps,
+                    address protocolFeesRecipient
+                ) = IFactory(FACTORY).protocol_fee_config();
 
+                uint256 protocolFeeShares;
                 // Check if there is a protocol fee to charge.
                 if (protocolFeeBps != 0) {
                     unchecked {
@@ -1117,18 +1125,26 @@ contract TokenizedStrategy {
                         // Need amount in underlying for event.
                         protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
                     }
+
+                    // Mint the protocol fees to the recipient.
+                    _mint(S, protocolFeesRecipient, protocolFeeShares);
+                }
+
+                // Mint the difference to the strategy fee recipient.
+                unchecked {
+                    _mint(
+                        S,
+                        S.performanceFeeRecipient,
+                        totalFeeShares - protocolFeeShares
+                    );
                 }
             }
 
-            // we have a net profit. Check if we are locking profit.
+            // Check if we are locking profit.
             if (_profitMaxUnlockTime != 0) {
                 // lock (profit - fees)
                 unchecked {
-                    sharesToLock = _convertToShares(
-                        S,
-                        profit - totalFees,
-                        Math.Rounding.Down
-                    );
+                    sharesToLock -= totalFeeShares;
                 }
 
                 // If we are burning more than re-locking.
@@ -1144,35 +1160,20 @@ contract TokenizedStrategy {
                     }
                 }
             }
-
-            // Mint fees shares to recipients.
-            if (totalFeeShares != 0) {
-                unchecked {
-                    _mint(
-                        S,
-                        S.performanceFeeRecipient,
-                        totalFeeShares - protocolFeeShares
-                    );
-                }
-
-                if (protocolFeeShares != 0) {
-                    _mint(S, protocolFeesRecipient, protocolFeeShares);
-                }
-            }
         } else {
             // Expect we have a loss.
             unchecked {
                 loss = oldTotalAssets - newTotalAssets;
             }
 
-            // Check in case else was due to being equal.
+            // Check in case `else` was due to being equal.
             if (loss != 0) {
                 // We will try and burn the unlocked shares and as much from any
                 // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
                 sharesToBurn = Math.min(
                     // Cannot burn more than we have.
                     S.balances[address(this)],
-                    // Try and burn both the shares unlocked and the amount for the loss.
+                    // Try and burn both the shares already unlocked and the amount for the loss.
                     _convertToShares(S, loss) + sharesToBurn
                 );
             }
