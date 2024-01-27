@@ -81,6 +81,41 @@ contract AccessControlTest is Setup {
         assertEq(strategy.profitMaxUnlockTime(), amount);
     }
 
+    function test_setAllowed(address _toAllow) public {
+        vm.assume(_toAllow != management && _toAllow != keeper);
+
+        bytes4 _report = tokenizedStrategy.report.selector;
+
+        assertTrue(!strategy.isAllowed(_report, _toAllow));
+
+        vm.expectRevert("!keeper");
+        vm.prank(_toAllow);
+        strategy.report();
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit UpdateAllowed(_report, _toAllow, true);
+
+        vm.prank(management);
+        strategy.setAllowed(_report, _toAllow, true);
+
+        assertTrue(strategy.isAllowed(_report, _toAllow));
+
+        vm.prank(_toAllow);
+        strategy.report();
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit UpdateAllowed(_report, _toAllow, false);
+
+        vm.prank(management);
+        strategy.setAllowed(_report, _toAllow, false);
+
+        assertTrue(!strategy.isAllowed(_report, _toAllow));
+
+        vm.expectRevert("!keeper");
+        vm.prank(_toAllow);
+        strategy.report();
+    }
+
     function test_shutdown() public {
         assertTrue(!strategy.isShutdown());
 

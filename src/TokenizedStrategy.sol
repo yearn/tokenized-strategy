@@ -118,6 +118,15 @@ contract TokenizedStrategy {
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 
     /**
+     * @notice Emitted when the a `sender`s status for a certain `selector` is updated.
+     */
+    event UpdateAllowed(
+        bytes4 indexed selector,
+        address indexed sender,
+        bool indexed allowed
+    );
+
+    /**
      * @notice Emitted when a strategy is shutdown.
      */
     event StrategyShutdown();
@@ -242,6 +251,9 @@ contract TokenizedStrategy {
         address keeper; // Address given permission to call {report} and {tend}.
         address pendingManagement; // Address that is pending to take over `management`.
         address emergencyAdmin; // Address to act in emergencies as well as `management`.
+        mapping(bytes4 => mapping(address => bool)) allowed; // Mapping from a function selector to if an address can call it.
+     
+        // Strategy status checks.
         bool entered; // Bool to prevent reentrancy.
         bool shutdown; // Bool that can be used to stop deposits into the strategy.
     }
@@ -254,7 +266,10 @@ contract TokenizedStrategy {
      * @dev Require that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
-        require(isManagement(msg.sender), "!management");
+        require(
+            isManagement(msg.sender) || isAllowed(msg.sig, msg.sender),
+            "!management"
+        );
         _;
     }
 
@@ -263,7 +278,10 @@ contract TokenizedStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        require(isKeeperOrManagement(msg.sender), "!keeper");
+        require(
+            isKeeperOrManagement(msg.sender) || isAllowed(msg.sig, msg.sender),
+            "!keeper"
+        );
         _;
     }
 
@@ -272,7 +290,10 @@ contract TokenizedStrategy {
      * management or the emergency admin.
      */
     modifier onlyEmergencyAuthorized() {
-        require(isEmergencyAuthorized(msg.sender), "!emergency authorized");
+        require(
+            isEmergencyAuthorized(msg.sender) || isAllowed(msg.sig, msg.sender),
+            "!emergency authorized"
+        );
         _;
     }
 
@@ -1482,6 +1503,26 @@ contract TokenizedStrategy {
     }
 
     /**
+     * @notice To check if a sender was given the ability to call
+     *  as specific function based on its selector.
+     * @dev Is left public so that it can be used by the Strategy.
+     *
+     * When the Strategy calls this the msg.sender would be the
+     * address of the strategy so we need to specify the sender.
+     *
+     * Will return `true` if the check passed.
+     *
+     * @param _selector The functions selector.
+     * @param _sender The original msg.sender.
+     */
+    function isAllowed(
+        bytes4 _selector,
+        address _sender
+    ) public view returns (bool) {
+        return _strategyStorage().allowed[_selector][_sender];
+    }
+
+    /**
      * @notice To check if the strategy has been shutdown.
      * @return . Whether or not the strategy is shutdown.
      */
@@ -1617,6 +1658,16 @@ contract TokenizedStrategy {
         S.profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
+    }
+
+    function setAllowed(
+        bytes4 _selector,
+        address _sender,
+        bool _allowed
+    ) external onlyManagement {
+        _strategyStorage().allowed[_selector][_sender] = _allowed;
+
+        emit UpdateAllowed(_selector, _sender, _allowed);
     }
 
     /*//////////////////////////////////////////////////////////////

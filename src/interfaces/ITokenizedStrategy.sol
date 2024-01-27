@@ -78,6 +78,11 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         address _sender
     ) external view returns (bool);
 
+    function isAllowed(
+        bytes4 _selector,
+        address _sender
+    ) external view returns (bool);
+
     /*//////////////////////////////////////////////////////////////
                         KEEPERS FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -147,6 +152,12 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     ) external;
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external;
+
+    function setAllowed(
+        bytes4 _selector,
+        address _sender,
+        bool _allowed
+    ) external;
 
     function shutdownStrategy() external;
 

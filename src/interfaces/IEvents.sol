@@ -44,6 +44,12 @@ interface IEvents {
      */
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 
+    event UpdateAllowed(
+        bytes4 indexed selector,
+        address indexed sender,
+        bool indexed allowed
+    );
+
     /**
      * @notice Emitted when a strategy is shutdown.
      */
