@@ -244,18 +244,18 @@ contract TokenizedStrategy {
         uint32 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
         uint16 performanceFee; // The percent in basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
+        bool shutdown; // Bool that can be used to stop deposits into the strategy.
+    }
 
-
+    struct Management {
+        // Strategy status checks.
+        bool entered; // Bool to prevent reentrancy.
         // Access management variables.
         address management; // Main address that can set all configurable variables.
         address keeper; // Address given permission to call {report} and {tend}.
         address pendingManagement; // Address that is pending to take over `management`.
         address emergencyAdmin; // Address to act in emergencies as well as `management`.
         mapping(bytes4 => mapping(address => bool)) allowed; // Mapping from a function selector to if an address can call it.
-     
-        // Strategy status checks.
-        bool entered; // Bool to prevent reentrancy.
-        bool shutdown; // Bool that can be used to stop deposits into the strategy.
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -302,7 +302,7 @@ contract TokenizedStrategy {
      * Placed over all state changing functions for increased safety.
      */
     modifier nonReentrant() {
-        StrategyData storage S = _strategyStorage();
+        Management storage S = _managementStorage();
         // On the first call to nonReentrant, `entered` will be false
         require(!S.entered, "ReentrancyGuard: reentrant call");
 
@@ -327,7 +327,7 @@ contract TokenizedStrategy {
      * @param _sender The original msg.sender.
      */
     function isManagement(address _sender) public view returns (bool) {
-        return _sender == _strategyStorage().management;
+        return _sender == _managementStorage().management;
     }
 
     /**
@@ -343,7 +343,7 @@ contract TokenizedStrategy {
      * @param _sender The original msg.sender.
      */
     function isKeeperOrManagement(address _sender) public view returns (bool) {
-        StrategyData storage S = _strategyStorage();
+        Management storage S = _managementStorage();
         return _sender == S.keeper || _sender == S.management;
     }
 
@@ -360,7 +360,7 @@ contract TokenizedStrategy {
      * @param _sender The original msg.sender.
      */
     function isEmergencyAuthorized(address _sender) public view returns (bool) {
-        StrategyData storage S = _strategyStorage();
+        Management storage S = _managementStorage();
         return _sender == S.emergencyAdmin || _sender == S.management;
     }
 
@@ -409,6 +409,9 @@ contract TokenizedStrategy {
     bytes32 internal constant BASE_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
+    bytes32 internal constant MANAGEMENT_STRATEGY_STORAGE =
+        bytes32(uint256(keccak256("yearn.management.strategy.storage")) - 1);
+
     /*//////////////////////////////////////////////////////////////
                     STORAGE GETTER FUNCTION
     //////////////////////////////////////////////////////////////*/
@@ -425,6 +428,15 @@ contract TokenizedStrategy {
         // Since STORAGE_SLOT is a constant, we have to put a variable
         // on the stack to access it from an inline assembly block.
         bytes32 slot = BASE_STRATEGY_STORAGE;
+        assembly {
+            S.slot := slot
+        }
+    }
+
+    function _managementStorage() internal pure returns (Management storage S) {
+        // Since STORAGE_SLOT is a constant, we have to put a variable
+        // on the stack to access it from an inline assembly block.
+        bytes32 slot = MANAGEMENT_STRATEGY_STORAGE;
         assembly {
             S.slot := slot
         }
@@ -494,9 +506,9 @@ contract TokenizedStrategy {
 
         // Set the default management address. Can't be 0.
         require(_management != address(0), "ZERO ADDRESS");
-        S.management = _management;
+        _managementStorage().management = _management;
         // Set the keeper address
-        S.keeper = _keeper;
+        _managementStorage().keeper = _keeper;
 
         // Emit event to signal a new strategy has been initialized.
         emit NewTokenizedStrategy(address(this), _asset, API_VERSION);
@@ -1412,7 +1424,7 @@ contract TokenizedStrategy {
      * @return . Address of management
      */
     function management() external view returns (address) {
-        return _strategyStorage().management;
+        return _managementStorage().management;
     }
 
     /**
@@ -1420,7 +1432,7 @@ contract TokenizedStrategy {
      * @return . Address of pendingManagement
      */
     function pendingManagement() external view returns (address) {
-        return _strategyStorage().pendingManagement;
+        return _managementStorage().pendingManagement;
     }
 
     /**
@@ -1428,7 +1440,7 @@ contract TokenizedStrategy {
      * @return . Address of the keeper
      */
     function keeper() external view returns (address) {
-        return _strategyStorage().keeper;
+        return _managementStorage().keeper;
     }
 
     /**
@@ -1436,7 +1448,7 @@ contract TokenizedStrategy {
      * @return . Address of the emergencyAdmin
      */
     function emergencyAdmin() external view returns (address) {
-        return _strategyStorage().emergencyAdmin;
+        return _managementStorage().emergencyAdmin;
     }
 
     /**
@@ -1518,7 +1530,7 @@ contract TokenizedStrategy {
         bytes4 _selector,
         address _sender
     ) public view returns (bool) {
-        return _strategyStorage().allowed[_selector][_sender];
+        return _managementStorage().allowed[_selector][_sender];
     }
 
     /**
@@ -1545,7 +1557,7 @@ contract TokenizedStrategy {
      */
     function setPendingManagement(address _management) external onlyManagement {
         require(_management != address(0), "ZERO ADDRESS");
-        _strategyStorage().pendingManagement = _management;
+        _managementStorage().pendingManagement = _management;
 
         emit UpdatePendingManagement(_management);
     }
@@ -1555,9 +1567,12 @@ contract TokenizedStrategy {
      * @dev Can only be called by the current `pendingManagement`.
      */
     function acceptManagement() external {
-        require(msg.sender == _strategyStorage().pendingManagement, "!pending");
-        _strategyStorage().management = msg.sender;
-        _strategyStorage().pendingManagement = address(0);
+        require(
+            msg.sender == _managementStorage().pendingManagement,
+            "!pending"
+        );
+        _managementStorage().management = msg.sender;
+        _managementStorage().pendingManagement = address(0);
 
         emit UpdateManagement(msg.sender);
     }
@@ -1569,7 +1584,7 @@ contract TokenizedStrategy {
      * @param _keeper New address to set `keeper` to.
      */
     function setKeeper(address _keeper) external onlyManagement {
-        _strategyStorage().keeper = _keeper;
+        _managementStorage().keeper = _keeper;
 
         emit UpdateKeeper(_keeper);
     }
@@ -1583,7 +1598,7 @@ contract TokenizedStrategy {
     function setEmergencyAdmin(
         address _emergencyAdmin
     ) external onlyManagement {
-        _strategyStorage().emergencyAdmin = _emergencyAdmin;
+        _managementStorage().emergencyAdmin = _emergencyAdmin;
 
         emit UpdateEmergencyAdmin(_emergencyAdmin);
     }
@@ -1664,7 +1679,7 @@ contract TokenizedStrategy {
         address _sender,
         bool _allowed
     ) external onlyManagement {
-        _strategyStorage().allowed[_selector][_sender] = _allowed;
+        _managementStorage().allowed[_selector][_sender] = _allowed;
 
         emit UpdateAllowed(_selector, _sender, _allowed);
     }
