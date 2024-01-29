@@ -229,7 +229,7 @@ contract TokenizedStrategy {
 
 
         // Variables for profit reporting and locking.
-        // We use uint96 for time stamps to fit in the same slot as an address.
+        // We use uint96 for timestamps to fit in the same slot as an address.
         // We will surely all be dead by the time the slot overflows.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
         uint96 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
