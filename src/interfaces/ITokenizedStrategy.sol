@@ -82,14 +82,6 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function requireEmergencyAuthorized(address _sender) external view;
 
-    function isManagement(address _sender) external view returns (bool);
-
-    function isKeeperOrManagement(address _sender) external view returns (bool);
-
-    function isEmergencyAuthorized(
-        address _sender
-    ) external view returns (bool);
-
     /*//////////////////////////////////////////////////////////////
                         KEEPERS FUNCTIONS
     //////////////////////////////////////////////////////////////*/
