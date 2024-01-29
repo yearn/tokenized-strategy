@@ -52,7 +52,7 @@ abstract contract BaseStrategy {
      * @dev Use to assure that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
-        require(TokenizedStrategy.isManagement(msg.sender), "!management");
+        TokenizedStrategy.checkManagement(msg.sender);
         _;
     }
 
@@ -61,7 +61,7 @@ abstract contract BaseStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        require(TokenizedStrategy.isKeeperOrManagement(msg.sender), "!keeper");
+        TokenizedStrategy.checkKeeperOrManagement(msg.sender);
         _;
     }
 
@@ -70,10 +70,7 @@ abstract contract BaseStrategy {
      * management or the emergency admin.
      */
     modifier onlyEmergencyAuthorized() {
-        require(
-            TokenizedStrategy.isEmergencyAuthorized(msg.sender),
-            "!emergency authorized"
-        );
+        TokenizedStrategy.checkEmergencyAuthorized(msg.sender);
         _;
     }
 

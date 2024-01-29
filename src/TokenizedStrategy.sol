@@ -260,7 +260,7 @@ contract TokenizedStrategy {
      * @dev Require that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
-        require(isManagement(msg.sender), "!management");
+        checkManagement(msg.sender);
         _;
     }
 
@@ -269,7 +269,7 @@ contract TokenizedStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        require(isKeeperOrManagement(msg.sender), "!keeper");
+        checkKeeperOrManagement(msg.sender);
         _;
     }
 
@@ -278,7 +278,7 @@ contract TokenizedStrategy {
      * management or the emergency admin.
      */
     modifier onlyEmergencyAuthorized() {
-        require(isEmergencyAuthorized(msg.sender), "!emergency authorized");
+        checkEmergencyAuthorized(msg.sender);
         _;
     }
 
@@ -301,7 +301,22 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice To check if a sender is the management for a specific strategy.
+     * @notice To check if a caller is `management`.
+     * @dev Is left public so that it can be used by the Strategy.
+     *
+     * When the Strategy calls this the msg.sender would be the
+     * address of the strategy so we need to specify the sender.
+     *
+     * Will revert if check fails.
+     *
+     * @param _sender The original msg.sender.
+     */
+    function checkManagement(address _sender) public view {
+        require(isManagement(_sender), "!management");
+    }
+
+    /**
+     * @notice Return if a caller is `management`.
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
@@ -316,8 +331,22 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice To check if a sender is the keeper or management
-     * for a specific strategy.
+     * @notice To check if a caller is the `keeper` or `management`.
+     * @dev Is left public so that it can be used by the Strategy.
+     *
+     * When the Strategy calls this the msg.sender would be the
+     * address of the strategy so we need to specify the sender.
+     *
+     * Will revert if check fails.
+     *
+     * @param _sender The original msg.sender.
+     */
+    function checkKeeperOrManagement(address _sender) public view {
+        require(isKeeperOrManagement(_sender), "!keeper");
+    }
+
+    /**
+     * @notice Return if a caller is the `keeper` OR `management`
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
@@ -333,8 +362,22 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice To check if a sender is the keeper or emergency admin
-     * for a specific strategy.
+     * @notice To check if a caller is the `management` or `emergencyAdmin`.
+     * @dev Is left public so that it can be used by the Strategy.
+     *
+     * When the Strategy calls this the msg.sender would be the
+     * address of the strategy so we need to specify the sender.
+     *
+     * Will revert if check fails.
+     *
+     * @param _sender The original msg.sender.
+     */
+    function checkEmergencyAuthorized(address _sender) public view {
+        require(isEmergencyAuthorized(_sender), "!emergency authorized");
+    }
+
+    /**
+     * @notice Return if a caller is the `management` or `emergencyAdmin`.
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
@@ -1521,9 +1564,10 @@ contract TokenizedStrategy {
      * @dev Can only be called by the current `pendingManagement`.
      */
     function acceptManagement() external {
-        require(msg.sender == _strategyStorage().pendingManagement, "!pending");
-        _strategyStorage().management = msg.sender;
-        _strategyStorage().pendingManagement = address(0);
+        StrategyData storage S = _strategyStorage();
+        require(msg.sender == S.pendingManagement, "!pending");
+        S.management = msg.sender;
+        S.pendingManagement = address(0);
 
         emit UpdateManagement(msg.sender);
     }
