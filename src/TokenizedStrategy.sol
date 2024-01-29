@@ -243,11 +243,9 @@ contract TokenizedStrategy {
         address pendingManagement; // Address that is pending to take over `management`.
         address emergencyAdmin; // Address to act in emergencies as well as `management`.
 
-     
-        // Strategy status checks.
-        bool entered; // Bool to prevent reentrancy.
-        bool shutdown; // Bool that can be used to stop deposits into the strategy. 
-
+        // Strategy Status
+        uint8 entered; // To prevent reentrancy. Use uint8 for gas savings.
+        bool shutdown; // Bool that can be used to stop deposits into the strategy.
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -287,15 +285,15 @@ contract TokenizedStrategy {
     modifier nonReentrant() {
         StrategyData storage S = _strategyStorage();
         // On the first call to nonReentrant, `entered` will be false
-        require(!S.entered, "ReentrancyGuard: reentrant call");
+        require(S.entered != ENTERED, "ReentrancyGuard: reentrant call");
 
         // Any calls to nonReentrant after this point will fail
-        S.entered = true;
+        S.entered = ENTERED;
 
         _;
 
         // Reset to false once call has finished
-        S.entered = false;
+        S.entered = NOT_ENTERED;
     }
 
     /**
@@ -349,13 +347,18 @@ contract TokenizedStrategy {
     /// @notice API version this TokenizedStrategy implements.
     string internal constant API_VERSION = "3.0.2";
 
+    /// @notice Value to set the `entered` flag to during a call.
+    uint8 internal constant ENTERED = 2;
+    /// @notice Value to set the `entered` flag to at the end of the call.
+    uint8 internal constant NOT_ENTERED = 1;
+
+    /// @notice Maximum in Basis Points the Performance Fee can be set to.
+    uint16 public constant MAX_FEE = 5_000; // 50%
+
     /// @notice Used for fee calculations.
     uint256 internal constant MAX_BPS = 10_000;
     /// @notice Used for profit unlocking rate calculations.
     uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
-
-    /// @notice Maximum in Basis Points the Performance Fee can be set to.
-    uint16 public constant MAX_FEE = 5_000; // 50%
 
     /// @notice Seconds per year for max profit unlocking time.
     uint256 internal constant SECONDS_PER_YEAR = 31_556_952; // 365.2425 days
