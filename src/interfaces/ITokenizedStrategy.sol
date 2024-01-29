@@ -11,23 +11,13 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event UpdatePendingManagement(address indexed newPendingManagement);
-
-    event UpdateManagement(address indexed newManagement);
-
-    event UpdateKeeper(address indexed newKeeper);
-
-    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
-
-    event UpdatePerformanceFee(uint16 newPerformanceFee);
-
-    event UpdatePerformanceFeeRecipient(
-        address indexed newPerformanceFeeRecipient
-    );
-
-    event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
-
     event StrategyShutdown();
+
+    event NewTokenizedStrategy(
+        address indexed strategy,
+        address indexed asset,
+        string apiVersion
+    );
 
     event Reported(
         uint256 profit,
@@ -36,11 +26,21 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         uint256 performanceFees
     );
 
-    event NewTokenizedStrategy(
-        address indexed strategy,
-        address indexed asset,
-        string apiVersion
+    event UpdatePerformanceFeeRecipient(
+        address indexed newPerformanceFeeRecipient
     );
+
+    event UpdateKeeper(address indexed newKeeper);
+
+    event UpdatePerformanceFee(uint16 newPerformanceFee);
+
+    event UpdateManagement(address indexed newManagement);
+
+    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
+
+    event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
+
+    event UpdatePendingManagement(address indexed newPendingManagement);
 
     /*//////////////////////////////////////////////////////////////
                            INITIALIZATION
@@ -73,14 +73,14 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     ) external returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
-                            MODIFIERS
+                        MODIFIER HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function checkManagement(address _sender) external view;
+    function requireManagement(address _sender) external view;
 
-    function checkKeeperOrManagement(address _sender) external view;
+    function requireKeeperOrManagement(address _sender) external view;
 
-    function checkEmergencyAuthorized(address _sender) external view;
+    function requireEmergencyAuthorized(address _sender) external view;
 
     function isManagement(address _sender) external view returns (bool);
 

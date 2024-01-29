@@ -78,31 +78,31 @@ contract TokenizedStrategy {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+    /**
+     * @notice Emitted when a strategy is shutdown.
+     */
+    event StrategyShutdown();
 
     /**
-     * @notice Emitted when the 'pendingManagement' address is updated to 'newPendingManagement'.
+     * @notice Emitted on the initialization of any new `strategy` that uses `asset`
+     * with this specific `apiVersion`.
      */
-    event UpdatePendingManagement(address indexed newPendingManagement);
+    event NewTokenizedStrategy(
+        address indexed strategy,
+        address indexed asset,
+        string apiVersion
+    );
 
     /**
-     * @notice Emitted when the 'management' address is updated to 'newManagement'.
+     * @notice Emitted when the strategy reports `profit` or `loss` and
+     * `performanceFees` and `protocolFees` are paid out.
      */
-    event UpdateManagement(address indexed newManagement);
-
-    /**
-     * @notice Emitted when the 'keeper' address is updated to 'newKeeper'.
-     */
-    event UpdateKeeper(address indexed newKeeper);
-
-    /**
-     * @notice Emitted when the 'emergencyAdmin' address is updated to 'newEmergencyAdmin'.
-     */
-    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
-
-    /**
-     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
-     */
-    event UpdatePerformanceFee(uint16 newPerformanceFee);
+    event Reported(
+        uint256 profit,
+        uint256 loss,
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
 
     /**
      * @notice Emitted when the 'performanceFeeRecipient' address is
@@ -113,22 +113,34 @@ contract TokenizedStrategy {
     );
 
     /**
+     * @notice Emitted when the 'keeper' address is updated to 'newKeeper'.
+     */
+    event UpdateKeeper(address indexed newKeeper);
+
+    /**
+     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
+     */
+    event UpdatePerformanceFee(uint16 newPerformanceFee);
+
+    /**
+     * @notice Emitted when the 'management' address is updated to 'newManagement'.
+     */
+    event UpdateManagement(address indexed newManagement);
+
+    /**
+     * @notice Emitted when the 'emergencyAdmin' address is updated to 'newEmergencyAdmin'.
+     */
+    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
+
+    /**
      * @notice Emitted when the 'profitMaxUnlockTime' is updated to 'newProfitMaxUnlockTime'.
      */
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 
     /**
-     * @notice Emitted when a strategy is shutdown.
+     * @notice Emitted when the 'pendingManagement' address is updated to 'newPendingManagement'.
      */
-    event StrategyShutdown();
-
-    /**
-     * @notice Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
+    event UpdatePendingManagement(address indexed newPendingManagement);
 
     /**
      * @notice Emitted when the allowance of a `spender` for an `owner` is set by
@@ -139,6 +151,14 @@ contract TokenizedStrategy {
         address indexed spender,
         uint256 value
     );
+
+    /**
+     * @notice Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
 
     /**
      * @notice Emitted when the `caller` has exchanged `assets` for `shares`,
@@ -161,27 +181,6 @@ contract TokenizedStrategy {
         address indexed owner,
         uint256 assets,
         uint256 shares
-    );
-
-    /**
-     * @notice Emitted when the strategy reports `profit` or `loss` and
-     * `performanceFees` and `protocolFees` are paid out.
-     */
-    event Reported(
-        uint256 profit,
-        uint256 loss,
-        uint256 protocolFees,
-        uint256 performanceFees
-    );
-
-    /**
-     * @notice Emitted on the initialization of any new `strategy` that uses `asset`
-     * with this specific `apiVersion`.
-     */
-    event NewTokenizedStrategy(
-        address indexed strategy,
-        address indexed asset,
-        string apiVersion
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -223,7 +222,6 @@ contract TokenizedStrategy {
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
 
 
-        // Assets data to track total the strategy holds.
         // We manually track `totalAssets` to prevent PPS manipulation through airdrops.
         uint256 totalAssets;
 
@@ -260,7 +258,7 @@ contract TokenizedStrategy {
      * @dev Require that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
-        checkManagement(msg.sender);
+        requireManagement(msg.sender);
         _;
     }
 
@@ -269,7 +267,7 @@ contract TokenizedStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        checkKeeperOrManagement(msg.sender);
+        requireKeeperOrManagement(msg.sender);
         _;
     }
 
@@ -278,7 +276,7 @@ contract TokenizedStrategy {
      * management or the emergency admin.
      */
     modifier onlyEmergencyAuthorized() {
-        checkEmergencyAuthorized(msg.sender);
+        requireEmergencyAuthorized(msg.sender);
         _;
     }
 
@@ -301,17 +299,15 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice To check if a caller is `management`.
+     * @notice Require a caller is `management`.
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
      *
-     * Will revert if check fails.
-     *
      * @param _sender The original msg.sender.
      */
-    function checkManagement(address _sender) public view {
+    function requireManagement(address _sender) public view {
         require(isManagement(_sender), "!management");
     }
 
@@ -331,17 +327,15 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice To check if a caller is the `keeper` or `management`.
+     * @notice Require a caller is the `keeper` or `management`.
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
      *
-     * Will revert if check fails.
-     *
      * @param _sender The original msg.sender.
      */
-    function checkKeeperOrManagement(address _sender) public view {
+    function requireKeeperOrManagement(address _sender) public view {
         require(isKeeperOrManagement(_sender), "!keeper");
     }
 
@@ -362,17 +356,15 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice To check if a caller is the `management` or `emergencyAdmin`.
+     * @notice Require a caller is the `management` or `emergencyAdmin`.
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
      *
-     * Will revert if check fails.
-     *
      * @param _sender The original msg.sender.
      */
-    function checkEmergencyAuthorized(address _sender) public view {
+    function requireEmergencyAuthorized(address _sender) public view {
         require(isEmergencyAuthorized(_sender), "!emergency authorized");
     }
 
@@ -438,7 +430,7 @@ contract TokenizedStrategy {
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
     /*//////////////////////////////////////////////////////////////
-                    STORAGE GETTER FUNCTION
+                        STORAGE GETTER
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -459,7 +451,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                INITIALIZATION OF DEFAULT STORAGE
+                          INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -546,6 +538,7 @@ contract TokenizedStrategy {
         uint256 assets,
         address receiver
     ) external nonReentrant returns (uint256 shares) {
+        // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         // Checking max deposit will also check if shutdown.
         require(
@@ -569,6 +562,7 @@ contract TokenizedStrategy {
         uint256 shares,
         address receiver
     ) external nonReentrant returns (uint256 assets) {
+        // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         // Checking max mint will also check if shutdown.
         require(shares <= _maxMint(S, receiver), "ERC4626: mint more than max");
@@ -611,6 +605,7 @@ contract TokenizedStrategy {
         address owner,
         uint256 maxLoss
     ) public nonReentrant returns (uint256 shares) {
+        // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         require(
             assets <= _maxWithdraw(S, owner),
@@ -657,6 +652,7 @@ contract TokenizedStrategy {
         address owner,
         uint256 maxLoss
     ) public nonReentrant returns (uint256) {
+        // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         require(
             shares <= _maxRedeem(S, owner),
