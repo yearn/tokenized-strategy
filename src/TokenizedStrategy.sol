@@ -213,9 +213,10 @@ contract TokenizedStrategy {
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals that `asset` and strategy use.
+        uint88 INITIAL_CHAIN_ID; // The initial chain id when the strategy was created.
+
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued.
-        uint256 INITIAL_CHAIN_ID; // The initial chain id when the strategy was created.
         bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain separator used for permits on the initial chain.
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
@@ -228,22 +229,27 @@ contract TokenizedStrategy {
 
 
         // Variables for profit reporting and locking.
-        // We use uint128 for time stamps which is 1,025 years in the future.
+        // We use uint96 for time stamps to fit in the same slot as an address.
+        // We will surely all be dead by the time the slot overflows.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
-        uint128 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
-        uint128 lastReport; // The last time a {report} was called.
+        uint96 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
+        address keeper; // Address given permission to call {report} and {tend}.
         uint32 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
         uint16 performanceFee; // The percent in basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
+        uint96 lastReport; // The last time a {report} was called.
 
 
         // Access management variables.
         address management; // Main address that can set all configurable variables.
-        address keeper; // Address given permission to call {report} and {tend}.
         address pendingManagement; // Address that is pending to take over `management`.
         address emergencyAdmin; // Address to act in emergencies as well as `management`.
+
+     
+        // Strategy status checks.
         bool entered; // Bool to prevent reentrancy.
-        bool shutdown; // Bool that can be used to stop deposits into the strategy.
+        bool shutdown; // Bool that can be used to stop deposits into the strategy. 
+
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -460,7 +466,8 @@ contract TokenizedStrategy {
         // Set decimals based off the `asset`.
         S.decimals = ERC20(_asset).decimals();
         // Set initial chain id for permit replay protection
-        S.INITIAL_CHAIN_ID = block.chainid;
+        require(block.chainid < type(uint88).max, "invalid chain id");
+        S.INITIAL_CHAIN_ID = uint88(block.chainid);
         // Set the initial domain separator for permit functions
         S.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator(S);
 
@@ -475,7 +482,7 @@ contract TokenizedStrategy {
         // Default to a 10% performance fee.
         S.performanceFee = 1_000;
         // Set last report to this block.
-        S.lastReport = uint128(block.timestamp);
+        S.lastReport = uint96(block.timestamp);
 
         // Set the default management address. Can't be 0.
         require(_management != address(0), "ZERO ADDRESS");
@@ -1197,7 +1204,7 @@ contract TokenizedStrategy {
         uint256 totalLockedShares = S.balances[address(this)];
         if (totalLockedShares != 0) {
             uint256 previouslyLockedTime;
-            uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+            uint96 _fullProfitUnlockDate = S.fullProfitUnlockDate;
             // Check if we need to account for shares still unlocking.
             if (_fullProfitUnlockDate > block.timestamp) {
                 unchecked {
@@ -1221,7 +1228,7 @@ contract TokenizedStrategy {
                 newProfitLockingPeriod;
 
             // Calculate how long until the full amount of shares is unlocked.
-            S.fullProfitUnlockDate = uint128(
+            S.fullProfitUnlockDate = uint96(
                 block.timestamp + newProfitLockingPeriod
             );
         } else {
@@ -1232,7 +1239,7 @@ contract TokenizedStrategy {
 
         // Update the new total assets value.
         S.totalAssets = newTotalAssets;
-        S.lastReport = uint128(block.timestamp);
+        S.lastReport = uint96(block.timestamp);
 
         // Emit event with info
         emit Reported(
@@ -1258,7 +1265,7 @@ contract TokenizedStrategy {
 
         // update variables (done here to keep _unlockedShares() as a view function)
         if (S.fullProfitUnlockDate > block.timestamp) {
-            S.lastReport = uint128(block.timestamp);
+            S.lastReport = uint96(block.timestamp);
         }
 
         _burn(S, address(this), unlocked);
@@ -1284,7 +1291,7 @@ contract TokenizedStrategy {
     function _unlockedShares(
         StrategyData storage S
     ) internal view returns (uint256 unlocked) {
-        uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+        uint96 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         if (_fullProfitUnlockDate > block.timestamp) {
             unchecked {
                 unlocked =
