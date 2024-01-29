@@ -36,6 +36,12 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         uint256 performanceFees
     );
 
+    event NewTokenizedStrategy(
+        address indexed strategy,
+        address indexed asset,
+        string apiVersion
+    );
+
     /*//////////////////////////////////////////////////////////////
                            INITIALIZATION
     //////////////////////////////////////////////////////////////*/
@@ -69,6 +75,12 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
+
+    function checkManagement(address _sender) external view;
+
+    function checkKeeperOrManagement(address _sender) external view;
+
+    function checkEmergencyAuthorized(address _sender) external view;
 
     function isManagement(address _sender) external view returns (bool);
 
