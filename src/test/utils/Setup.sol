@@ -279,8 +279,8 @@ contract Setup is ExtendedTest, IEvents {
         TokenizedStrategy.StrategyData storage S = _strategyStorage();
 
         assembly {
-            // Perf fee is stored in the 12th slot of the Struct.
-            slot := add(S.slot, 11)
+            // Perf fee is stored in the 10th slot of the Struct.
+            slot := add(S.slot, 10)
         }
 
         // Performance fee is packed in a slot with other variables so we need
