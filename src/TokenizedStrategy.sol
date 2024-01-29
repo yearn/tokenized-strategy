@@ -308,22 +308,7 @@ contract TokenizedStrategy {
      * @param _sender The original msg.sender.
      */
     function requireManagement(address _sender) public view {
-        require(isManagement(_sender), "!management");
-    }
-
-    /**
-     * @notice Return if a caller is `management`.
-     * @dev Is left public so that it can be used by the Strategy.
-     *
-     * When the Strategy calls this the msg.sender would be the
-     * address of the strategy so we need to specify the sender.
-     *
-     * Will return `true` if the check passed.
-     *
-     * @param _sender The original msg.sender.
-     */
-    function isManagement(address _sender) public view returns (bool) {
-        return _sender == _strategyStorage().management;
+        require(_sender == _strategyStorage().management, "!management");
     }
 
     /**
@@ -336,23 +321,8 @@ contract TokenizedStrategy {
      * @param _sender The original msg.sender.
      */
     function requireKeeperOrManagement(address _sender) public view {
-        require(isKeeperOrManagement(_sender), "!keeper");
-    }
-
-    /**
-     * @notice Return if a caller is the `keeper` OR `management`
-     * @dev Is left public so that it can be used by the Strategy.
-     *
-     * When the Strategy calls this the msg.sender would be the
-     * address of the strategy so we need to specify the sender.
-     *
-     * Will return `true` if the check passed.
-     *
-     * @param _sender The original msg.sender.
-     */
-    function isKeeperOrManagement(address _sender) public view returns (bool) {
         StrategyData storage S = _strategyStorage();
-        return _sender == S.keeper || _sender == S.management;
+        require(_sender == S.keeper || _sender == S.management, "!keeper");
     }
 
     /**
@@ -365,23 +335,11 @@ contract TokenizedStrategy {
      * @param _sender The original msg.sender.
      */
     function requireEmergencyAuthorized(address _sender) public view {
-        require(isEmergencyAuthorized(_sender), "!emergency authorized");
-    }
-
-    /**
-     * @notice Return if a caller is the `management` or `emergencyAdmin`.
-     * @dev Is left public so that it can be used by the Strategy.
-     *
-     * When the Strategy calls this the msg.sender would be the
-     * address of the strategy so we need to specify the sender.
-     *
-     * Will return `true` if the check passed.
-     *
-     * @param _sender The original msg.sender.
-     */
-    function isEmergencyAuthorized(address _sender) public view returns (bool) {
         StrategyData storage S = _strategyStorage();
-        return _sender == S.emergencyAdmin || _sender == S.management;
+        require(
+            _sender == S.emergencyAdmin || _sender == S.management,
+            "!emergency authorized"
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
