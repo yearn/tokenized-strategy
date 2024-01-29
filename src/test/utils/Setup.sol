@@ -262,49 +262,8 @@ contract Setup is ExtendedTest, IEvents {
     function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
         mockFactory.setFee(_protocolFee);
 
-        // If 0 is passed for testing purposes we manually override
-        // the minimum set in the TokenizedStrategy.
-        if (_performanceFee == 0) {
-            setPerformanceFeeToZero(address(strategy));
-        } else {
-            vm.prank(management);
-            strategy.setPerformanceFee(_performanceFee);
-        }
-    }
-
-    // For easier calculations we may want to set the performance fee
-    // to 0 in some tests which is underneath the minimum. So we do it manually.
-    function setPerformanceFeeToZero(address _strategy) public {
-        bytes32 slot;
-        TokenizedStrategy.StrategyData storage S = _strategyStorage();
-
-        assembly {
-            // Perf fee is stored in the 10th slot of the Struct.
-            slot := add(S.slot, 10)
-        }
-
-        // Performance fee is packed in a slot with other variables so we need
-        // to maintain the same variables packed in the slot
-
-        // profitMaxUnlock time is a uint32 at the most significant spot.
-        bytes32 data = bytes4(
-            uint32(IMockStrategy(_strategy).profitMaxUnlockTime())
-        );
-        // Free up space for the uint16 of performanceFee
-        data = data >> 16;
-        // Store 0 in the performance fee spot.
-        data |= bytes2(0);
-        // Shit 160 bits for an address
-        data = data >> 160;
-        // Store the strategies performance fee recipient
-        data |= bytes20(
-            uint160(IMockStrategy(_strategy).performanceFeeRecipient())
-        );
-        // Shift the remainder of padding.
-        data = data >> 48;
-
-        // Manually set the storage slot that holds the performance fee to 0
-        vm.store(_strategy, slot, data);
+        vm.prank(management);
+        strategy.setPerformanceFee(_performanceFee);
     }
 
     function setupWhitelist(address _address) public {

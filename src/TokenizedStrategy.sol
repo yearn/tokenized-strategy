@@ -354,9 +354,6 @@ contract TokenizedStrategy {
     /// @notice Used for profit unlocking rate calculations.
     uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
 
-    /// @notice Minimum in Basis points the Performance fee can be set to.
-    // Used to disincentive forking strategies just to lower fees.
-    uint16 public constant MIN_FEE = 500; // 5%
     /// @notice Maximum in Basis Points the Performance Fee can be set to.
     uint16 public constant MAX_FEE = 5_000; // 50%
 
@@ -1557,13 +1554,11 @@ contract TokenizedStrategy {
      * @dev Can only be called by the current `management`.
      *
      * Denominated in Basis Points. So 100% == 10_000.
-     * Cannot be set less than the MIN_FEE.
      * Cannot set greater than to MAX_FEE.
      *
      * @param _performanceFee New performance fee.
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
-        require(_performanceFee >= MIN_FEE, "MIN FEE");
         require(_performanceFee <= MAX_FEE, "MAX FEE");
         _strategyStorage().performanceFee = _performanceFee;
 
