@@ -14,7 +14,7 @@ This makes the strategy specific contract as simple and specific to that yield g
 - BaseStrategy: The abstract contract that a strategy should inherit from that handles all communication with the Tokenized Strategy contract.
 - Strategist: The developer of a specific strategy.
 - Depositor: Account that holds shares.
-- Vault: Or "Allocator Vault" is an ERC4626 compliant smart contract that receives assets from depositors to then distribute them among the different strategies added to the vault, managing accounting and sssets distribution. 
+- Vault: Or "Allocator Vault" is an ERC4626 compliant smart contract that receives assets from depositors to then distribute them among the different strategies added to the vault, managing accounting and assets distribution. 
 - Management: The owner of the specific strategy that can set fees, profit unlocking time etc.
 - Emergency Admin: An address specified by management to be able to call certain emergency functions.
 - Keeper: The address of a contract allowed to call report() and tend() on a strategy.
