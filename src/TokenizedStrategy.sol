@@ -935,8 +935,8 @@ contract TokenizedStrategy {
             maxRedeem_ = _balanceOf(S, owner);
         } else {
             maxRedeem_ = Math.min(
-                // Use preview withdraw to round up
-                _previewWithdraw(S, maxRedeem_),
+                // Can't redeem more than the balance.
+                _convertToShares(S, maxRedeem_),
                 _balanceOf(S, owner)
             );
         }
