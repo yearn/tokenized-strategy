@@ -83,11 +83,13 @@ contract CustomImplementationsTest is Setup {
 
         uint256 before = asset.balanceOf(_address);
         uint256 redeem = strategy.maxRedeem(_address);
+        uint256 conversion = strategy.convertToAssets(_amount);
 
         vm.prank(_address);
         strategy.redeem(redeem, _address, _address, 0);
 
         // We need to give 2 wei rounding buffer
+        assertApproxEq(strategy.convertToAssets(_amount), conversion, 2);
         assertApproxEq(asset.balanceOf(_address) - before, idle, 2);
         assertApproxEq(strategy.availableWithdrawLimit(_address), 0, 2);
         assertApproxEq(strategy.maxWithdraw(_address), 0, 2);
