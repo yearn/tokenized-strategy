@@ -73,7 +73,6 @@ contract CustomImplementationsTest is Setup {
             strategy.availableWithdrawLimit(_address)
         );
 
-
         vm.expectRevert("ERC4626: redeem more than max");
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
@@ -83,18 +82,18 @@ contract CustomImplementationsTest is Setup {
         strategy.withdraw(_amount, _address, _address);
 
         uint256 before = asset.balanceOf(_address);
-        uint256 redeem = strategy.maxRedeem(idle);
+        uint256 redeem = strategy.maxRedeem(_address);
 
         vm.prank(_address);
         strategy.redeem(redeem, _address, _address, 0);
 
-        // We need to give a i wei rounding buffer
-        assertApproxEq(asset.balanceOf(_address) - before, idle, 1);
-        assertApproxEq(strategy.availableWithdrawLimit(_address), 0, 1);
-        assertApproxEq(strategy.maxWithdraw(_address), 0, 1);
-        assertApproxEq(strategy.maxRedeem(_address), 0, 1);
+        // We need to give 2 wei rounding buffer
+        assertApproxEq(asset.balanceOf(_address) - before, idle, 2);
+        assertApproxEq(strategy.availableWithdrawLimit(_address), 0, 2);
+        assertApproxEq(strategy.maxWithdraw(_address), 0, 2);
+        assertApproxEq(strategy.maxRedeem(_address), 0, 2);
         assertLe(
-            strategy.maxRedeem(_address),
+            strategy.convertToAssets(strategy.maxRedeem(_address)),
             strategy.availableWithdrawLimit(_address)
         );
     }

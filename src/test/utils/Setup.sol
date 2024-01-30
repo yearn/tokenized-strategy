@@ -52,7 +52,7 @@ contract Setup is ExtendedTest, IEvents {
         tokenizedStrategy = new TokenizedStrategy();
 
         // create asset we will be using as the underlying asset
-        asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
+        asset = new ERC20Mock();
 
         // create a mock yield source to deposit into
         yieldSource = new MockYieldSource(address(asset));
