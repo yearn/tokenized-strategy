@@ -529,11 +529,7 @@ contract TokenizedStrategy {
         require(shares <= _maxMint(S, receiver), "ERC4626: mint more than max");
         // Check for rounding error.
         require(
-            (assets = _convertToAssets(
-                _strategyStorage(),
-                shares,
-                Math.Rounding.Up
-            )) != 0,
+            (assets = _convertToAssets(S, shares, Math.Rounding.Up)) != 0,
             "ZERO_ASSETS"
         );
 
@@ -581,11 +577,7 @@ contract TokenizedStrategy {
         );
         // Check for rounding error or 0 value.
         require(
-            (shares = _convertToShares(
-                _strategyStorage(),
-                assets,
-                Math.Rounding.Up
-            )) != 0,
+            (shares = _convertToShares(S, assets, Math.Rounding.Up)) != 0,
             "ZERO_SHARES"
         );
 
@@ -636,11 +628,7 @@ contract TokenizedStrategy {
         uint256 assets;
         // Check for rounding error or 0 value.
         require(
-            (assets = _convertToAssets(
-                _strategyStorage(),
-                shares,
-                Math.Rounding.Down
-            )) != 0,
+            (assets = _convertToAssets(S, shares, Math.Rounding.Down)) != 0,
             "ZERO_ASSETS"
         );
 
