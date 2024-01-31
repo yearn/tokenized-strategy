@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import "forge-std/console.sol";
 import {Setup, MockStrategy, IMockStrategy} from "./utils/Setup.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 // Adapted from Maple finance's ERC20 standard testing package
 // see: https://github.com/maple-labs/erc20/blob/main/contracts/test/ERC20.t.sol
@@ -20,7 +21,14 @@ contract ERC20BaseTest is Setup {
         assertEq(strategy.name(), "Test Strategy");
         assertEq(
             strategy.symbol(),
-            string(abi.encodePacked("ys", asset.symbol()))
+            string(
+                abi.encodePacked(
+                    "ys",
+                    asset.symbol(),
+                    "-",
+                    Strings.toString(block.chainid)
+                )
+            )
         );
         assertEq(strategy.decimals(), 18);
         assertEq(strategy.apiVersion(), "3.0.2");
