@@ -48,7 +48,6 @@ $$$$$$$$$$$$$$$$$$$$$$$$$%zt-+>iiiiiiiiiiiiiiiiiiiiiiiiiiiii+_tc%$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$W#u/|{+~>iiiiiiiiiiii><+{|/n#W$$$$$$$$$$$$$$$$$$$$$$$$$$$$*/
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -1643,15 +1642,7 @@ contract TokenizedStrategy {
      */
     function symbol() external view returns (string memory) {
         StrategyData storage S = _strategyStorage();
-        return
-            string(
-                abi.encodePacked(
-                    "ys",
-                    S.asset.symbol(),
-                    "-",
-                    Strings.toString(S.INITIAL_CHAIN_ID)
-                )
-            );
+        return string(abi.encodePacked("ys", S.asset.symbol()));
     }
 
     /**
