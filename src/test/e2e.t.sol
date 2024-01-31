@@ -38,7 +38,7 @@ contract e2eTest is Setup {
         uint256 i;
 
         for (i; i < toMake; ++i) {
-            asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
+            asset = new ERC20Mock();
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
 
@@ -133,7 +133,7 @@ contract e2eTest is Setup {
         uint256 i;
 
         for (i; i < toMake; ++i) {
-            asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
+            asset = new ERC20Mock();
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
 
@@ -247,7 +247,7 @@ contract e2eTest is Setup {
         uint256 i;
 
         for (i; i < toMake; ++i) {
-            asset = new ERC20Mock("Mock asset", "mcAsset", user, 0);
+            asset = new ERC20Mock();
             yieldSource = new MockYieldSource(address(asset));
             IMockStrategy newStrategy = IMockStrategy(setUpStrategy());
 
