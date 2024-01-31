@@ -2,8 +2,8 @@
 pragma solidity 0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, MockStrategy, IMockStrategy} from "./utils/Setup.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Setup, MockStrategy, IMockStrategy} from "./utils/Setup.sol";
 
 // Adapted from Maple finance's ERC20 standard testing package
 // see: https://github.com/maple-labs/erc20/blob/main/contracts/test/ERC20.t.sol
