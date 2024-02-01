@@ -1637,12 +1637,12 @@ contract TokenizedStrategy {
 
     /**
      * @notice Returns the symbol of the strategies token.
-     * @dev Will be 'ys + asset symbol + chainId'.
+     * @dev Will be 'ys + asset symbol'.
      * @return . The symbol the strategy is using for its tokens.
      */
     function symbol() external view returns (string memory) {
-        StrategyData storage S = _strategyStorage();
-        return string(abi.encodePacked("ys", S.asset.symbol()));
+        return
+            string(abi.encodePacked("ys", _strategyStorage().asset.symbol()));
     }
 
     /**
