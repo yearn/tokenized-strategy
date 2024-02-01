@@ -1,0 +1,24 @@
+name: Slither Analysis
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Slither analysis
+        uses: crytic/slither-action@v0.3.0
+        with:
+          fail-on: 'medium'
