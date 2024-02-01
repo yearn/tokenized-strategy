@@ -504,7 +504,10 @@ contract TokenizedStrategy {
             "ERC4626: deposit more than max"
         );
         // Check for rounding error.
-        require((shares = _previewDeposit(S, assets)) != 0, "ZERO_SHARES");
+        require(
+            (shares = _convertToShares(S, assets, Math.Rounding.Down)) != 0,
+            "ZERO_SHARES"
+        );
 
         _deposit(S, receiver, assets, shares);
     }
@@ -525,7 +528,10 @@ contract TokenizedStrategy {
         // Checking max mint will also check if shutdown.
         require(shares <= _maxMint(S, receiver), "ERC4626: mint more than max");
         // Check for rounding error.
-        require((assets = _previewMint(S, shares)) != 0, "ZERO_ASSETS");
+        require(
+            (assets = _convertToAssets(S, shares, Math.Rounding.Up)) != 0,
+            "ZERO_ASSETS"
+        );
 
         _deposit(S, receiver, assets, shares);
     }
@@ -570,7 +576,10 @@ contract TokenizedStrategy {
             "ERC4626: withdraw more than max"
         );
         // Check for rounding error or 0 value.
-        require((shares = _previewWithdraw(S, assets)) != 0, "ZERO_SHARES");
+        require(
+            (shares = _convertToShares(S, assets, Math.Rounding.Up)) != 0,
+            "ZERO_SHARES"
+        );
 
         // Withdraw and track the actual amount withdrawn for loss check.
         _withdraw(S, receiver, owner, assets, shares, maxLoss);
@@ -618,7 +627,10 @@ contract TokenizedStrategy {
         );
         uint256 assets;
         // Check for rounding error or 0 value.
-        require((assets = _previewRedeem(S, shares)) != 0, "ZERO_ASSETS");
+        require(
+            (assets = _convertToAssets(S, shares, Math.Rounding.Down)) != 0,
+            "ZERO_ASSETS"
+        );
 
         // We need to return the actual amount withdrawn in case of a loss.
         return _withdraw(S, receiver, owner, assets, shares, maxLoss);
@@ -664,7 +676,7 @@ contract TokenizedStrategy {
      * @return . Expected shares that `assets` represents.
      */
     function convertToShares(uint256 assets) external view returns (uint256) {
-        return _convertToShares(_strategyStorage(), assets);
+        return _convertToShares(_strategyStorage(), assets, Math.Rounding.Down);
     }
 
     /**
@@ -676,7 +688,7 @@ contract TokenizedStrategy {
      * @return . Expected amount of `asset` the shares represents.
      */
     function convertToAssets(uint256 shares) external view returns (uint256) {
-        return _convertToAssets(_strategyStorage(), shares);
+        return _convertToAssets(_strategyStorage(), shares, Math.Rounding.Down);
     }
 
     /**
@@ -689,7 +701,7 @@ contract TokenizedStrategy {
      * @return . Expected shares that would be issued.
      */
     function previewDeposit(uint256 assets) external view returns (uint256) {
-        return _previewDeposit(_strategyStorage(), assets);
+        return _convertToShares(_strategyStorage(), assets, Math.Rounding.Down);
     }
 
     /**
@@ -703,7 +715,7 @@ contract TokenizedStrategy {
      * @return . The needed amount of `asset` for the mint.
      */
     function previewMint(uint256 shares) external view returns (uint256) {
-        return _previewMint(_strategyStorage(), shares);
+        return _convertToAssets(_strategyStorage(), shares, Math.Rounding.Up);
     }
 
     /**
@@ -717,7 +729,7 @@ contract TokenizedStrategy {
      * @return . The amount of shares that would be burnt.
      */
     function previewWithdraw(uint256 assets) external view returns (uint256) {
-        return _previewWithdraw(_strategyStorage(), assets);
+        return _convertToShares(_strategyStorage(), assets, Math.Rounding.Up);
     }
 
     /**
@@ -730,7 +742,7 @@ contract TokenizedStrategy {
      * @return . The amount of `asset` that would be returned.
      */
     function previewRedeem(uint256 shares) external view returns (uint256) {
-        return _previewRedeem(_strategyStorage(), shares);
+        return _convertToAssets(_strategyStorage(), shares, Math.Rounding.Down);
     }
 
     /**
@@ -802,7 +814,8 @@ contract TokenizedStrategy {
     /// @dev Internal implementation of {convertToShares}.
     function _convertToShares(
         StrategyData storage S,
-        uint256 assets
+        uint256 assets,
+        Math.Rounding _rounding
     ) internal view returns (uint256) {
         // Saves an extra SLOAD if totalAssets() is non-zero.
         uint256 totalAssets_ = _totalAssets(S);
@@ -811,13 +824,14 @@ contract TokenizedStrategy {
         // If assets are 0 but supply is not PPS = 0.
         if (totalAssets_ == 0) return totalSupply_ == 0 ? assets : 0;
 
-        return assets.mulDiv(totalSupply_, totalAssets_, Math.Rounding.Down);
+        return assets.mulDiv(totalSupply_, totalAssets_, _rounding);
     }
 
     /// @dev Internal implementation of {convertToAssets}.
     function _convertToAssets(
         StrategyData storage S,
-        uint256 shares
+        uint256 shares,
+        Math.Rounding _rounding
     ) internal view returns (uint256) {
         // Saves an extra SLOAD if totalSupply() is non-zero.
         uint256 supply = _totalSupply(S);
@@ -825,52 +839,7 @@ contract TokenizedStrategy {
         return
             supply == 0
                 ? shares
-                : shares.mulDiv(_totalAssets(S), supply, Math.Rounding.Down);
-    }
-
-    /// @dev Internal implementation of {previewDeposit}.
-    function _previewDeposit(
-        StrategyData storage S,
-        uint256 assets
-    ) internal view returns (uint256) {
-        return _convertToShares(S, assets);
-    }
-
-    /// @dev Internal implementation of {previewMint}.
-    function _previewMint(
-        StrategyData storage S,
-        uint256 shares
-    ) internal view returns (uint256) {
-        // Saves an extra SLOAD if totalSupply() is non-zero.
-        uint256 supply = _totalSupply(S);
-
-        return
-            supply == 0
-                ? shares
-                : shares.mulDiv(_totalAssets(S), supply, Math.Rounding.Up);
-    }
-
-    /// @dev Internal implementation of {previewWithdraw}.
-    function _previewWithdraw(
-        StrategyData storage S,
-        uint256 assets
-    ) internal view returns (uint256) {
-        // Saves an extra SLOAD if totalAssets() is non-zero.
-        uint256 totalAssets_ = _totalAssets(S);
-        uint256 totalSupply_ = _totalSupply(S);
-
-        // If assets are 0 but supply is not, then PPS = 0.
-        if (totalAssets_ == 0) return totalSupply_ == 0 ? assets : 0;
-
-        return assets.mulDiv(totalSupply_, totalAssets_, Math.Rounding.Up);
-    }
-
-    /// @dev Internal implementation of {previewRedeem}.
-    function _previewRedeem(
-        StrategyData storage S,
-        uint256 shares
-    ) internal view returns (uint256) {
-        return _convertToAssets(S, shares);
+                : shares.mulDiv(_totalAssets(S), supply, _rounding);
     }
 
     /// @dev Internal implementation of {maxDeposit}.
@@ -894,7 +863,7 @@ contract TokenizedStrategy {
 
         maxMint_ = IBaseStrategy(address(this)).availableDepositLimit(owner);
         if (maxMint_ != type(uint256).max) {
-            maxMint_ = _convertToShares(S, maxMint_);
+            maxMint_ = _convertToShares(S, maxMint_, Math.Rounding.Down);
         }
     }
 
@@ -911,10 +880,14 @@ contract TokenizedStrategy {
         // If there is no limit enforced.
         if (maxWithdraw_ == type(uint256).max) {
             // Saves a min check if there is no withdrawal limit.
-            maxWithdraw_ = _convertToAssets(S, _balanceOf(S, owner));
+            maxWithdraw_ = _convertToAssets(
+                S,
+                _balanceOf(S, owner),
+                Math.Rounding.Down
+            );
         } else {
             maxWithdraw_ = Math.min(
-                _convertToAssets(S, _balanceOf(S, owner)),
+                _convertToAssets(S, _balanceOf(S, owner), Math.Rounding.Down),
                 maxWithdraw_
             );
         }
@@ -934,7 +907,7 @@ contract TokenizedStrategy {
         } else {
             maxRedeem_ = Math.min(
                 // Can't redeem more than the balance.
-                _convertToShares(S, maxRedeem_),
+                _convertToShares(S, maxRedeem_, Math.Rounding.Down),
                 _balanceOf(S, owner)
             );
         }
@@ -1143,11 +1116,16 @@ contract TokenizedStrategy {
                 unchecked {
                     performanceFeeShares = _convertToShares(
                         S,
-                        totalFees - protocolFees
+                        totalFees - protocolFees,
+                        Math.Rounding.Down
                     );
                 }
                 if (protocolFees != 0) {
-                    protocolFeeShares = _convertToShares(S, protocolFees);
+                    protocolFeeShares = _convertToShares(
+                        S,
+                        protocolFees,
+                        Math.Rounding.Down
+                    );
                 }
             }
 
@@ -1155,7 +1133,11 @@ contract TokenizedStrategy {
             if (_profitMaxUnlockTime != 0) {
                 // lock (profit - fees)
                 unchecked {
-                    sharesToLock = _convertToShares(S, profit - totalFees);
+                    sharesToLock = _convertToShares(
+                        S,
+                        profit - totalFees,
+                        Math.Rounding.Down
+                    );
                 }
                 // Mint the shares to lock the strategy.
                 _mint(S, address(this), sharesToLock);
@@ -1181,7 +1163,7 @@ contract TokenizedStrategy {
                 // to offset the loss to prevent any PPS decline post report.
                 uint256 sharesToBurn = Math.min(
                     S.balances[address(this)],
-                    _convertToShares(S, loss)
+                    _convertToShares(S, loss, Math.Rounding.Down)
                 );
 
                 // Check if there is anything to burn.
@@ -1481,7 +1463,7 @@ contract TokenizedStrategy {
      */
     function pricePerShare() external view returns (uint256) {
         StrategyData storage S = _strategyStorage();
-        return _convertToAssets(S, 10 ** S.decimals);
+        return _convertToAssets(S, 10 ** S.decimals, Math.Rounding.Down);
     }
 
     /**
