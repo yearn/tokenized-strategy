@@ -21,4 +21,5 @@ jobs:
       - name: Slither analysis
         uses: crytic/slither-action@v0.3.0
         with:
+          slither-args: --filter-paths "test" --exclude-dependencies
           fail-on: 'medium'
