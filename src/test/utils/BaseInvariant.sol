@@ -9,16 +9,32 @@ abstract contract BaseInvariant is Setup {
         super.setUp();
     }
 
-    function assert_totalAssets() public {
-        // check totalDeposits + profit - withdraws - losses
+    function assert_totalAssets(
+        uint256 _totalDeposits,
+        uint256 _totalWithdraw,
+        uint256 _totalGain,
+        uint256 _totalLosses
+    ) public {
+        assertEq(
+            strategy.totalAssets(),
+            _totalDeposits + _totalGain - _totalWithdraw - _totalLosses
+        );
     }
 
     function assert_maxWithdraw() public {
         assertLe(strategy.maxWithdraw(msg.sender), strategy.totalAssets());
+        assertLe(
+            strategy.maxWithdraw(msg.sender),
+            strategy.availableWithdrawLimit(msg.sender)
+        );
     }
 
     function assert_maxRedeem() public {
         assertLe(strategy.maxRedeem(msg.sender), strategy.totalSupply());
+        assertLe(
+            strategy.maxRedeem(msg.sender),
+            strategy.balanceOf(msg.sender)
+        );
     }
 
     function assert_maxRedeemEqualsMaxWithdraw() public {

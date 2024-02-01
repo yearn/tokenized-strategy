@@ -99,7 +99,7 @@ contract StrategyHandler is ExtendedTest {
         if (_amount == 0) ghost_zeroWithdrawals++;
 
         vm.prank(actor);
-        strategy.withdraw(_amount, actor, actor);
+        strategy.withdraw(_amount, actor, actor, 0);
 
         ghost_withdrawSum += _amount;
     }
@@ -117,7 +117,7 @@ contract StrategyHandler is ExtendedTest {
         if (_amount == 0) ghost_zeroWithdrawals++;
 
         vm.prank(actor);
-        uint256 assets = strategy.redeem(_amount, actor, actor);
+        uint256 assets = strategy.redeem(_amount, actor, actor, 0);
 
         ghost_withdrawSum += assets;
     }
@@ -129,9 +129,10 @@ contract StrategyHandler is ExtendedTest {
         asset.mint(address(strategy), _amount);
 
         vm.prank(setup.keeper());
-        strategy.report();
+        (uint256 profit, uint256 loss) = strategy.report();
 
-        ghost_profitSum += _amount;
+        ghost_profitSum += profit;
+        ghost_lossSum += loss;
         unreported = false;
     }
 
@@ -143,9 +144,10 @@ contract StrategyHandler is ExtendedTest {
         asset.transfer(address(69), _amount);
 
         vm.prank(setup.keeper());
-        strategy.report();
+        (uint256 profit, uint256 loss) = strategy.report();
 
-        ghost_lossSum += _amount;
+        ghost_profitSum += profit;
+        ghost_lossSum += loss;
         unreported = false;
     }
 

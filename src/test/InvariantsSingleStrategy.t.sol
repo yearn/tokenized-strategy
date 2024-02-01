@@ -31,7 +31,12 @@ contract SingleStrategyInvariantTest is BaseInvariant {
     }
 
     function invariant_totalAssets() public {
-        assert_totalAssets();
+        assert_totalAssets(
+            strategyHandler.ghost_depositSum(),
+            strategyHandler.ghost_withdrawSum(),
+            strategyHandler.ghost_profitSum(),
+            strategyHandler.ghost_lossSum()
+        );
     }
 
     function invariant_maxWithdraw() public {
@@ -51,7 +56,7 @@ contract SingleStrategyInvariantTest is BaseInvariant {
     }
 
     function invariant_unlockedShares() public {
-        //assert_unlockedShares();
+        assert_unlockedShares();
     }
 
     function invariant_previewMintAndConvertToAssets() public {
