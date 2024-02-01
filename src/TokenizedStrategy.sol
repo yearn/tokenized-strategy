@@ -365,9 +365,7 @@ contract TokenizedStrategy {
 
     /// @notice Address of the previously deployed Vault factory that the
     // protocol fee config is retrieved from.
-    // NOTE: This will be set to deployed factory. deterministic address for testing is used now
-    address public constant FACTORY =
-        0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
+    address public immutable FACTORY;
 
     /**
      * @dev Custom storage slot that will be used to store the
@@ -2038,8 +2036,10 @@ contract TokenizedStrategy {
     /**
      * @dev On contract creation we set `asset` for this contract to address(1).
      * This prevents it from ever being initialized in the future.
+     * @param _factory Address of the factory of the same version for protocol fees.
      */
-    constructor() {
+    constructor(address _factory) {
+        FACTORY = _factory;
         _strategyStorage().asset = ERC20(address(1));
     }
 }

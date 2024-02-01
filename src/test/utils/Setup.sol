@@ -49,7 +49,7 @@ contract Setup is ExtendedTest, IEvents {
         mockFactory = new MockFactory(0, protocolFeeRecipient);
 
         // Deploy the implementation for deterministic location
-        tokenizedStrategy = new TokenizedStrategy();
+        tokenizedStrategy = new TokenizedStrategy(address(mockFactory));
 
         // create asset we will be using as the underlying asset
         asset = new ERC20Mock();
