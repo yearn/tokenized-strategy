@@ -7,14 +7,14 @@ import {ExtendedTest} from "./ExtendedTest.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 
-import {IMockStrategy} from "../mocks/IMockStrategy.sol";
-import {MockStrategy, MockYieldSource} from "../mocks/MockStrategy.sol";
-import {MockIlliquidStrategy} from "../mocks/MockIlliquidStrategy.sol";
-import {MockFaultyStrategy} from "../mocks/MockFaultyStrategy.sol";
+import {IEvents} from "../../interfaces/IEvents.sol";
 import {MockFactory} from "../mocks/MockFactory.sol";
+import {IMockStrategy} from "../mocks/IMockStrategy.sol";
+import {MockFaultyStrategy} from "../mocks/MockFaultyStrategy.sol";
+import {MockIlliquidStrategy} from "../mocks/MockIlliquidStrategy.sol";
+import {MockStrategy, MockYieldSource} from "../mocks/MockStrategy.sol";
 
 import {TokenizedStrategy} from "../../TokenizedStrategy.sol";
-import {IEvents} from "../../interfaces/IEvents.sol";
 
 contract Setup is ExtendedTest, IEvents {
     // Contract instances that we will use repeatedly.
@@ -45,7 +45,7 @@ contract Setup is ExtendedTest, IEvents {
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
     function setUp() public virtual {
-        // Deploy the mock factory next for deterministic location
+        // Deploy the mock factory first for deterministic location
         mockFactory = new MockFactory(0, protocolFeeRecipient);
 
         // Deploy the implementation for deterministic location
@@ -279,8 +279,8 @@ contract Setup is ExtendedTest, IEvents {
         TokenizedStrategy.StrategyData storage S = _strategyStorage();
 
         assembly {
-            // Perf fee is stored in the 12th slot of the Struct.
-            slot := add(S.slot, 11)
+            // Perf fee is stored in the 10th slot of the Struct.
+            slot := add(S.slot, 10)
         }
 
         // Performance fee is packed in a slot with other variables so we need

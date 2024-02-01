@@ -78,31 +78,31 @@ contract TokenizedStrategy {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+    /**
+     * @notice Emitted when a strategy is shutdown.
+     */
+    event StrategyShutdown();
 
     /**
-     * @notice Emitted when the 'pendingManagement' address is updated to 'newPendingManagement'.
+     * @notice Emitted on the initialization of any new `strategy` that uses `asset`
+     * with this specific `apiVersion`.
      */
-    event UpdatePendingManagement(address indexed newPendingManagement);
+    event NewTokenizedStrategy(
+        address indexed strategy,
+        address indexed asset,
+        string apiVersion
+    );
 
     /**
-     * @notice Emitted when the 'management' address is updated to 'newManagement'.
+     * @notice Emitted when the strategy reports `profit` or `loss` and
+     * `performanceFees` and `protocolFees` are paid out.
      */
-    event UpdateManagement(address indexed newManagement);
-
-    /**
-     * @notice Emitted when the 'keeper' address is updated to 'newKeeper'.
-     */
-    event UpdateKeeper(address indexed newKeeper);
-
-    /**
-     * @notice Emitted when the 'emergencyAdmin' address is updated to 'newEmergencyAdmin'.
-     */
-    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
-
-    /**
-     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
-     */
-    event UpdatePerformanceFee(uint16 newPerformanceFee);
+    event Reported(
+        uint256 profit,
+        uint256 loss,
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
 
     /**
      * @notice Emitted when the 'performanceFeeRecipient' address is
@@ -113,22 +113,34 @@ contract TokenizedStrategy {
     );
 
     /**
+     * @notice Emitted when the 'keeper' address is updated to 'newKeeper'.
+     */
+    event UpdateKeeper(address indexed newKeeper);
+
+    /**
+     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
+     */
+    event UpdatePerformanceFee(uint16 newPerformanceFee);
+
+    /**
+     * @notice Emitted when the 'management' address is updated to 'newManagement'.
+     */
+    event UpdateManagement(address indexed newManagement);
+
+    /**
+     * @notice Emitted when the 'emergencyAdmin' address is updated to 'newEmergencyAdmin'.
+     */
+    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
+
+    /**
      * @notice Emitted when the 'profitMaxUnlockTime' is updated to 'newProfitMaxUnlockTime'.
      */
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 
     /**
-     * @notice Emitted when a strategy is shutdown.
+     * @notice Emitted when the 'pendingManagement' address is updated to 'newPendingManagement'.
      */
-    event StrategyShutdown();
-
-    /**
-     * @notice Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
+    event UpdatePendingManagement(address indexed newPendingManagement);
 
     /**
      * @notice Emitted when the allowance of a `spender` for an `owner` is set by
@@ -139,6 +151,14 @@ contract TokenizedStrategy {
         address indexed spender,
         uint256 value
     );
+
+    /**
+     * @notice Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
 
     /**
      * @notice Emitted when the `caller` has exchanged `assets` for `shares`,
@@ -161,27 +181,6 @@ contract TokenizedStrategy {
         address indexed owner,
         uint256 assets,
         uint256 shares
-    );
-
-    /**
-     * @notice Emitted when the strategy reports `profit` or `loss` and
-     * `performanceFees` and `protocolFees` are paid out.
-     */
-    event Reported(
-        uint256 profit,
-        uint256 loss,
-        uint256 protocolFees,
-        uint256 performanceFees
-    );
-
-    /**
-     * @notice Emitted on the initialization of any new `strategy` that uses `asset`
-     * with this specific `apiVersion`.
-     */
-    event NewTokenizedStrategy(
-        address indexed strategy,
-        address indexed asset,
-        string apiVersion
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -213,37 +212,42 @@ contract TokenizedStrategy {
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals that `asset` and strategy use.
+        uint88 INITIAL_CHAIN_ID; // The initial chain id when the strategy was created.
+
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued.
-        uint256 INITIAL_CHAIN_ID; // The initial chain id when the strategy was created.
         bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain separator used for permits on the initial chain.
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
 
 
-        // Assets data to track total the strategy holds.
         // We manually track `totalAssets` to prevent PPS manipulation through airdrops.
         uint256 totalAssets;
 
 
         // Variables for profit reporting and locking.
-        // We use uint128 for time stamps which is 1,025 years in the future.
+        // We use uint96 for timestamps to fit in the same slot as an address.
+        // We will surely all be dead by the time the slot overflows.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
-        uint128 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
-        uint128 lastReport; // The last time a {report} was called.
+        uint96 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
+        address keeper; // Address given permission to call {report} and {tend}.
         uint32 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
         uint16 performanceFee; // The percent in basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
+        uint96 lastReport; // The last time a {report} was called.
 
 
         // Access management variables.
         address management; // Main address that can set all configurable variables.
-        address keeper; // Address given permission to call {report} and {tend}.
         address pendingManagement; // Address that is pending to take over `management`.
         address emergencyAdmin; // Address to act in emergencies as well as `management`.
+
+     
+        // Strategy status checks.
         bool entered; // Bool to prevent reentrancy.
-        bool shutdown; // Bool that can be used to stop deposits into the strategy.
+        bool shutdown; // Bool that can be used to stop deposits into the strategy. 
+
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -254,7 +258,7 @@ contract TokenizedStrategy {
      * @dev Require that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
-        isManagement(msg.sender);
+        requireManagement(msg.sender);
         _;
     }
 
@@ -263,7 +267,7 @@ contract TokenizedStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        isKeeperOrManagement(msg.sender);
+        requireKeeperOrManagement(msg.sender);
         _;
     }
 
@@ -272,7 +276,7 @@ contract TokenizedStrategy {
      * management or the emergency admin.
      */
     modifier onlyEmergencyAuthorized() {
-        isEmergencyAuthorized(msg.sender);
+        requireEmergencyAuthorized(msg.sender);
         _;
     }
 
@@ -295,58 +299,47 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice To check if a sender is the management for a specific strategy.
+     * @notice Require a caller is `management`.
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
      *
-     * Will return `true` if the check passed.
-     *
      * @param _sender The original msg.sender.
      */
-    function isManagement(address _sender) public view returns (bool) {
+    function requireManagement(address _sender) public view {
         require(_sender == _strategyStorage().management, "!management");
-        return true;
     }
 
     /**
-     * @notice To check if a sender is the keeper or management
-     * for a specific strategy.
+     * @notice Require a caller is the `keeper` or `management`.
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
      *
-     * Will return `true` if the check passed.
-     *
      * @param _sender The original msg.sender.
      */
-    function isKeeperOrManagement(address _sender) public view returns (bool) {
+    function requireKeeperOrManagement(address _sender) public view {
         StrategyData storage S = _strategyStorage();
         require(_sender == S.keeper || _sender == S.management, "!keeper");
-        return true;
     }
 
     /**
-     * @notice To check if a sender is the keeper or emergency admin
-     * for a specific strategy.
+     * @notice Require a caller is the `management` or `emergencyAdmin`.
      * @dev Is left public so that it can be used by the Strategy.
      *
      * When the Strategy calls this the msg.sender would be the
      * address of the strategy so we need to specify the sender.
      *
-     * Will return `true` if the check passed.
-     *
      * @param _sender The original msg.sender.
      */
-    function isEmergencyAuthorized(address _sender) public view returns (bool) {
+    function requireEmergencyAuthorized(address _sender) public view {
         StrategyData storage S = _strategyStorage();
         require(
             _sender == S.emergencyAdmin || _sender == S.management,
             "!emergency authorized"
         );
-        return true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -395,7 +388,7 @@ contract TokenizedStrategy {
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
     /*//////////////////////////////////////////////////////////////
-                    STORAGE GETTER FUNCTION
+                        STORAGE GETTER
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -416,7 +409,7 @@ contract TokenizedStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
-                INITIALIZATION OF DEFAULT STORAGE
+                          INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -440,7 +433,7 @@ contract TokenizedStrategy {
      * @param _performanceFeeRecipient Address to receive performance fees.
      * @param _keeper Address to set as strategies `keeper`.
      */
-    function init(
+    function initialize(
         address _asset,
         string memory _name,
         address _management,
@@ -460,7 +453,8 @@ contract TokenizedStrategy {
         // Set decimals based off the `asset`.
         S.decimals = ERC20(_asset).decimals();
         // Set initial chain id for permit replay protection
-        S.INITIAL_CHAIN_ID = block.chainid;
+        require(block.chainid < type(uint88).max, "invalid chain id");
+        S.INITIAL_CHAIN_ID = uint88(block.chainid);
         // Set the initial domain separator for permit functions
         S.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator(S);
 
@@ -475,7 +469,7 @@ contract TokenizedStrategy {
         // Default to a 10% performance fee.
         S.performanceFee = 1_000;
         // Set last report to this block.
-        S.lastReport = uint128(block.timestamp);
+        S.lastReport = uint96(block.timestamp);
 
         // Set the default management address. Can't be 0.
         require(_management != address(0), "ZERO ADDRESS");
@@ -502,6 +496,7 @@ contract TokenizedStrategy {
         uint256 assets,
         address receiver
     ) external nonReentrant returns (uint256 shares) {
+        // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         // Checking max deposit will also check if shutdown.
         require(
@@ -525,6 +520,7 @@ contract TokenizedStrategy {
         uint256 shares,
         address receiver
     ) external nonReentrant returns (uint256 assets) {
+        // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         // Checking max mint will also check if shutdown.
         require(shares <= _maxMint(S, receiver), "ERC4626: mint more than max");
@@ -567,6 +563,7 @@ contract TokenizedStrategy {
         address owner,
         uint256 maxLoss
     ) public nonReentrant returns (uint256 shares) {
+        // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         require(
             assets <= _maxWithdraw(S, owner),
@@ -613,6 +610,7 @@ contract TokenizedStrategy {
         address owner,
         uint256 maxLoss
     ) public nonReentrant returns (uint256) {
+        // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         require(
             shares <= _maxRedeem(S, owner),
@@ -1197,7 +1195,7 @@ contract TokenizedStrategy {
         uint256 totalLockedShares = S.balances[address(this)];
         if (totalLockedShares != 0) {
             uint256 previouslyLockedTime;
-            uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+            uint96 _fullProfitUnlockDate = S.fullProfitUnlockDate;
             // Check if we need to account for shares still unlocking.
             if (_fullProfitUnlockDate > block.timestamp) {
                 unchecked {
@@ -1221,7 +1219,7 @@ contract TokenizedStrategy {
                 newProfitLockingPeriod;
 
             // Calculate how long until the full amount of shares is unlocked.
-            S.fullProfitUnlockDate = uint128(
+            S.fullProfitUnlockDate = uint96(
                 block.timestamp + newProfitLockingPeriod
             );
         } else {
@@ -1232,7 +1230,7 @@ contract TokenizedStrategy {
 
         // Update the new total assets value.
         S.totalAssets = newTotalAssets;
-        S.lastReport = uint128(block.timestamp);
+        S.lastReport = uint96(block.timestamp);
 
         // Emit event with info
         emit Reported(
@@ -1258,7 +1256,7 @@ contract TokenizedStrategy {
 
         // update variables (done here to keep _unlockedShares() as a view function)
         if (S.fullProfitUnlockDate > block.timestamp) {
-            S.lastReport = uint128(block.timestamp);
+            S.lastReport = uint96(block.timestamp);
         }
 
         _burn(S, address(this), unlocked);
@@ -1284,7 +1282,7 @@ contract TokenizedStrategy {
     function _unlockedShares(
         StrategyData storage S
     ) internal view returns (uint256 unlocked) {
-        uint128 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+        uint96 _fullProfitUnlockDate = S.fullProfitUnlockDate;
         if (_fullProfitUnlockDate > block.timestamp) {
             unchecked {
                 unlocked =
@@ -1520,9 +1518,10 @@ contract TokenizedStrategy {
      * @dev Can only be called by the current `pendingManagement`.
      */
     function acceptManagement() external {
-        require(msg.sender == _strategyStorage().pendingManagement, "!pending");
-        _strategyStorage().management = msg.sender;
-        _strategyStorage().pendingManagement = address(0);
+        StrategyData storage S = _strategyStorage();
+        require(msg.sender == S.pendingManagement, "!pending");
+        S.management = msg.sender;
+        S.pendingManagement = address(0);
 
         emit UpdateManagement(msg.sender);
     }

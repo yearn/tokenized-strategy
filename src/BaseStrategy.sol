@@ -52,7 +52,7 @@ abstract contract BaseStrategy {
      * @dev Use to assure that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
-        TokenizedStrategy.isManagement(msg.sender);
+        TokenizedStrategy.requireManagement(msg.sender);
         _;
     }
 
@@ -61,7 +61,7 @@ abstract contract BaseStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        TokenizedStrategy.isKeeperOrManagement(msg.sender);
+        TokenizedStrategy.requireKeeperOrManagement(msg.sender);
         _;
     }
 
@@ -70,7 +70,7 @@ abstract contract BaseStrategy {
      * management or the emergency admin.
      */
     modifier onlyEmergencyAuthorized() {
-        TokenizedStrategy.isEmergencyAuthorized(msg.sender);
+        TokenizedStrategy.requireEmergencyAuthorized(msg.sender);
         _;
     }
 
@@ -106,6 +106,12 @@ abstract contract BaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @dev Underlying asset the Strategy is earning yield on.
+     * Stored here for cheap retrievals within the strategy.
+     */
+    ERC20 internal immutable asset;
+
+    /**
      * @dev This variable is set to address(this) during initialization of each strategy.
      *
      * This can be used to retrieve storage data within the strategy
@@ -118,12 +124,6 @@ abstract contract BaseStrategy {
      * delegateCall that to the actual TokenizedStrategy.
      */
     ITokenizedStrategy internal immutable TokenizedStrategy;
-
-    /**
-     * @dev Underlying asset the Strategy is earning yield on.
-     * Stored here for cheap retrievals within the strategy.
-     */
-    ERC20 internal immutable asset;
 
     /**
      * @notice Used to initialize the strategy on deployment.
@@ -145,7 +145,7 @@ abstract contract BaseStrategy {
         // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(
-                ITokenizedStrategy.init,
+                ITokenizedStrategy.initialize,
                 (_asset, _name, msg.sender, msg.sender, msg.sender)
             )
         );
@@ -167,7 +167,7 @@ abstract contract BaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Should deploy up to '_amount' of 'asset' in the yield source.
+     * @dev Can deploy up to '_amount' of 'asset' in the yield source.
      *
      * This function is called at the end of a {deposit} or {mint}
      * call. Meaning that unless a whitelist is implemented it will
@@ -180,9 +180,9 @@ abstract contract BaseStrategy {
     function _deployFunds(uint256 _amount) internal virtual;
 
     /**
-     * @dev Will attempt to free the '_amount' of 'asset'.
+     * @dev Should attempt to free the '_amount' of 'asset'.
      *
-     * The amount of 'asset' that is already loose has already
+     * NOTE: The amount of 'asset' that is already loose has already
      * been accounted for.
      *
      * This function is called during {withdraw} and {redeem} calls.
@@ -360,7 +360,7 @@ abstract contract BaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Should deploy up to '_amount' of 'asset' in yield source.
+     * @notice Can deploy up to '_amount' of 'asset' in yield source.
      * @dev Callback for the TokenizedStrategy to call during a {deposit}
      * or {mint} to tell the strategy it can deploy funds.
      *
@@ -378,7 +378,7 @@ abstract contract BaseStrategy {
     }
 
     /**
-     * @notice Will attempt to free the '_amount' of 'asset'.
+     * @notice Should attempt to free the '_amount' of 'asset'.
      * @dev Callback for the TokenizedStrategy to call during a withdraw
      * or redeem to free the needed funds to service the withdraw.
      *

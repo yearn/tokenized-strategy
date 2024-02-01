@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 // Interface that implements the 4626 standard and the implementation functions
 interface ITokenizedStrategy is IERC4626, IERC20Permit {
@@ -11,23 +11,13 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event UpdatePendingManagement(address indexed newPendingManagement);
-
-    event UpdateManagement(address indexed newManagement);
-
-    event UpdateKeeper(address indexed newKeeper);
-
-    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
-
-    event UpdatePerformanceFee(uint16 newPerformanceFee);
-
-    event UpdatePerformanceFeeRecipient(
-        address indexed newPerformanceFeeRecipient
-    );
-
-    event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
-
     event StrategyShutdown();
+
+    event NewTokenizedStrategy(
+        address indexed strategy,
+        address indexed asset,
+        string apiVersion
+    );
 
     event Reported(
         uint256 profit,
@@ -36,11 +26,27 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         uint256 performanceFees
     );
 
+    event UpdatePerformanceFeeRecipient(
+        address indexed newPerformanceFeeRecipient
+    );
+
+    event UpdateKeeper(address indexed newKeeper);
+
+    event UpdatePerformanceFee(uint16 newPerformanceFee);
+
+    event UpdateManagement(address indexed newManagement);
+
+    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
+
+    event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
+
+    event UpdatePendingManagement(address indexed newPendingManagement);
+
     /*//////////////////////////////////////////////////////////////
                            INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
-    function init(
+    function initialize(
         address _asset,
         string memory _name,
         address _management,
@@ -67,16 +73,14 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     ) external returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
-                            MODIFIERS
+                        MODIFIER HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function isManagement(address _sender) external view returns (bool);
+    function requireManagement(address _sender) external view;
 
-    function isKeeperOrManagement(address _sender) external view returns (bool);
+    function requireKeeperOrManagement(address _sender) external view;
 
-    function isEmergencyAuthorized(
-        address _sender
-    ) external view returns (bool);
+    function requireEmergencyAuthorized(address _sender) external view;
 
     /*//////////////////////////////////////////////////////////////
                         KEEPERS FUNCTIONS
