@@ -1093,7 +1093,7 @@ contract TokenizedStrategy {
 
             // We need to get the equivalent amount of shares
             // at the current PPS before any minting or burning.
-            sharesToLock = _convertToShares(S, profit);
+            sharesToLock = _convertToShares(S, profit, Math.Rounding.Down);
 
             // Cache the performance fee.
             uint16 fee = S.performanceFee;
@@ -1174,7 +1174,7 @@ contract TokenizedStrategy {
                     // Cannot burn more than we have.
                     S.balances[address(this)],
                     // Try and burn both the shares already unlocked and the amount for the loss.
-                    _convertToShares(S, loss) + sharesToBurn
+                    _convertToShares(S, loss, Math.Rounding.Down) + sharesToBurn
                 );
             }
 
