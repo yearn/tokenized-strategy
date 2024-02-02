@@ -154,10 +154,6 @@ contract AccessControlTest is Setup {
         assertEq(strategy.performanceFee(), _performanceFee);
 
         vm.prank(management);
-        vm.expectRevert("MIN FEE");
-        strategy.setPerformanceFee(uint16(5));
-
-        vm.prank(management);
         vm.expectRevert("MAX FEE");
         strategy.setPerformanceFee(uint16(_amount + 5_001));
     }

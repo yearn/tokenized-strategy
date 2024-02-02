@@ -48,7 +48,8 @@ contract e2eTest is Setup {
                     _address != address(newStrategy)
             );
 
-            setPerformanceFeeToZero(address(newStrategy));
+            vm.prank(management);
+            newStrategy.setPerformanceFee(0);
 
             // Deposit a unique amount for each one
             uint256 toDeposit = _amount + i;
@@ -143,7 +144,8 @@ contract e2eTest is Setup {
                     _address != address(newStrategy)
             );
 
-            setPerformanceFeeToZero(address(newStrategy));
+            vm.prank(management);
+            newStrategy.setPerformanceFee(0);
 
             // Deposit a unique amount for each one
             uint256 toDeposit = _amount + i;
@@ -262,7 +264,8 @@ contract e2eTest is Setup {
                     _secondAddress != address(newStrategy)
             );
 
-            setPerformanceFeeToZero(address(newStrategy));
+            vm.prank(management);
+            newStrategy.setPerformanceFee(0);
 
             // Deposit a unique amount for each one
             uint256 toDeposit = _amount + i;

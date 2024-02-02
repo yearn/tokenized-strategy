@@ -94,8 +94,6 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
                         CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    function MIN_FEE() external view returns (uint16);
-
     function MAX_FEE() external view returns (uint16);
 
     function FACTORY() external view returns (address);

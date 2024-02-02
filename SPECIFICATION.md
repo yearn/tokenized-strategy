@@ -155,7 +155,7 @@ A strategies management can set another address to serve as an `emergencyAdmin`.
 #### Setting Performance Fee
 Setting the percent in terms of basis points for the amount of profit to be charged as a fee.
 
-This has a minimum of 5% and a maximum of 50%.
+There is a maximum of 50%.
 
 #### Setting performance fee recipient
 Setting the non-zero address that will receive any shares issued as a result of the performance fee.
