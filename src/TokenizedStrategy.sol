@@ -1066,8 +1066,6 @@ contract TokenizedStrategy {
         // Cache storage pointer since its used repeatedly.
         StrategyData storage S = _strategyStorage();
 
-        uint256 oldTotalAssets = S.totalAssets;
-
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and redepositing now and
         // account for deployed and loose `asset` so we can accurately
@@ -1076,8 +1074,10 @@ contract TokenizedStrategy {
         uint256 newTotalAssets = IBaseStrategy(address(this))
             .harvestAndReport();
 
-        // Burn unlocked shares.
-        _burnUnlockedShares(S);
+        uint256 oldTotalAssets = _totalAssets(S);
+
+        // Get the amount of shares we need to burn from previous reports.
+        uint256 sharesToBurn = _unlockedShares(S);
 
         // Initialize variables needed throughout.
         uint256 totalFees;
@@ -1089,85 +1089,98 @@ contract TokenizedStrategy {
             // We have a profit.
             unchecked {
                 profit = newTotalAssets - oldTotalAssets;
-                // Asses performance fees.
-                totalFees = (profit * S.performanceFee) / MAX_BPS;
             }
 
-            address protocolFeesRecipient;
-            uint256 performanceFeeShares;
-            uint256 protocolFeeShares;
-            // If performance fees are 0 so will protocol fees.
-            if (totalFees != 0) {
-                // Get the config from the factory.
-                uint16 protocolFeeBps;
-                (protocolFeeBps, protocolFeesRecipient) = IFactory(FACTORY)
-                    .protocol_fee_config();
+            // We need to get the equivalent amount of shares
+            // at the current PPS before any minting or burning.
+            sharesToLock = _convertToShares(S, profit, Math.Rounding.Down);
 
+            // Cache the performance fee.
+            uint16 fee = S.performanceFee;
+            uint256 totalFeeShares;
+            // If we are charging a performance fee
+            if (fee != 0) {
+                // Asses performance fees.
+                unchecked {
+                    // Get in `asset` for the event.
+                    totalFees = (profit * fee) / MAX_BPS;
+                    // And in shares for the payment.
+                    totalFeeShares = (sharesToLock * fee) / MAX_BPS;
+                }
+
+                // Get the protocol fee config from the factory.
+                (
+                    uint16 protocolFeeBps,
+                    address protocolFeesRecipient
+                ) = IFactory(FACTORY).protocol_fee_config();
+
+                uint256 protocolFeeShares;
                 // Check if there is a protocol fee to charge.
                 if (protocolFeeBps != 0) {
-                    // Calculate protocol fees based on the performance Fees.
-                    protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
+                    unchecked {
+                        // Calculate protocol fees based on the performance Fees.
+                        protocolFeeShares =
+                            (totalFeeShares * protocolFeeBps) /
+                            MAX_BPS;
+                        // Need amount in underlying for event.
+                        protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
+                    }
+
+                    // Mint the protocol fees to the recipient.
+                    _mint(S, protocolFeesRecipient, protocolFeeShares);
                 }
 
-                // We need to get the shares to issue for the fees at
-                // current PPS before any minting or burning.
+                // Mint the difference to the strategy fee recipient.
                 unchecked {
-                    performanceFeeShares = _convertToShares(
+                    _mint(
                         S,
-                        totalFees - protocolFees,
-                        Math.Rounding.Down
-                    );
-                }
-                if (protocolFees != 0) {
-                    protocolFeeShares = _convertToShares(
-                        S,
-                        protocolFees,
-                        Math.Rounding.Down
+                        S.performanceFeeRecipient,
+                        totalFeeShares - protocolFeeShares
                     );
                 }
             }
 
-            // we have a net profit. Check if we are locking profit.
+            // Check if we are locking profit.
             if (_profitMaxUnlockTime != 0) {
                 // lock (profit - fees)
                 unchecked {
-                    sharesToLock = _convertToShares(
-                        S,
-                        profit - totalFees,
-                        Math.Rounding.Down
-                    );
+                    sharesToLock -= totalFeeShares;
                 }
-                // Mint the shares to lock the strategy.
-                _mint(S, address(this), sharesToLock);
-            }
 
-            // Mint fees shares to recipients.
-            if (performanceFeeShares != 0) {
-                _mint(S, S.performanceFeeRecipient, performanceFeeShares);
-            }
-
-            if (protocolFeeShares != 0) {
-                _mint(S, protocolFeesRecipient, protocolFeeShares);
+                // If we are burning more than re-locking.
+                if (sharesToBurn > sharesToLock) {
+                    // Burn the difference
+                    unchecked {
+                        _burn(S, address(this), sharesToBurn - sharesToLock);
+                    }
+                } else if (sharesToLock > sharesToBurn) {
+                    // Mint the shares to lock the strategy.
+                    unchecked {
+                        _mint(S, address(this), sharesToLock - sharesToBurn);
+                    }
+                }
             }
         } else {
-            // We have a loss.
+            // Expect we have a loss.
             unchecked {
                 loss = oldTotalAssets - newTotalAssets;
             }
 
-            // Check in case else was due to being equal.
+            // Check in case `else` was due to being equal.
             if (loss != 0) {
-                // We will try and burn shares from any pending profit still unlocking
-                // to offset the loss to prevent any PPS decline post report.
-                uint256 sharesToBurn = Math.min(
+                // We will try and burn the unlocked shares and as much from any
+                // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
+                sharesToBurn = Math.min(
+                    // Cannot burn more than we have.
                     S.balances[address(this)],
-                    _convertToShares(S, loss, Math.Rounding.Down)
+                    // Try and burn both the shares already unlocked and the amount for the loss.
+                    _convertToShares(S, loss, Math.Rounding.Down) + sharesToBurn
                 );
+            }
 
-                // Check if there is anything to burn.
-                if (sharesToBurn != 0) {
-                    _burn(S, address(this), sharesToBurn);
-                }
+            // Check if there is anything to burn.
+            if (sharesToBurn != 0) {
+                _burn(S, address(this), sharesToBurn);
             }
         }
 
@@ -1204,8 +1217,8 @@ contract TokenizedStrategy {
             );
         } else {
             // Only setting this to 0 will turn in the desired effect,
-            // no need to update fullProfitUnlockDate.
-            S.profitUnlockingRate = 0;
+            // no need to update profitUnlockingRate.
+            S.fullProfitUnlockDate = 0;
         }
 
         // Update the new total assets value.
@@ -1219,27 +1232,6 @@ contract TokenizedStrategy {
             protocolFees, // Protocol fees
             totalFees - protocolFees // Performance Fees
         );
-    }
-
-    /**
-     * @dev Called during reports to burn shares that have been unlocked
-     * since the last report.
-     *
-     * Will reset the `lastReport` if haven't unlocked the full amount yet
-     * so future calculations remain correct.
-     */
-    function _burnUnlockedShares(StrategyData storage S) internal {
-        uint256 unlocked = _unlockedShares(S);
-        if (unlocked == 0) {
-            return;
-        }
-
-        // update variables (done here to keep _unlockedShares() as a view function)
-        if (S.fullProfitUnlockDate > block.timestamp) {
-            S.lastReport = uint96(block.timestamp);
-        }
-
-        _burn(S, address(this), unlocked);
     }
 
     /**
@@ -1589,8 +1581,11 @@ contract TokenizedStrategy {
 
         // If we are setting to 0 we need to adjust amounts.
         if (_profitMaxUnlockTime == 0) {
-            // Burn all shares if applicable.
-            _burn(S, address(this), S.balances[address(this)]);
+            uint256 shares = S.balances[address(this)];
+            if (shares != 0) {
+                // Burn all shares if applicable.
+                _burn(S, address(this), shares);
+            }
             // Reset unlocking variables
             S.profitUnlockingRate = 0;
             S.fullProfitUnlockDate = 0;
