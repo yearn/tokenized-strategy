@@ -61,7 +61,7 @@ import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
  *  This TokenizedStrategy can be used by anyone wishing to easily build
  *  and deploy their own custom ERC4626 compliant single strategy Vault.
  *
- *  The TokenizedStrategy contract is meant to be used as a proxy style
+ *  The TokenizedStrategy contract is meant to be used as the proxy
  *  implementation contract that will handle all logic, storage and
  *  management for a custom strategy that inherits the `BaseStrategy`.
  *  Any function calls to the strategy that are not defined within that
@@ -188,8 +188,8 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev The struct that will hold all the data for each strategy that
-     * uses this implementation.
+     * @dev The struct that will hold all the storage data for each strategy
+     * that uses this implementation.
      *
      * This replaces all state variables for a traditional contract. This
      * full struct will be initialized on the creation of the strategy
@@ -200,7 +200,7 @@ contract TokenizedStrategy {
      *
      * Loading the corresponding storage slot for the struct does not
      * load any of the contents of the struct into memory. So the size
-     * will not increase gas usage.
+     * will not increase memory related gas usage.
      */
     // prettier-ignore
     struct StrategyData {
@@ -213,7 +213,6 @@ contract TokenizedStrategy {
         // strategies token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals that `asset` and strategy use.
         uint88 INITIAL_CHAIN_ID; // The initial chain id when the strategy was created.
-
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued.
         bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain separator used for permits on the initial chain.
@@ -227,8 +226,9 @@ contract TokenizedStrategy {
 
 
         // Variables for profit reporting and locking.
-        // We use uint96 for timestamps to fit in the same slot as an address.
-        // We will surely all be dead by the time the slot overflows.
+        // We use uint96 for timestamps to fit in the same slot as an address. That overflows in 2.5e+21 years.
+        // I know Yearn moves slowly but surely V4 will be out by then.
+        // If the timestamps ever overflow tell the cyborgs still using this code I'm sorry for being cheap.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
         uint96 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
         address keeper; // Address given permission to call {report} and {tend}.
@@ -271,7 +271,7 @@ contract TokenizedStrategy {
 
     /**
      * @dev Require that the call is coming from either the strategies
-     * management or the emergency admin.
+     * management or the emergencyAdmin.
      */
     modifier onlyEmergencyAuthorized() {
         requireEmergencyAuthorized(msg.sender);
@@ -284,7 +284,7 @@ contract TokenizedStrategy {
      */
     modifier nonReentrant() {
         StrategyData storage S = _strategyStorage();
-        // On the first call to nonReentrant, `entered` will be false
+        // On the first call to nonReentrant, `entered` will be false (2)
         require(S.entered != ENTERED, "ReentrancyGuard: reentrant call");
 
         // Any calls to nonReentrant after this point will fail
@@ -292,7 +292,7 @@ contract TokenizedStrategy {
 
         _;
 
-        // Reset to false once call has finished
+        // Reset to false (1) once call has finished.
         S.entered = NOT_ENTERED;
     }
 
@@ -363,10 +363,6 @@ contract TokenizedStrategy {
     /// @notice Seconds per year for max profit unlocking time.
     uint256 internal constant SECONDS_PER_YEAR = 31_556_952; // 365.2425 days
 
-    /// @notice Address of the previously deployed Vault factory that the
-    // protocol fee config is retrieved from.
-    address public immutable FACTORY;
-
     /**
      * @dev Custom storage slot that will be used to store the
      * `StrategyData` struct that holds each strategies
@@ -386,7 +382,15 @@ contract TokenizedStrategy {
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
     /*//////////////////////////////////////////////////////////////
-                        STORAGE GETTER
+                               IMMUTABLE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Address of the previously deployed Vault factory that the
+    // protocol fee config is retrieved from.
+    address public immutable FACTORY;
+
+    /*//////////////////////////////////////////////////////////////
+                            STORAGE GETTER
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -422,9 +426,6 @@ contract TokenizedStrategy {
      * The function will also emit an event that off chain indexers can
      * look for to track any new deployments using this TokenizedStrategy.
      *
-     * This is called through a low level call in the BaseStrategy
-     * so any reverts will return the "init failed" string.
-     *
      * @param _asset Address of the underlying asset.
      * @param _name Name the strategy will use.
      * @param _management Address to set as the strategies `management`.
@@ -438,25 +439,25 @@ contract TokenizedStrategy {
         address _performanceFeeRecipient,
         address _keeper
     ) external {
-        // Cache storage pointer
+        // Cache storage pointer.
         StrategyData storage S = _strategyStorage();
 
         // Make sure we aren't initialized.
         require(address(S.asset) == address(0), "initialized");
 
-        // Set the strategy's underlying asset
+        // Set the strategy's underlying asset.
         S.asset = ERC20(_asset);
         // Set the Strategy Tokens name.
         S.name = _name;
         // Set decimals based off the `asset`.
         S.decimals = ERC20(_asset).decimals();
-        // Set initial chain id for permit replay protection
+        // Set initial chain id for permit replay protection.
         require(block.chainid < type(uint88).max, "invalid chain id");
         S.INITIAL_CHAIN_ID = uint88(block.chainid);
-        // Set the initial domain separator for permit functions
+        // Set the initial domain separator for permit functions.
         S.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator(S);
 
-        // Default to a 10 day profit unlock period
+        // Default to a 10 day profit unlock period.
         S.profitMaxUnlockTime = 10 days;
         // Set address to receive performance fees.
         // Can't be address(0) or we will be burning fees.
@@ -659,7 +660,7 @@ contract TokenizedStrategy {
      * As more shares slowly unlock the totalSupply will decrease
      * causing the PPS of the strategy to increase.
      *
-     * @return . Total amount of shares issued.
+     * @return . Total amount of shares outstanding.
      */
     function totalSupply() external view returns (uint256) {
         return _totalSupply(_strategyStorage());
@@ -978,7 +979,7 @@ contract TokenizedStrategy {
             _spendAllowance(S, owner, msg.sender, shares);
         }
 
-        // Expected behavior is to need to free funds so we cache `_asset`.
+        // Cache `asset` since it is used multiple times..
         ERC20 _asset = S.asset;
 
         uint256 idle = _asset.balanceOf(address(this));
@@ -1033,10 +1034,7 @@ contract TokenizedStrategy {
      * @notice Function for keepers to call to harvest and record all
      * profits accrued.
      *
-     * @dev This should be called through protected relays if swaps
-     * are likely occur.
-     *
-     * This will account for any gains/losses since the last report
+     * @dev This will account for any gains/losses since the last report
      * and charge fees accordingly.
      *
      * Any profit over the fees charged will be immediately locked

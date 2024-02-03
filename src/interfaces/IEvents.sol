@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
 interface IEvents {
@@ -71,14 +71,6 @@ interface IEvents {
     event UpdatePendingManagement(address indexed newPendingManagement);
 
     /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
      * @dev Emitted when the allowance of a `spender` for an `owner` is set by
      * a call to {approve}. `value` is the new allowance.
      */
@@ -87,6 +79,14 @@ interface IEvents {
         address indexed spender,
         uint256 value
     );
+
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
 
     /**
      * @dev Emitted when the `caller` has exchanged `assets` for `shares`,
