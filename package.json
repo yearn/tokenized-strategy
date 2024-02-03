@@ -9,9 +9,9 @@
         "solhint-plugin-prettier": "^0.0.5"
     },
     "scripts": {
-        "format": "prettier --write 'src/**/*.(sol|json)'",
-        "format:check": "prettier --check 'src/**/*.*(sol|json)'",
-        "lint": "solhint 'src/**/*.sol'",
-        "lint:fix": "solhint --fix 'src/**/*.sol'"
+        "format": "prettier --write 'src/**/*.(sol|json)' 'script/*.sol'",
+        "format:check": "prettier --check 'src/**/*.*(sol|json)' 'script/*.sol'",
+        "lint": "solhint 'src/**/*.sol' 'script/*.sol'",
+        "lint:fix": "solhint --fix 'src/**/*.sol' 'script/*.sol'"
     }
   }
