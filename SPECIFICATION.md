@@ -113,7 +113,7 @@ Fee assessment and distribution is handled during each `report` call after profi
 
 It will report the amount of fees that need to be charged and the strategy will issue shares for that amount of fees.
 
-There are two potential fees. Performance fees and protocol fees. Performance fees are configurable by management of the strategy and payed based on the reported profit during each report with a min of 5% and a max of 50%. 
+There are two potential fees. Performance fees and protocol fees. Performance fees are configurable by management of the strategy and payed based on the reported profit during each report with a max of 50%. 
 
 Protocol fees are configured by Yearn governance through the Factory and are taken as a percent of the performanceFees charged. I.E. profit = 100, performance fees = 20% protocol fees = 10%. Then total fees charged = 100 * .2 = 20 of which 10% is sent to the protocol fee recipient (2) and 90% (18) is sent the strategy specific `performanceFeeRecipient`.
 

@@ -473,9 +473,9 @@ abstract contract BaseStrategy {
     }
 
     /**
-     * @dev execute a function on the TokenizedStrategy and return any value.
+     * @dev Execute a function on the TokenizedStrategy and return any value.
      *
-     * This fallback function will be execute when any of the standard functions
+     * This fallback function will be executed when any of the standard functions
      * defined in the TokenizedStrategy are called since they wont be defined in
      * this contract.
      *
