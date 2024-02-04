@@ -86,6 +86,20 @@ To print out the storage layout of any contract (e.g 'test/MockStrategy.sol')
 make inspect contract=MockStrategy
 ```
 
+## Deployment
+
+Deployments of the TokenizedStrategy are done using create2 to be at a deterministic address on any EVM chain.
+
+Check the [docs](https://docs.yearn.fi/developers/v3/overview) for the most updated deployment address.
+
+Deployments on new chains can be done permissionlessly by anyone using the included script. First follow the steps to deploy the vault factory from the [Vaults V3](https://github.com/yearn/yearn-vaults-v3/tree/3.0.2) repo.
+
+You can then deploy the TokenizedStrategy using the provided scipt.
+
+```
+forge script script/Deploy.s.sol:Deploy --rpc-url YOUR_RPC_URL
+```
+
 ### To make contributions please follow the [Contribution Guidelines](https://github.com/yearn/tokenized-strategy/blob/master/CONTRIBUTING.md)
 
 # Resources

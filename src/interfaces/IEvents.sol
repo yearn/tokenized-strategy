@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
 interface IEvents {
@@ -7,29 +7,30 @@ interface IEvents {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Emitted when the 'pendingManagement' address is updated to 'newPendingManagement'.
+     * @notice Emitted when a strategy is shutdown.
      */
-    event UpdatePendingManagement(address indexed newPendingManagement);
+    event StrategyShutdown();
 
     /**
-     * @notice Emitted when the 'management' address is updated to 'newManagement'.
+     * @notice Emitted on the initialization of any new `strategy` that uses `asset`
+     * with this specific `apiVersion`.
      */
-    event UpdateManagement(address indexed newManagement);
+    event NewTokenizedStrategy(
+        address indexed strategy,
+        address indexed asset,
+        string apiVersion
+    );
 
     /**
-     * @notice Emitted when the 'keeper' address is updated to 'newKeeper'.
+     * @notice Emitted when the strategy reports `profit` or `loss` and
+     * `performanceFees` and `protocolFees` are paid out.
      */
-    event UpdateKeeper(address indexed newKeeper);
-
-    /**
-     * @notice Emitted when the 'emergencyAdmin' address is updated to 'newEmergencyAdmin'.
-     */
-    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
-
-    /**
-     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
-     */
-    event UpdatePerformanceFee(uint16 newPerformanceFee);
+    event Reported(
+        uint256 profit,
+        uint256 loss,
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
 
     /**
      * @notice Emitted when the 'performanceFeeRecipient' address is
@@ -40,22 +41,34 @@ interface IEvents {
     );
 
     /**
+     * @notice Emitted when the 'keeper' address is updated to 'newKeeper'.
+     */
+    event UpdateKeeper(address indexed newKeeper);
+
+    /**
+     * @notice Emitted when the 'performanceFee' is updated to 'newPerformanceFee'.
+     */
+    event UpdatePerformanceFee(uint16 newPerformanceFee);
+
+    /**
+     * @notice Emitted when the 'management' address is updated to 'newManagement'.
+     */
+    event UpdateManagement(address indexed newManagement);
+
+    /**
+     * @notice Emitted when the 'emergencyAdmin' address is updated to 'newEmergencyAdmin'.
+     */
+    event UpdateEmergencyAdmin(address indexed newEmergencyAdmin);
+
+    /**
      * @notice Emitted when the 'profitMaxUnlockTime' is updated to 'newProfitMaxUnlockTime'.
      */
     event UpdateProfitMaxUnlockTime(uint256 newProfitMaxUnlockTime);
 
     /**
-     * @notice Emitted when a strategy is shutdown.
+     * @notice Emitted when the 'pendingManagement' address is updated to 'newPendingManagement'.
      */
-    event StrategyShutdown();
-
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
+    event UpdatePendingManagement(address indexed newPendingManagement);
 
     /**
      * @dev Emitted when the allowance of a `spender` for an `owner` is set by
@@ -66,6 +79,14 @@ interface IEvents {
         address indexed spender,
         uint256 value
     );
+
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
 
     /**
      * @dev Emitted when the `caller` has exchanged `assets` for `shares`,
@@ -88,26 +109,5 @@ interface IEvents {
         address indexed owner,
         uint256 assets,
         uint256 shares
-    );
-
-    /**
-     * @dev Emitted when the strategy reports `profit` or `loss` and
-     * `performanceFees` and `protocolFees` are paid out.
-     */
-    event Reported(
-        uint256 profit,
-        uint256 loss,
-        uint256 protocolFees,
-        uint256 performanceFees
-    );
-
-    /**
-     * @dev Emitted on the initialization of any new `strategy` that uses `asset`
-     * with this specific `apiVersion`.
-     */
-    event NewTokenizedStrategy(
-        address indexed strategy,
-        address indexed asset,
-        string apiVersion
     );
 }

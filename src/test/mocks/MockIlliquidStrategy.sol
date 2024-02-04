@@ -55,7 +55,7 @@ contract MockIlliquidStrategy is BaseStrategy {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        return TokenizedStrategy.totalIdle();
+        return asset.balanceOf(address(this));
     }
 
     function setWhitelist(bool _bool) external {

@@ -5,20 +5,27 @@ import "forge-std/Script.sol";
 
 // Deploy a contract to a deterministic address with create2 factory.
 contract Deploy is Script {
+    // Create X address.
+    Deployer public deployer =
+        Deployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
-    Deployer public deployer = Deployer(0x8D85e7c9A4e369E53Acc8d5426aE1568198b0112);
+    // Vault factory address for v3.0.1
+    address public factory = 0xE9E8C89c8Fc7E8b8F23425688eb68987231178e5;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
         // Append constructor args to the bytecode
-        bytes memory bytecode = vm.getCode("TokenizedStrategy.sol:TokenizedStrategy");
+        bytes memory bytecode = abi.encodePacked(
+            vm.getCode("TokenizedStrategy.sol:TokenizedStrategy"),
+            abi.encode(factory)
+        );
 
         // Pick an unique salt
-        uint256 salt = uint256(keccak256("v3.0.1"));
+        bytes32 salt = keccak256("v3.0.2");
 
-        address contractAddress = deployer.deploy(bytecode, salt);
+        address contractAddress = deployer.deployCreate2(salt, bytecode);
 
         console.log("Address is ", contractAddress);
 
@@ -27,17 +34,10 @@ contract Deploy is Script {
 }
 
 contract Deployer {
-    event Deployed(address addr, uint256 salt);
+    event ContractCreation(address indexed newContract, bytes32 indexed salt);
 
-    function deploy(bytes memory code, uint256 salt) external  returns (address) {
-        address addr;
-        assembly {
-            addr := create2(0, add(code, 0x20), mload(code), salt)
-            if iszero(extcodesize(addr)) {
-                revert(0, 0)
-            }
-        }
-        emit Deployed(addr, salt);
-        return addr;
-    }
+    function deployCreate2(
+        bytes32 salt,
+        bytes memory initCode
+    ) public payable returns (address newContract) {}
 }

@@ -780,9 +780,9 @@ contract ProfitLockingTest is Setup {
 
         uint256 newAmount = _amount + profit;
 
-        uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            expectedProtocolFee + expectedPerformanceFee
-        );
+        uint256 secondExpectedSharesForFees = (strategy.convertToShares(
+            profit
+        ) * performanceFee) / MAX_BPS;
 
         createAndCheckProfit(
             strategy,
@@ -920,9 +920,9 @@ contract ProfitLockingTest is Setup {
 
         uint256 newAmount = _amount + profit;
 
-        uint256 secondExpectedSharesForFees = strategy.convertToShares(
-            expectedPerformanceFee
-        ) + strategy.convertToShares(expectedProtocolFee);
+        uint256 secondExpectedSharesForFees = (strategy.convertToShares(
+            profit
+        ) * performanceFee) / MAX_BPS;
 
         createAndCheckProfit(
             strategy,
@@ -938,10 +938,7 @@ contract ProfitLockingTest is Setup {
             0,
             newAmount -
                 ((profit - totalExpectedFees) / 2) +
-                strategy.previewWithdraw(
-                    profit - (expectedProtocolFee + expectedPerformanceFee)
-                ) +
-                secondExpectedSharesForFees
+                strategy.convertToShares(profit)
         );
 
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
@@ -1863,6 +1860,116 @@ contract ProfitLockingTest is Setup {
 
         vm.prank(_address);
         strategy.redeem(newAmount - profit, _address, _address);
+
+        checkStrategyTotals(strategy, 0, 0, 0, 0);
+
+        assertEq(strategy.pricePerShare(), wad, "pps reset");
+    }
+
+    function test_buffer_noGainReport(
+        address _address,
+        uint256 _amount,
+        uint16 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != protocolFeeRecipient &&
+                _address != performanceFeeRecipient &&
+                _address != address(yieldSource)
+        );
+        // set fees to 0
+        uint16 protocolFee = 0;
+        uint16 performanceFee = 0;
+        setFees(protocolFee, performanceFee);
+
+        assertEq(strategy.profitUnlockingRate(), 0, "!rate");
+        assertEq(strategy.fullProfitUnlockDate(), 0, "date");
+
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        // Increase time to simulate interest being earned
+        increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+
+        uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
+            MAX_BPS;
+
+        uint256 totalExpectedFees = expectedPerformanceFee +
+            expectedProtocolFee;
+        createAndCheckProfit(
+            strategy,
+            profit,
+            expectedProtocolFee,
+            expectedPerformanceFee
+        );
+
+        assertEq(strategy.pricePerShare(), wad, "!pps");
+
+        checkStrategyTotals(
+            strategy,
+            _amount + profit,
+            _amount + profit,
+            0,
+            _amount + profit
+        );
+
+        increaseTimeAndCheckBuffer(
+            strategy,
+            profitMaxUnlockTime / 2,
+            (profit - totalExpectedFees) / 2
+        );
+
+        checkStrategyTotals(
+            strategy,
+            _amount + profit,
+            _amount + profit,
+            0,
+            _amount + profit - ((profit - totalExpectedFees) / 2)
+        );
+
+        // Make sure we have active unlocking
+        assertGt(strategy.profitUnlockingRate(), 0);
+        assertGt(strategy.fullProfitUnlockDate(), 0);
+        assertGt(strategy.balanceOf(address(strategy)), 0);
+        uint256 pps = strategy.pricePerShare();
+
+        // Report with no profit or loss
+        vm.prank(keeper);
+        strategy.report();
+
+        // Should be the same as before
+        assertEq(strategy.pricePerShare(), pps, "pps");
+        checkStrategyTotals(
+            strategy,
+            _amount + profit,
+            _amount + profit,
+            0,
+            _amount + profit - ((profit - totalExpectedFees) / 2)
+        );
+
+        increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime / 2, 0);
+
+        // Everything should be unlocked now.
+        assertRelApproxEq(
+            strategy.pricePerShare(),
+            wad + ((wad * _profitFactor) / MAX_BPS),
+            MAX_BPS
+        );
+        checkStrategyTotals(
+            strategy,
+            _amount + profit,
+            _amount + profit,
+            0,
+            _amount
+        );
+
+        vm.prank(_address);
+        strategy.redeem(_amount, _address, _address);
 
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 

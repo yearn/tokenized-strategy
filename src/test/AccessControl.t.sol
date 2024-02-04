@@ -154,10 +154,6 @@ contract AccessControlTest is Setup {
         assertEq(strategy.performanceFee(), _performanceFee);
 
         vm.prank(management);
-        vm.expectRevert("MIN FEE");
-        strategy.setPerformanceFee(uint16(5));
-
-        vm.prank(management);
         vm.expectRevert("MAX FEE");
         strategy.setPerformanceFee(uint16(_amount + 5_001));
     }
@@ -240,7 +236,7 @@ contract AccessControlTest is Setup {
         assertEq(tokenizedStrategy.keeper(), address(0));
 
         vm.expectRevert("initialized");
-        tokenizedStrategy.init(
+        tokenizedStrategy.initialize(
             address(asset),
             name_,
             _address,

@@ -31,7 +31,7 @@ contract CustomImplementationsTest is Setup {
 
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 idle = strategy.totalIdle();
+        uint256 idle = asset.balanceOf(address(strategy));
         assertGt(idle, 0);
 
         // Assure we have a withdraw limit
@@ -40,9 +40,9 @@ contract CustomImplementationsTest is Setup {
 
         // Make sure max withdraw and redeem return the correct amounts
         assertEq(strategy.maxWithdraw(_address), idle);
-        assertEq(strategy.maxRedeem(_address), strategy.previewWithdraw(idle));
+        assertEq(strategy.maxRedeem(_address), strategy.convertToShares(idle));
         assertLe(
-            strategy.maxRedeem(_address),
+            strategy.convertToAssets(strategy.maxRedeem(_address)),
             strategy.availableWithdrawLimit(_address)
         );
 
@@ -58,7 +58,7 @@ contract CustomImplementationsTest is Setup {
 
         increaseTimeAndCheckBuffer(strategy, 5 days, profit / 2);
 
-        idle = strategy.totalIdle();
+        idle = asset.balanceOf(address(strategy));
         assertGt(idle, 0);
 
         // Assure we have a withdraw limit
@@ -67,9 +67,9 @@ contract CustomImplementationsTest is Setup {
 
         // Make sure max withdraw and redeem return the correct amounts
         assertEq(strategy.maxWithdraw(_address), idle);
-        assertEq(strategy.maxRedeem(_address), strategy.previewWithdraw(idle));
+        assertEq(strategy.maxRedeem(_address), strategy.convertToShares(idle));
         assertLe(
-            strategy.maxRedeem(_address),
+            strategy.convertToAssets(strategy.maxRedeem(_address)),
             strategy.availableWithdrawLimit(_address)
         );
 
@@ -82,19 +82,20 @@ contract CustomImplementationsTest is Setup {
         strategy.withdraw(_amount, _address, _address);
 
         uint256 before = asset.balanceOf(_address);
-        uint256 redeem = strategy.previewWithdraw(idle);
+        uint256 redeem = strategy.maxRedeem(_address);
+        uint256 conversion = strategy.convertToAssets(_amount);
 
         vm.prank(_address);
-        strategy.redeem(redeem, _address, _address);
+        strategy.redeem(redeem, _address, _address, 0);
 
-        // We need to give a i wei rounding buffer
-        assertApproxEq(asset.balanceOf(_address) - before, idle, 1);
-        assertApproxEq(strategy.totalIdle(), 0, 1);
-        assertApproxEq(strategy.availableWithdrawLimit(_address), 0, 1);
-        assertApproxEq(strategy.maxWithdraw(_address), 0, 1);
-        assertApproxEq(strategy.maxRedeem(_address), 0, 1);
+        // We need to give 2 wei rounding buffer
+        assertApproxEq(strategy.convertToAssets(_amount), conversion, 2);
+        assertApproxEq(asset.balanceOf(_address) - before, idle, 2);
+        assertApproxEq(strategy.availableWithdrawLimit(_address), 0, 2);
+        assertApproxEq(strategy.maxWithdraw(_address), 0, 2);
+        assertApproxEq(strategy.maxRedeem(_address), 0, 2);
         assertLe(
-            strategy.maxRedeem(_address),
+            strategy.convertToAssets(strategy.maxRedeem(_address)),
             strategy.availableWithdrawLimit(_address)
         );
     }
@@ -225,6 +226,8 @@ contract CustomImplementationsTest is Setup {
                 _address != management &&
                 _address != address(strategy)
         );
+
+        assertEq(strategy.emergencyAdmin(), emergencyAdmin);
 
         assertTrue(!strategy.emergentizated());
 

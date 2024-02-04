@@ -1,7 +1,7 @@
 {
-    "solidity.compileUsingRemoteVersion": "v0.8.18",
+    "solidity.compileUsingRemoteVersion": "v0.8.18+commit.87f61d96",
     "solidity.remappings": [
-        "@openzeppelin/=./lib/openzeppelin-contracts/",
+        "@openzeppelin/=lib/openzeppelin-contracts/",
         "forge-std/=lib/forge-std/src/",
         "ds-test/=lib/forge-std/lib/ds-test/src/",
         "erc4626-tests/=lib/erc4626-tests/"

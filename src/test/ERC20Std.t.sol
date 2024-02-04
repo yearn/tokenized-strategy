@@ -16,13 +16,14 @@ contract ERC20BaseTest is Setup {
         super.setUp();
     }
 
-    function invariant_metadata() public {
+    function test_metadata() public {
         assertEq(strategy.name(), "Test Strategy");
         assertEq(
             strategy.symbol(),
             string(abi.encodePacked("ys", asset.symbol()))
         );
         assertEq(strategy.decimals(), 18);
+        assertEq(strategy.apiVersion(), "3.0.2");
     }
 
     function testFuzz_mint(address account_, uint256 amount_) public {
@@ -60,98 +61,6 @@ contract ERC20BaseTest is Setup {
         assertTrue(strategy.approve(account_, amount_));
 
         assertEq(strategy.allowance(self, account_), amount_);
-    }
-
-    function testFuzz_increaseAllowance(
-        address account_,
-        uint256 initialAmount_,
-        uint256 addedAmount_
-    ) public {
-        vm.assume(account_ != address(0) && account_ != address(strategy));
-        initialAmount_ = bound(initialAmount_, 0, type(uint256).max / 2);
-        addedAmount_ = bound(addedAmount_, 0, type(uint256).max / 2);
-
-        strategy.approve(account_, initialAmount_);
-
-        assertEq(strategy.allowance(self, account_), initialAmount_);
-
-        assertTrue(strategy.increaseAllowance(account_, addedAmount_));
-
-        assertEq(
-            strategy.allowance(self, account_),
-            initialAmount_ + addedAmount_
-        );
-    }
-
-    function testFuzz_increaseAllowance_overflows(
-        address account_,
-        uint256 initialAmount_,
-        uint256 addedAmount_
-    ) public {
-        vm.assume(account_ != address(0) && account_ != address(strategy));
-        initialAmount_ = bound(
-            initialAmount_,
-            type(uint256).max / 2 + 1,
-            type(uint256).max
-        );
-        addedAmount_ = bound(
-            addedAmount_,
-            type(uint256).max / 2 + 1,
-            type(uint256).max
-        );
-
-        strategy.approve(account_, initialAmount_);
-
-        assertEq(strategy.allowance(self, account_), initialAmount_);
-
-        vm.expectRevert(ARITHMETIC_ERROR);
-        strategy.increaseAllowance(account_, addedAmount_);
-
-        assertEq(strategy.allowance(self, account_), initialAmount_);
-    }
-
-    function testFuzz_decreaseAllowance_nonInfiniteApproval(
-        address account_,
-        uint256 initialAmount_,
-        uint256 subtractedAmount_
-    ) public {
-        vm.assume(account_ != address(0) && account_ != address(strategy));
-        initialAmount_ = bound(initialAmount_, 0, type(uint256).max - 1);
-        subtractedAmount_ = bound(subtractedAmount_, 0, initialAmount_);
-
-        strategy.approve(account_, initialAmount_);
-
-        assertEq(strategy.allowance(self, account_), initialAmount_);
-
-        assertTrue(strategy.decreaseAllowance(account_, subtractedAmount_));
-
-        assertEq(
-            strategy.allowance(self, account_),
-            initialAmount_ - subtractedAmount_
-        );
-    }
-
-    function testFuzz_decreaseAllowance_underFlows(
-        address account_,
-        uint256 initialAmount_,
-        uint256 subtractedAmount_
-    ) public {
-        vm.assume(account_ != address(0) && account_ != address(strategy));
-        initialAmount_ = bound(initialAmount_, 0, type(uint256).max - 1);
-        subtractedAmount_ = bound(
-            subtractedAmount_,
-            initialAmount_ + 1,
-            type(uint256).max
-        );
-
-        strategy.approve(account_, initialAmount_);
-
-        assertEq(strategy.allowance(self, account_), initialAmount_);
-
-        vm.expectRevert(ARITHMETIC_ERROR);
-        strategy.decreaseAllowance(account_, subtractedAmount_);
-
-        assertEq(strategy.allowance(self, account_), initialAmount_);
     }
 
     function testFuzz_transfer(address account_, uint256 amount_) public {
