@@ -246,6 +246,7 @@ contract TokenizedStrategy {
         // Strategy Status
         uint8 entered; // To prevent reentrancy. Use uint8 for gas savings.
         bool shutdown; // Bool that can be used to stop deposits into the strategy.
+        bool autoReport; // Should the strategy auto report each deposit/withdraw.
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -497,6 +498,10 @@ contract TokenizedStrategy {
     ) external nonReentrant returns (uint256 shares) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+
+        // Check if we should first accumulate profits.
+        if(S.autoReport && S.lastReport != block.timestamp) _report(S);
+
         // Checking max deposit will also check if shutdown.
         require(
             assets <= _maxDeposit(S, receiver),
@@ -524,6 +529,10 @@ contract TokenizedStrategy {
     ) external nonReentrant returns (uint256 assets) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+
+        // Check if we should first accumulate profits.
+        if(S.autoReport && S.lastReport != block.timestamp) _report(S);
+
         // Checking max mint will also check if shutdown.
         require(shares <= _maxMint(S, receiver), "ERC4626: mint more than max");
         // Check for rounding error.
@@ -570,6 +579,10 @@ contract TokenizedStrategy {
     ) public nonReentrant returns (uint256 shares) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+
+        // Check if we should first accumulate profits.
+        if(S.autoReport && S.lastReport != block.timestamp) _report(S);
+
         require(
             assets <= _maxWithdraw(S, owner),
             "ERC4626: withdraw more than max"
@@ -620,6 +633,10 @@ contract TokenizedStrategy {
     ) public nonReentrant returns (uint256) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+
+        // Check if we should first accumulate profits.
+        if(S.autoReport && S.lastReport != block.timestamp) _report(S);
+
         require(
             shares <= _maxRedeem(S, owner),
             "ERC4626: redeem more than max"
@@ -1059,11 +1076,12 @@ contract TokenizedStrategy {
         external
         nonReentrant
         onlyKeepers
-        returns (uint256 profit, uint256 loss)
+        returns (uint256, uint256)
     {
-        // Cache storage pointer since its used repeatedly.
-        StrategyData storage S = _strategyStorage();
+        return _report(_strategyStorage());
+    }
 
+    function _report(StrategyData storage S) internal returns (uint256 profit, uint256 loss) {
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and redepositing now and
         // account for deployed and loose `asset` so we can accurately
@@ -1592,6 +1610,10 @@ contract TokenizedStrategy {
         S.profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
+    }
+
+    function setAutoReport(bool _autoReport) external onlyManagement {
+        _strategyStorage().autoReport = _autoReport;
     }
 
     /*//////////////////////////////////////////////////////////////
