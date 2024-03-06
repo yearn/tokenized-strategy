@@ -9,8 +9,8 @@ contract Deploy is Script {
     Deployer public deployer =
         Deployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
-    // Vault factory address for v3.0.1
-    address public factory = 0xE9E8C89c8Fc7E8b8F23425688eb68987231178e5;
+    // Vault factory address for v3.0.2
+    address public factory = 0x444045c5C13C246e117eD36437303cac8E250aB0;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");

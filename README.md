@@ -92,13 +92,15 @@ Deployments of the TokenizedStrategy are done using create2 to be at a determini
 
 Check the [docs](https://docs.yearn.fi/developers/v3/overview) for the most updated deployment address.
 
-Deployments on new chains can be done permissionlessly by anyone using the included script. First follow the steps to deploy the vault factory from the [Vaults V3](https://github.com/yearn/yearn-vaults-v3/tree/3.0.2) repo.
+Deployments on new chains can be done permissionlessly by anyone using the included script. First follow the steps to deploy the vault factory from the [Vaults V3](https://github.com/yearn/yearn-vaults-v3/) repo.
 
-You can then deploy the TokenizedStrategy using the provided scipt.
+You can then deploy the TokenizedStrategy using the provided script.
 
 ```
 forge script script/Deploy.s.sol:Deploy --rpc-url YOUR_RPC_URL
 ```
+
+If the deployments do not end at the same address you can also manually send the calldata used in the previous deployments on other chains.
 
 ### To make contributions please follow the [Contribution Guidelines](https://github.com/yearn/tokenized-strategy/blob/master/CONTRIBUTING.md)
 
