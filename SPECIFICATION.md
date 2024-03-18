@@ -38,11 +38,11 @@ The base strategy is a simple abstract contract designed to be inherited by the 
 ### Modifiers
 `onlySelf`: This modifier is placed on callback functions for the TokenizedStrategy to use during deposits, withdraws, reports and tends. The modifier should revert if msg.sender is not equal to itself. In order for a call to be forwarded to the TokenizedStrategy it must not be defined in the Strategy and hit the fallback function which will delegatecall the TokenizedStrategy. If within that call, the TokenizedStrategy makes an external call back to the BaseStrategy the msg.sender of that call will be the original caller, which should be the Strategy itself.
 
-`onlyManagement`: Should be placed on function that only the Strategies specific management address can call. This uses the isManagement(address) function defined in TokenizedStrategy by sending the original msg.sender address.
+`onlyManagement`: Should be placed on function that only the Strategies specific management address can call. This uses the requireManagement(address) function defined in TokenizedStrategy by sending the original msg.sender address.
 
-`onlyKeepers`: Should be placed on functions that only the Strategies specific management or keeper can call. This uses the isManagementOrKeeper(address) defined in TokenizedStrategy sending the original msg.sender address.
+`onlyKeepers`: Should be placed on functions that only the Strategies specific management or keeper can call. This uses the requireKeeperOrManagement(address) defined in TokenizedStrategy sending the original msg.sender address.
 
-`onlyEmergencyAuthorized`: Should be placed on functions that only the strategy specific management OR emergencyAdmin can call. This uses the isEmergencyAuthorized(address) function defined in TokenizedStrategy by sending the original msg.sender address.
+`onlyEmergencyAuthorized`: Should be placed on functions that only the strategy specific management OR emergencyAdmin can call. This uses the requireEmergencyAuthorized(address) function defined in TokenizedStrategy by sending the original msg.sender address.
 
 ### Variables
 
