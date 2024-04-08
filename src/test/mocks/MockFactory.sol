@@ -1,4 +1,4 @@
-pragma solidity 0.8.18;
+pragma solidity >=0.8.18;
 
 contract MockFactory {
     uint16 public feeBps;
