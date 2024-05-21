@@ -1,3 +1,4 @@
+![PNG image](https://github.com/yearn/tokenized-strategy/assets/144585121/b1afbef9-7a4c-4ef6-a960-dc52b7750cb7)
 # Yearn V3 Tokenized Strategy Specification
 
 ## Overview
