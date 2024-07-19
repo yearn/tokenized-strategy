@@ -56,7 +56,7 @@ The base strategy is a simple abstract contract designed to be inherited by the 
 
 The majority of functions in the BaseStrategy are either external functions with onlySelf modifiers used for the TokenizedStrategy to call. Or the internal functions that correspond to those external functions that can be overridden by a strategist with the strategy specific logic.
 
-`deployFunds(uint256)/_DeployFunds(uint256)`: Called by the TokenizedStrategy during deposits into the strategy to tell the strategy it can deposit up to the amount passed in as a parameter if desired.
+`deployFunds(uint256)/_deployFunds(uint256)`: Called by the TokenizedStrategy during deposits into the strategy to tell the strategy it can deposit up to the amount passed in as a parameter if desired.
 
 `freeFunds(uint256)/_freeFunds(uint256)`: Called by the TokenizedStrategy during withdraws to get the amount of the uint256 parameter freed up in order to process the withdraw.
 
@@ -84,12 +84,12 @@ The TokenizedStrategy is responsible for handling the logic associated with all 
 #### Deposits / Mints
 Users can deposit ASSET tokens to receive shares.
 
-Deposits are limited by the maxAvailableDeposit function that can be changed by the strategist if non uint256.max values are desired.
+Deposits are limited by the availableDepositLimit function that can be changed by the strategist if non uint256.max values are desired.
 
 #### Withdrawals / Redeems
 Users can redeem their shares at any point in time if there is liquidity available. 
 
-The amount of a withdraw or redeem can be limited by the strategist by overriding the maxAvailableWithdraw function.
+The amount of a withdraw or redeem can be limited by the strategist by overriding the availableWithdrawLimit function.
 
 In order to properly comply with the ERC-4626 standard and still allow losses, both withdraw and redeem have an additional optional parameter of 'maxLoss' that can be used. The default for 'maxLoss' is 0 (i.e. revert if any loss) for withdraws, and 10_000 (100%) for redeems.
 
@@ -204,7 +204,7 @@ This allows different players to deploy their own version and implement their ow
 
 Example constraints: 
 - Illiquid Strategy: A strategy must join AMM pools, which can be sandwiched by permissionless deposits/withdraws. So it only deposits during reports or tend calls from a trusted relay and limits withdraws to the amount of asset currently loose within the contract.
-- Permissioned Version: A strategy decides to only allow a certain address deposit into the vault by overriding maxAvailableDeposit.
+- Permissioned Version: A strategy decides to only allow a certain address deposit into the vault by overriding availableDepositLimit.
 - Risk: A strategist implements an options strategy that can create large positive gains or potentially loose all deposited funds.
 - ...
 
@@ -226,9 +226,9 @@ While it can be possible to deploy a completely ERC-4626 compliant vault with ju
 
 *_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports.
 
-*maxAvailableDeposit(address _owner)* can be overridden to implement any type of deposit limit.
+*availableDepositLimit(address _owner)* can be overridden to implement any type of deposit limit.
 
-*maxAvailableWithdraw(address _owner)* can be used to limit the amount that a user can withdraw at any given moment.
+*availableWithdrawLimit(address _owner)* can be used to limit the amount that a user can withdraw at any given moment.
 
 *_emergencyWithdraw(uint256 _amount)* can be overridden to provide a manual method for management to pull funds from a yield source in an emergency when the vault is shutdown.
 
