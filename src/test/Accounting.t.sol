@@ -582,4 +582,29 @@ contract AccountingTest is Setup {
         assertEq(strategy.pricePerShare(), wad);
         checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
+
+    function test_maxUintDeposit_depositsBalance(
+        address _address,
+        uint256 _amount
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        asset.mint(_address, _amount);
+
+        vm.prank(_address);
+        asset.approve(address(strategy), _amount);
+
+        assertEq(asset.balanceOf(_address), _amount);
+
+        vm.prank(_address);
+        strategy.deposit(type(uint256).max, _address);
+
+        // Should just deposit the available amount.
+        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
+    }
 }
