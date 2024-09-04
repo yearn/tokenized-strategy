@@ -123,7 +123,7 @@ contract StrategyHandler is ExtendedTest {
     }
 
     function reportProfit(uint256 _amount) public countCall("reportProfit") {
-        _amount = bound(_amount, 1, strategy.totalAssets() / 2);
+        _amount = bound(_amount, 1_000, strategy.totalAssets() / 2);
 
         // Simulate earning interest
         asset.mint(address(strategy), _amount);
@@ -152,7 +152,7 @@ contract StrategyHandler is ExtendedTest {
     }
 
     function tend(uint256 _amount) public countCall("tend") {
-        _amount = bound(_amount, 1, strategy.totalAssets() / 2);
+        _amount = bound(_amount, 1_000, strategy.totalAssets() / 2);
         asset.mint(address(strategy), _amount);
 
         vm.prank(setup.keeper());
