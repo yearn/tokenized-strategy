@@ -159,7 +159,6 @@ contract StrategyHandler is ExtendedTest {
         strategy.tend();
     }
 
-
     function approve(
         uint256 actorSeed,
         uint256 spenderSeed,
