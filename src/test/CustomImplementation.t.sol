@@ -100,6 +100,103 @@ contract CustomImplementationsTest is Setup {
         );
     }
 
+    function test_customWithdrawLimit_maxLossVariable(
+        address _address,
+        uint256 _amount,
+        uint16 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+
+        strategy = IMockStrategy(setUpIlliquidStrategy());
+
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        setFees(0, 0);
+
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        uint256 idle = asset.balanceOf(address(strategy));
+        assertGt(idle, 0);
+
+        // Assure we have a withdraw limit
+        assertEq(strategy.availableWithdrawLimit(_address), idle);
+        assertGt(strategy.totalAssets(), idle);
+
+        // Make sure max withdraw and redeem return the correct amounts
+        assertEq(strategy.maxWithdraw(_address, 9), idle);
+        assertEq(
+            strategy.maxRedeem(_address, 0),
+            strategy.convertToShares(idle)
+        );
+        assertLe(
+            strategy.convertToAssets(strategy.maxRedeem(_address)),
+            strategy.availableWithdrawLimit(_address)
+        );
+
+        vm.expectRevert("ERC4626: redeem more than max");
+        vm.prank(_address);
+        strategy.redeem(_amount, _address, _address);
+
+        vm.expectRevert("ERC4626: withdraw more than max");
+        vm.prank(_address);
+        strategy.withdraw(_amount, _address, _address);
+
+        createAndCheckProfit(strategy, profit, 0, 0);
+
+        increaseTimeAndCheckBuffer(strategy, 5 days, profit / 2);
+
+        idle = asset.balanceOf(address(strategy));
+        assertGt(idle, 0);
+
+        // Assure we have a withdraw limit
+        assertEq(strategy.availableWithdrawLimit(_address), idle);
+        assertGt(strategy.totalAssets(), idle);
+
+        // Make sure max withdraw and redeem return the correct amounts
+        assertEq(strategy.maxWithdraw(_address, 69), idle);
+        assertEq(
+            strategy.maxRedeem(_address, 2 ** 256 - 1),
+            strategy.convertToShares(idle)
+        );
+        assertLe(
+            strategy.convertToAssets(strategy.maxRedeem(_address)),
+            strategy.availableWithdrawLimit(_address)
+        );
+
+        vm.expectRevert("ERC4626: redeem more than max");
+        vm.prank(_address);
+        strategy.redeem(_amount, _address, _address);
+
+        vm.expectRevert("ERC4626: withdraw more than max");
+        vm.prank(_address);
+        strategy.withdraw(_amount, _address, _address);
+
+        uint256 before = asset.balanceOf(_address);
+        uint256 redeem = strategy.maxRedeem(_address, _amount);
+        uint256 conversion = strategy.convertToAssets(_amount);
+
+        vm.prank(_address);
+        strategy.redeem(redeem, _address, _address, 0);
+
+        // We need to give 2 wei rounding buffer
+        assertApproxEq(strategy.convertToAssets(_amount), conversion, 2);
+        assertApproxEq(asset.balanceOf(_address) - before, idle, 2);
+        assertApproxEq(strategy.availableWithdrawLimit(_address), 0, 2);
+        assertApproxEq(strategy.maxWithdraw(_address, 99), 0, 2);
+        assertApproxEq(strategy.maxRedeem(_address, 0), 0, 2);
+        assertLe(
+            strategy.convertToAssets(strategy.maxRedeem(_address, _amount)),
+            strategy.availableWithdrawLimit(_address)
+        );
+    }
+
     function test_customDepositLimit(
         address _allowed,
         address _notAllowed,

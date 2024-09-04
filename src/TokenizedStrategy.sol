@@ -781,6 +781,17 @@ contract TokenizedStrategy {
     }
 
     /**
+     * @notice Accepts a `maxLoss` variable in order to match the multi
+     * strategy vaults ABI.
+     */
+    function maxWithdraw(
+        address owner,
+        uint256 /*maxLoss*/
+    ) external view returns (uint256) {
+        return _maxWithdraw(_strategyStorage(), owner);
+    }
+
+    /**
      * @notice Total number of strategy shares that can be
      * redeemed from the strategy by `owner`, where `owner`
      * corresponds to the msg.sender of a {redeem} call.
@@ -789,6 +800,17 @@ contract TokenizedStrategy {
      * @return _maxRedeem Max amount of shares that can be redeemed.
      */
     function maxRedeem(address owner) external view returns (uint256) {
+        return _maxRedeem(_strategyStorage(), owner);
+    }
+
+    /**
+     * @notice Accepts a `maxLoss` variable in order to match the multi
+     * strategy vaults ABI.
+     */
+    function maxRedeem(
+        address owner,
+        uint256 /*maxLoss*/
+    ) external view returns (uint256) {
         return _maxRedeem(_strategyStorage(), owner);
     }
 
