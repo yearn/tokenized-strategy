@@ -150,6 +150,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external;
 
+    function setName(string calldata _newName) external;
+
     function shutdownStrategy() external;
 
     function emergencyWithdraw(uint256 _amount) external;
