@@ -27,8 +27,8 @@ contract ERC4626StdTest is ERC4626Test, Setup {
 
     function test_deposit(
         Init memory init,
-        uint assets,
-        uint allowance
+        uint256 assets,
+        uint256 allowance
     ) public override {
         if (assets == type(uint256).max) assets -= 1;
         super.test_deposit(init, assets, allowance);
