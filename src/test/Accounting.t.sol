@@ -606,5 +606,11 @@ contract AccountingTest is Setup {
 
         // Should just deposit the available amount.
         checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
+
+        assertEq(asset.balanceOf(_address), 0);
+        assertEq(strategy.balanceOf(_address), _amount);
+        assertEq(asset.balanceOf(address(strategy)), 0);
+
+        assertEq(asset.balanceOf(address(yieldSource)), _amount);
     }
 }
