@@ -14,11 +14,9 @@ contract MockStorage {
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals that `asset` and strategy use.
-        uint88 INITIAL_CHAIN_ID; // The initial chain id when the strategy was created.
 
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued.
-        bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain separator used for permits on the initial chain.
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
