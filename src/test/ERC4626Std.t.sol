@@ -19,7 +19,7 @@ contract ERC4626StdTest is ERC4626Test, Setup {
     //Avoid special case for deposits of uint256 max
     function test_previewDeposit(
         Init memory init,
-        uint assets
+        uint256 assets
     ) public override {
         if (assets == type(uint256).max) assets -= 1;
         super.test_previewDeposit(init, assets);
