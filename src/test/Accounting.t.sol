@@ -613,4 +613,90 @@ contract AccountingTest is Setup {
 
         assertEq(asset.balanceOf(address(yieldSource)), _amount);
     }
+
+    function test_deposit_zeroAssetsPositiveSupply_reverts(
+        address _address,
+        uint256 _amount
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        uint256 toLoose = _amount;
+        // Simulate a loss.
+        vm.prank(address(yieldSource));
+        asset.transfer(address(69), toLoose);
+
+        vm.prank(keeper);
+        strategy.report();
+
+        // Should still have shares but no assets
+        checkStrategyTotals(strategy, 0, 0, 0, _amount);
+
+        assertEq(asset.balanceOf(_address), 0);
+        assertEq(strategy.balanceOf(_address), _amount);
+        assertEq(asset.balanceOf(address(strategy)), 0);
+        assertEq(asset.balanceOf(address(yieldSource)), 0);
+
+        asset.mint(_address, _amount);
+        vm.prank(_address);
+        asset.approve(address(strategy), _amount);
+
+        vm.expectRevert("ZERO_SHARES");
+        vm.prank(_address);
+        strategy.deposit(_amount, _address);
+
+        assertEq(strategy.convertToAssets(_amount), 0);
+        assertEq(strategy.convertToShares(_amount), 0);
+        assertEq(strategy.pricePerShare(), 0);
+    }
+
+    function test_mint_zeroAssetsPositiveSupply_reverts(
+        address _address,
+        uint256 _amount
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        vm.assume(
+            _address != address(0) &&
+                _address != address(strategy) &&
+                _address != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _address, _amount);
+
+        uint256 toLoose = _amount;
+        // Simulate a loss.
+        vm.prank(address(yieldSource));
+        asset.transfer(address(69), toLoose);
+
+        vm.prank(keeper);
+        strategy.report();
+
+        // Should still have shares but no assets
+        checkStrategyTotals(strategy, 0, 0, 0, _amount);
+
+        assertEq(asset.balanceOf(_address), 0);
+        assertEq(strategy.balanceOf(_address), _amount);
+        assertEq(asset.balanceOf(address(strategy)), 0);
+        assertEq(asset.balanceOf(address(yieldSource)), 0);
+
+        asset.mint(_address, _amount);
+        vm.prank(_address);
+        asset.approve(address(strategy), _amount);
+
+        vm.expectRevert("ZERO_ASSETS");
+        vm.prank(_address);
+        strategy.mint(_amount, _address);
+
+        assertEq(strategy.convertToAssets(_amount), 0);
+        assertEq(strategy.convertToShares(_amount), 0);
+        assertEq(strategy.pricePerShare(), 0);
+    }
 }
