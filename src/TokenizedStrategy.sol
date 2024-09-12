@@ -212,10 +212,8 @@ contract TokenizedStrategy {
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals that `asset` and strategy use.
-        uint88 INITIAL_CHAIN_ID; // The initial chain id when the strategy was created.
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued.
-        bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain separator used for permits on the initial chain.
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
@@ -451,11 +449,6 @@ contract TokenizedStrategy {
         S.name = _name;
         // Set decimals based off the `asset`.
         S.decimals = ERC20(_asset).decimals();
-        // Set initial chain id for permit replay protection.
-        require(block.chainid < type(uint88).max, "invalid chain id");
-        S.INITIAL_CHAIN_ID = uint88(block.chainid);
-        // Set the initial domain separator for permit functions.
-        S.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator(S);
 
         // Default to a 10 day profit unlock period.
         S.profitMaxUnlockTime = 10 days;
@@ -2019,39 +2012,16 @@ contract TokenizedStrategy {
      * @notice Returns the domain separator used in the encoding of the signature
      * for {permit}, as defined by {EIP712}.
      *
-     * @dev This checks that the current chain id is the same as when the contract
-     * was deployed to prevent replay attacks. If false it will calculate a new
-     * domain separator based on the new chain id.
-     *
      * @return . The domain separator that will be used for any {permit} calls.
      */
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
-        StrategyData storage S = _strategyStorage();
-        return
-            block.chainid == S.INITIAL_CHAIN_ID
-                ? S.INITIAL_DOMAIN_SEPARATOR
-                : _computeDomainSeparator(S);
-    }
-
-    /**
-     * @dev Calculates and returns the domain separator to be used in any
-     * permit functions for the strategies {permit} calls.
-     *
-     * This will be used at the initialization of each new strategies storage.
-     * It would then be used in the future in the case of any forks in which
-     * the current chain id is not the same as the original.
-     *
-     */
-    function _computeDomainSeparator(
-        StrategyData storage S
-    ) internal view returns (bytes32) {
         return
             keccak256(
                 abi.encode(
                     keccak256(
                         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
                     ),
-                    keccak256(bytes(S.name)),
+                    keccak256(bytes("Yearn Vault")),
                     keccak256(bytes(API_VERSION)),
                     block.chainid,
                     address(this)
