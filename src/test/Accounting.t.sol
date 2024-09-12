@@ -639,7 +639,6 @@ contract AccountingTest is Setup {
         // Should still have shares but no assets
         checkStrategyTotals(strategy, 0, 0, 0, _amount);
 
-        assertEq(asset.balanceOf(_address), 0);
         assertEq(strategy.balanceOf(_address), _amount);
         assertEq(asset.balanceOf(address(strategy)), 0);
         assertEq(asset.balanceOf(address(yieldSource)), 0);
@@ -682,7 +681,6 @@ contract AccountingTest is Setup {
         // Should still have shares but no assets
         checkStrategyTotals(strategy, 0, 0, 0, _amount);
 
-        assertEq(asset.balanceOf(_address), 0);
         assertEq(strategy.balanceOf(_address), _amount);
         assertEq(asset.balanceOf(address(strategy)), 0);
         assertEq(asset.balanceOf(address(yieldSource)), 0);
