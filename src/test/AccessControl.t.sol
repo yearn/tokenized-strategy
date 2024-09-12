@@ -369,4 +369,19 @@ contract AccessControlTest is Setup {
         vm.prank(keeper);
         strategy.tend();
     }
+
+    function test_setName(address _address) public {
+        vm.assume(_address != address(strategy) && _address != management);
+
+        string memory newName = "New Strategy Name";
+
+        vm.prank(_address);
+        vm.expectRevert("!management");
+        strategy.setName(newName);
+
+        vm.prank(management);
+        strategy.setName(newName);
+
+        assertEq(strategy.name(), newName);
+    }
 }
