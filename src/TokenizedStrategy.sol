@@ -746,26 +746,25 @@ contract TokenizedStrategy {
 
     /**
      * @notice Total number of underlying assets that can
-     * be deposited by `_owner` into the strategy, where `owner`
-     * corresponds to the receiver of a {deposit} call.
+     * be deposited into the strategy, where `receiver`
+     * corresponds to the receiver of the shares of a {deposit} call.
      *
-     * @param owner The address depositing.
-     * @return . The max that `owner` can deposit in `asset`.
+     * @param receiver The address receiving the shares.
+     * @return . The max that `receiver` can deposit in `asset`.
      */
-    function maxDeposit(address owner) external view returns (uint256) {
-        return _maxDeposit(_strategyStorage(), owner);
+    function maxDeposit(address receiver) external view returns (uint256) {
+        return _maxDeposit(_strategyStorage(), receiver);
     }
 
     /**
-     * @notice Total number of shares that can be minted by `owner`
-     * into the strategy, where `_owner` corresponds to the receiver
+     * @notice Total number of shares that can be minted to `receiver`
      * of a {mint} call.
      *
-     * @param owner The address minting.
-     * @return _maxMint The max that `owner` can mint in shares.
+     * @param receiver The address receiving the shares.
+     * @return _maxMint The max that `receiver` can mint in shares.
      */
-    function maxMint(address owner) external view returns (uint256) {
-        return _maxMint(_strategyStorage(), owner);
+    function maxMint(address receiver) external view returns (uint256) {
+        return _maxMint(_strategyStorage(), receiver);
     }
 
     /**
@@ -870,23 +869,23 @@ contract TokenizedStrategy {
     /// @dev Internal implementation of {maxDeposit}.
     function _maxDeposit(
         StrategyData storage S,
-        address owner
+        address receiver
     ) internal view returns (uint256) {
-        // Cannot deposit when shutdown.
-        if (S.shutdown) return 0;
+        // Cannot deposit when shutdown or to the strategy.
+        if (S.shutdown || receiver == address(this)) return 0;
 
-        return IBaseStrategy(address(this)).availableDepositLimit(owner);
+        return IBaseStrategy(address(this)).availableDepositLimit(receiver);
     }
 
     /// @dev Internal implementation of {maxMint}.
     function _maxMint(
         StrategyData storage S,
-        address owner
+        address receiver
     ) internal view returns (uint256 maxMint_) {
-        // Cannot mint when shutdown.
-        if (S.shutdown) return 0;
+        // Cannot mint when shutdown or to the strategy.
+        if (S.shutdown || receiver == address(this)) return 0;
 
-        maxMint_ = IBaseStrategy(address(this)).availableDepositLimit(owner);
+        maxMint_ = IBaseStrategy(address(this)).availableDepositLimit(receiver);
         if (maxMint_ != type(uint256).max) {
             maxMint_ = _convertToShares(S, maxMint_, Math.Rounding.Down);
         }
@@ -958,8 +957,6 @@ contract TokenizedStrategy {
         uint256 assets,
         uint256 shares
     ) internal {
-        require(receiver != address(this), "ERC4626: mint to self");
-
         // Cache storage variables used more than once.
         ERC20 _asset = S.asset;
 
