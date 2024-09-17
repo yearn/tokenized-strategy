@@ -805,7 +805,8 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Accepts a `maxLoss` variable in order to match the multi
+     * @notice Variable `maxLoss` is ignored.
+     * @dev Accepts a `maxLoss` variable in order to match the multi
      * strategy vaults ABI.
      */
     function maxRedeem(
