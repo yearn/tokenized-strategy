@@ -439,10 +439,10 @@ contract AccountingTest is Setup {
         setFees(0, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 toLoose = (_amount * _lossFactor) / MAX_BPS;
+        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
         // Simulate a loss.
         vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLoose);
+        asset.transfer(address(69), toLose);
 
         vm.expectRevert("too much loss");
         vm.prank(_address);
@@ -465,13 +465,13 @@ contract AccountingTest is Setup {
         setFees(0, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 toLoose = (_amount * _lossFactor) / MAX_BPS;
+        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
         // Simulate a loss.
         vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLoose);
+        asset.transfer(address(69), toLose);
 
         uint256 beforeBalance = asset.balanceOf(_address);
-        uint256 expectedOut = _amount - toLoose;
+        uint256 expectedOut = _amount - toLose;
         // Withdraw the full amount before the loss is reported.
         vm.prank(_address);
         strategy.withdraw(_amount, _address, _address, _lossFactor);
@@ -499,13 +499,13 @@ contract AccountingTest is Setup {
         setFees(0, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 toLoose = (_amount * _lossFactor) / MAX_BPS;
+        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
         // Simulate a loss.
         vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLoose);
+        asset.transfer(address(69), toLose);
 
         uint256 beforeBalance = asset.balanceOf(_address);
-        uint256 expectedOut = _amount - toLoose;
+        uint256 expectedOut = _amount - toLose;
         // Withdraw the full amount before the loss is reported.
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
@@ -533,10 +533,10 @@ contract AccountingTest is Setup {
         setFees(0, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 toLoose = (_amount * _lossFactor) / MAX_BPS;
+        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
         // Simulate a loss.
         vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLoose);
+        asset.transfer(address(69), toLose);
 
         vm.expectRevert("too much loss");
         vm.prank(_address);
@@ -559,13 +559,13 @@ contract AccountingTest is Setup {
         setFees(0, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 toLoose = (_amount * _lossFactor) / MAX_BPS;
+        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
         // Simulate a loss.
         vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLoose);
+        asset.transfer(address(69), toLose);
 
         uint256 beforeBalance = asset.balanceOf(_address);
-        uint256 expectedOut = _amount - toLoose;
+        uint256 expectedOut = _amount - toLose;
 
         // First set it to just under the expected loss.
         vm.expectRevert("too much loss");
@@ -628,10 +628,10 @@ contract AccountingTest is Setup {
         setFees(0, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 toLoose = _amount;
+        uint256 toLose = _amount;
         // Simulate a loss.
         vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLoose);
+        asset.transfer(address(69), toLose);
 
         vm.prank(keeper);
         strategy.report();
@@ -670,10 +670,10 @@ contract AccountingTest is Setup {
         setFees(0, 0);
         mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 toLoose = _amount;
+        uint256 toLose = _amount;
         // Simulate a loss.
         vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLoose);
+        asset.transfer(address(69), toLose);
 
         vm.prank(keeper);
         strategy.report();
