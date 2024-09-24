@@ -212,10 +212,8 @@ contract TokenizedStrategy {
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
         uint8 decimals; // The amount of decimals that `asset` and strategy use.
-        uint88 INITIAL_CHAIN_ID; // The initial chain id when the strategy was created.
         string name; // The name of the token for the strategy.
         uint256 totalSupply; // The total amount of shares currently issued.
-        bytes32 INITIAL_DOMAIN_SEPARATOR; // The domain separator used for permits on the initial chain.
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
@@ -345,7 +343,7 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice API version this TokenizedStrategy implements.
-    string internal constant API_VERSION = "3.0.2";
+    string internal constant API_VERSION = "3.0.3";
 
     /// @notice Value to set the `entered` flag to during a call.
     uint8 internal constant ENTERED = 2;
@@ -451,11 +449,6 @@ contract TokenizedStrategy {
         S.name = _name;
         // Set decimals based off the `asset`.
         S.decimals = ERC20(_asset).decimals();
-        // Set initial chain id for permit replay protection.
-        require(block.chainid < type(uint88).max, "invalid chain id");
-        S.INITIAL_CHAIN_ID = uint88(block.chainid);
-        // Set the initial domain separator for permit functions.
-        S.INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator(S);
 
         // Default to a 10 day profit unlock period.
         S.profitMaxUnlockTime = 10 days;
@@ -497,6 +490,12 @@ contract TokenizedStrategy {
     ) external nonReentrant returns (uint256 shares) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+
+        // Deposit full balance if using max uint.
+        if (assets == type(uint256).max) {
+            assets = S.asset.balanceOf(msg.sender);
+        }
+
         // Checking max deposit will also check if shutdown.
         require(
             assets <= _maxDeposit(S, receiver),
@@ -524,6 +523,7 @@ contract TokenizedStrategy {
     ) external nonReentrant returns (uint256 assets) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+
         // Checking max mint will also check if shutdown.
         require(shares <= _maxMint(S, receiver), "ERC4626: mint more than max");
         // Check for rounding error.
@@ -746,26 +746,25 @@ contract TokenizedStrategy {
 
     /**
      * @notice Total number of underlying assets that can
-     * be deposited by `_owner` into the strategy, where `owner`
-     * corresponds to the receiver of a {deposit} call.
+     * be deposited into the strategy, where `receiver`
+     * corresponds to the receiver of the shares of a {deposit} call.
      *
-     * @param owner The address depositing.
-     * @return . The max that `owner` can deposit in `asset`.
+     * @param receiver The address receiving the shares.
+     * @return . The max that `receiver` can deposit in `asset`.
      */
-    function maxDeposit(address owner) external view returns (uint256) {
-        return _maxDeposit(_strategyStorage(), owner);
+    function maxDeposit(address receiver) external view returns (uint256) {
+        return _maxDeposit(_strategyStorage(), receiver);
     }
 
     /**
-     * @notice Total number of shares that can be minted by `owner`
-     * into the strategy, where `_owner` corresponds to the receiver
+     * @notice Total number of shares that can be minted to `receiver`
      * of a {mint} call.
      *
-     * @param owner The address minting.
-     * @return _maxMint The max that `owner` can mint in shares.
+     * @param receiver The address receiving the shares.
+     * @return _maxMint The max that `receiver` can mint in shares.
      */
-    function maxMint(address owner) external view returns (uint256) {
-        return _maxMint(_strategyStorage(), owner);
+    function maxMint(address receiver) external view returns (uint256) {
+        return _maxMint(_strategyStorage(), receiver);
     }
 
     /**
@@ -781,6 +780,18 @@ contract TokenizedStrategy {
     }
 
     /**
+     * @notice Variable `maxLoss` is ignored.
+     * @dev Accepts a `maxLoss` variable in order to match the multi
+     * strategy vaults ABI.
+     */
+    function maxWithdraw(
+        address owner,
+        uint256 /*maxLoss*/
+    ) external view returns (uint256) {
+        return _maxWithdraw(_strategyStorage(), owner);
+    }
+
+    /**
      * @notice Total number of strategy shares that can be
      * redeemed from the strategy by `owner`, where `owner`
      * corresponds to the msg.sender of a {redeem} call.
@@ -789,6 +800,18 @@ contract TokenizedStrategy {
      * @return _maxRedeem Max amount of shares that can be redeemed.
      */
     function maxRedeem(address owner) external view returns (uint256) {
+        return _maxRedeem(_strategyStorage(), owner);
+    }
+
+    /**
+     * @notice Variable `maxLoss` is ignored.
+     * @dev Accepts a `maxLoss` variable in order to match the multi
+     * strategy vaults ABI.
+     */
+    function maxRedeem(
+        address owner,
+        uint256 /*maxLoss*/
+    ) external view returns (uint256) {
         return _maxRedeem(_strategyStorage(), owner);
     }
 
@@ -816,12 +839,14 @@ contract TokenizedStrategy {
         uint256 assets,
         Math.Rounding _rounding
     ) internal view returns (uint256) {
-        // Saves an extra SLOAD if totalAssets() is non-zero.
-        uint256 totalAssets_ = _totalAssets(S);
+        // Saves an extra SLOAD if values are non-zero.
         uint256 totalSupply_ = _totalSupply(S);
+        // If supply is 0, PPS = 1.
+        if (totalSupply_ == 0) return assets;
 
+        uint256 totalAssets_ = _totalAssets(S);
         // If assets are 0 but supply is not PPS = 0.
-        if (totalAssets_ == 0) return totalSupply_ == 0 ? assets : 0;
+        if (totalAssets_ == 0) return 0;
 
         return assets.mulDiv(totalSupply_, totalAssets_, _rounding);
     }
@@ -844,23 +869,23 @@ contract TokenizedStrategy {
     /// @dev Internal implementation of {maxDeposit}.
     function _maxDeposit(
         StrategyData storage S,
-        address owner
+        address receiver
     ) internal view returns (uint256) {
-        // Cannot deposit when shutdown.
-        if (S.shutdown) return 0;
+        // Cannot deposit when shutdown or to the strategy.
+        if (S.shutdown || receiver == address(this)) return 0;
 
-        return IBaseStrategy(address(this)).availableDepositLimit(owner);
+        return IBaseStrategy(address(this)).availableDepositLimit(receiver);
     }
 
     /// @dev Internal implementation of {maxMint}.
     function _maxMint(
         StrategyData storage S,
-        address owner
+        address receiver
     ) internal view returns (uint256 maxMint_) {
-        // Cannot mint when shutdown.
-        if (S.shutdown) return 0;
+        // Cannot mint when shutdown or to the strategy.
+        if (S.shutdown || receiver == address(this)) return 0;
 
-        maxMint_ = IBaseStrategy(address(this)).availableDepositLimit(owner);
+        maxMint_ = IBaseStrategy(address(this)).availableDepositLimit(receiver);
         if (maxMint_ != type(uint256).max) {
             maxMint_ = _convertToShares(S, maxMint_, Math.Rounding.Down);
         }
@@ -932,8 +957,6 @@ contract TokenizedStrategy {
         uint256 assets,
         uint256 shares
     ) internal {
-        require(receiver != address(this), "ERC4626: mint to self");
-
         // Cache storage variables used more than once.
         ERC20 _asset = S.asset;
 
@@ -1594,6 +1617,14 @@ contract TokenizedStrategy {
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
 
+    /**
+     * @notice Updates the name for the strategy.
+     * @param _name The new name for the strategy.
+     */
+    function setName(string calldata _name) external onlyManagement {
+        _strategyStorage().name = _name;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ERC20 METHODS
     //////////////////////////////////////////////////////////////*/
@@ -1982,39 +2013,16 @@ contract TokenizedStrategy {
      * @notice Returns the domain separator used in the encoding of the signature
      * for {permit}, as defined by {EIP712}.
      *
-     * @dev This checks that the current chain id is the same as when the contract
-     * was deployed to prevent replay attacks. If false it will calculate a new
-     * domain separator based on the new chain id.
-     *
      * @return . The domain separator that will be used for any {permit} calls.
      */
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
-        StrategyData storage S = _strategyStorage();
-        return
-            block.chainid == S.INITIAL_CHAIN_ID
-                ? S.INITIAL_DOMAIN_SEPARATOR
-                : _computeDomainSeparator(S);
-    }
-
-    /**
-     * @dev Calculates and returns the domain separator to be used in any
-     * permit functions for the strategies {permit} calls.
-     *
-     * This will be used at the initialization of each new strategies storage.
-     * It would then be used in the future in the case of any forks in which
-     * the current chain id is not the same as the original.
-     *
-     */
-    function _computeDomainSeparator(
-        StrategyData storage S
-    ) internal view returns (bytes32) {
         return
             keccak256(
                 abi.encode(
                     keccak256(
                         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
                     ),
-                    keccak256(bytes(S.name)),
+                    keccak256("Yearn Vault"),
                     keccak256(bytes(API_VERSION)),
                     block.chainid,
                     address(this)

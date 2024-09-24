@@ -72,6 +72,16 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         uint256 maxLoss
     ) external returns (uint256);
 
+    function maxWithdraw(
+        address owner,
+        uint256 /*maxLoss*/
+    ) external view returns (uint256);
+
+    function maxRedeem(
+        address owner,
+        uint256 /*maxLoss*/
+    ) external view returns (uint256);
+
     /*//////////////////////////////////////////////////////////////
                         MODIFIER HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -149,6 +159,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     ) external;
 
     function setProfitMaxUnlockTime(uint256 _profitMaxUnlockTime) external;
+
+    function setName(string calldata _newName) external;
 
     function shutdownStrategy() external;
 
