@@ -9,12 +9,11 @@ contract Deploy is Script {
     Deployer public deployer =
         Deployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
-    // Vault factory address for v3.0.2
-    address public factory = 0x444045c5C13C246e117eD36437303cac8E250aB0;
+    // Vault factory address for v3.0.3
+    address public factory = 0x5577EdcB8A856582297CdBbB07055E6a6E38eb5f;
 
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast();
 
         // Append constructor args to the bytecode
         bytes memory bytecode = abi.encodePacked(
@@ -23,7 +22,7 @@ contract Deploy is Script {
         );
 
         // Pick an unique salt
-        bytes32 salt = keccak256("v3.0.2");
+        bytes32 salt = keccak256("v3.0.3");
 
         address contractAddress = deployer.deployCreate2(salt, bytecode);
 

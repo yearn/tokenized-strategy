@@ -97,7 +97,7 @@ Deployments on new chains can be done permissionlessly by anyone using the inclu
 You can then deploy the TokenizedStrategy using the provided script.
 
 ```
-forge script script/Deploy.s.sol:Deploy --rpc-url YOUR_RPC_URL
+forge script script/Deploy.s.sol:Deploy --account ACCOUNT_NAME --rpc-url YOUR_RPC_URL --broadcast
 ```
 
 If the deployments do not end at the same address you can also manually send the calldata used in the previous deployments on other chains.
