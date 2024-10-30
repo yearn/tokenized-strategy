@@ -9,8 +9,8 @@ contract Deploy is Script {
     Deployer public deployer =
         Deployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
-    // Vault factory address for v3.0.3
-    address public factory = 0x5577EdcB8A856582297CdBbB07055E6a6E38eb5f;
+    // Vault factory address for v3.0.4
+    address public factory = 0x770D0d1Fb036483Ed4AbB6d53c1C88fb277D812F;
 
     function run() external {
         vm.startBroadcast();
@@ -22,7 +22,7 @@ contract Deploy is Script {
         );
 
         // Pick an unique salt
-        bytes32 salt = keccak256("v3.0.3");
+        bytes32 salt = bytes32(0);
 
         address contractAddress = deployer.deployCreate2(salt, bytecode);
 
