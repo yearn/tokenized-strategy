@@ -21,7 +21,6 @@ contract Deploy is Script {
             abi.encode(factory)
         );
 
-        // Pick an unique salt
         bytes32 salt = bytes32(0);
 
         address contractAddress = deployer.deployCreate2(salt, bytecode);
