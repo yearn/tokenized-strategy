@@ -263,10 +263,12 @@ contract ShutdownTest is Setup {
         vm.prank(management);
         strategy.report();
 
+        skip(profitMaxUnlockTime);
+
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
 
-        checkStrategyTotals(strategy, 0, 0, 0, 0);
+        checkStrategyTotals(strategy, 0, 0, 0);
 
         assertEq(asset.balanceOf(_address), _amount + profit);
     }

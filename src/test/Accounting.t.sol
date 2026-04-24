@@ -17,6 +17,7 @@ contract AccountingTest is Setup {
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(
             _user != address(0) &&
+                _user != 0x000000000000000000000000000000000000dEaD &&
                 _user != address(strategy) &&
                 _user != keeper &&
                 _user != management &&
@@ -62,6 +63,7 @@ contract AccountingTest is Setup {
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(
             _user != address(0) &&
+                _user != 0x000000000000000000000000000000000000dEaD &&
                 _user != address(strategy) &&
                 _user != keeper &&
                 _user != management &&
@@ -300,6 +302,7 @@ contract AccountingTest is Setup {
         _donation = bound(_donation, minFuzzAmount, maxFuzzAmount);
         vm.assume(
             _user != address(0) &&
+                _user != 0x000000000000000000000000000000000000dEaD &&
                 _user != address(strategy) &&
                 _user != keeper &&
                 _user != management &&
@@ -320,7 +323,11 @@ contract AccountingTest is Setup {
         mintAndDepositIntoStrategy(strategy, _user, _amount);
 
         assertEq(strategy.balanceOf(_user), _amount, "!shares");
-        assertEq(strategy.balanceOf(address(strategy)), _donation, "!dead");
+        assertEq(
+            strategy.balanceOf(0x000000000000000000000000000000000000dEaD),
+            _donation,
+            "!dead"
+        );
         assertEq(strategy.totalAssets(), _amount + _donation, "!assets");
 
         uint256 before = asset.balanceOf(_user);

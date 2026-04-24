@@ -24,6 +24,8 @@ contract MockStorage {
 
         // Assets data to track the last realized total the strategy held.
         uint256 lastTotalAssets;
+        uint256 profitUnlockingRate;
+        uint96 fullProfitUnlockDate;
         // Variables for profit reporting.
         // We use uint96 for time stamps to fit in the same slot as an address.
         // We will surely all be dead by the time the slot overflows.
@@ -31,7 +33,8 @@ contract MockStorage {
         uint32 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
         uint16 performanceFee; // The percent in basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
-        uint96 lastReport; // The last time accounting synced.
+        uint96 lastReport; // The last time a report updated the lock schedule.
+        uint96 lastAccrual; // The last time accounting synced.
 
 
         // Access management variables.
