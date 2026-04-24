@@ -215,7 +215,6 @@ contract Setup is ExtendedTest, IEvents {
             "total assets wrong"
         );
         assertEq(_strategy.lastReport(), block.timestamp, "last report");
-        assertEq(_strategy.unlockedShares(), 0, "unlocked Shares");
     }
 
     function createAndCheckLoss(

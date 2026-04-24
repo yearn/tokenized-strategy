@@ -128,17 +128,13 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function performanceFeeRecipient() external view returns (address);
 
-    function fullProfitUnlockDate() external view returns (uint256);
-
-    function profitUnlockingRate() external view returns (uint256);
-
     function profitMaxUnlockTime() external view returns (uint256);
 
     function lastReport() external view returns (uint256);
 
-    function isShutdown() external view returns (bool);
+    function lastTotalAssets() external view returns (uint256);
 
-    function unlockedShares() external view returns (uint256);
+    function isShutdown() external view returns (bool);
 
     /*//////////////////////////////////////////////////////////////
                             SETTERS

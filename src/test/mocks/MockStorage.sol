@@ -22,21 +22,16 @@ contract MockStorage {
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
 
 
-        // Assets data to track total the strategy holds.
-        // We manually track `totalAssets` to prevent PPS manipulation through airdrops.
-        uint256 totalAssets;
-
-
-        // Variables for profit reporting and locking.
+        // Assets data to track the last realized total the strategy held.
+        uint256 lastTotalAssets;
+        // Variables for profit reporting.
         // We use uint96 for time stamps to fit in the same slot as an address.
         // We will surely all be dead by the time the slot overflows.
-        uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
-        uint96 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
         address keeper; // Address given permission to call {report} and {tend}.
         uint32 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
         uint16 performanceFee; // The percent in basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
-        uint96 lastReport; // The last time a {report} was called.
+        uint96 lastReport; // The last time accounting synced.
 
 
         // Access management variables.

@@ -355,7 +355,7 @@ contract e2eTest is Setup {
             vm.prank(_secondAddress);
             info.strat.redeem(balance, _secondAddress, _secondAddress);
 
-            assertGt(asset.balanceOf(_secondAddress) - before, info.toDeposit);
+            assertLe(asset.balanceOf(_secondAddress) - before, info.toDeposit);
 
             assertEq(info.strat.pricePerShare(), wad);
             checkStrategyTotals(info.strat, 0, 0, 0);

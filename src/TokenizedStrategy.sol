@@ -217,23 +217,14 @@ contract TokenizedStrategy {
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
-
-
-        // We manually track `totalAssets` to prevent PPS manipulation through airdrops.
-        uint256 totalAssets;
-
-
-        // Variables for profit reporting and locking.
-        // We use uint96 for timestamps to fit in the same slot as an address. That overflows in 2.5e+21 years.
-        // I know Yearn moves slowly but surely V4 will be out by then.
-        // If the timestamps ever overflow tell the cyborgs still using this code I'm sorry for being cheap.
-        uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
-        uint96 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
+        // Last realized total assets. This is used as the accrual baseline during
+        // write flows and to freeze view math during in-flight external callbacks.
+        uint256 lastTotalAssets;
         address keeper; // Address given permission to call {report} and {tend}.
-        uint32 profitMaxUnlockTime; // The amount of seconds that the reported profit unlocks over.
+        uint32 profitMaxUnlockTime;
         uint16 performanceFee; // The percent in basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
-        uint96 lastReport; // The last time a {report} was called.
+        uint96 lastReport; // The last time accounting synced.
 
 
         // Access management variables.
@@ -355,9 +346,6 @@ contract TokenizedStrategy {
 
     /// @notice Used for fee calculations.
     uint256 internal constant MAX_BPS = 10_000;
-    /// @notice Used for profit unlocking rate calculations.
-    uint256 internal constant MAX_BPS_EXTENDED = 1_000_000_000_000;
-
     /// @notice Seconds per year for max profit unlocking time.
     uint256 internal constant SECONDS_PER_YEAR = 31_556_952; // 365.2425 days
 
@@ -490,6 +478,7 @@ contract TokenizedStrategy {
     ) external nonReentrant returns (uint256 shares) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+        _accrue(S);
 
         // Deposit full balance if using max uint.
         if (assets == type(uint256).max) {
@@ -523,6 +512,7 @@ contract TokenizedStrategy {
     ) external nonReentrant returns (uint256 assets) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+        _accrue(S);
 
         // Checking max mint will also check if shutdown.
         require(shares <= _maxMint(S, receiver), "ERC4626: mint more than max");
@@ -570,6 +560,7 @@ contract TokenizedStrategy {
     ) public nonReentrant returns (uint256 shares) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+        _accrue(S);
         require(
             assets <= _maxWithdraw(S, owner),
             "ERC4626: withdraw more than max"
@@ -620,6 +611,7 @@ contract TokenizedStrategy {
     ) public nonReentrant returns (uint256) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
+        _accrue(S);
         require(
             shares <= _maxRedeem(S, owner),
             "ERC4626: redeem more than max"
@@ -641,9 +633,10 @@ contract TokenizedStrategy {
 
     /**
      * @notice Get the total amount of assets this strategy holds
-     * as of the last report.
+     * under the current block-latched accounting estimate.
      *
-     * We manually track `totalAssets` to avoid any PPS manipulation.
+     * Normal write flows freeze this value after the first sync in a block.
+     * A manual {report} can refresh it again within that same block.
      *
      * @return . Total assets the strategy holds.
      */
@@ -653,12 +646,6 @@ contract TokenizedStrategy {
 
     /**
      * @notice Get the current supply of the strategies shares.
-     *
-     * Locked shares issued to the strategy from profits are not
-     * counted towards the full supply until they are unlocked.
-     *
-     * As more shares slowly unlock the totalSupply will decrease
-     * causing the PPS of the strategy to increase.
      *
      * @return . Total amount of shares outstanding.
      */
@@ -823,14 +810,65 @@ contract TokenizedStrategy {
     function _totalAssets(
         StrategyData storage S
     ) internal view returns (uint256) {
-        return S.totalAssets;
+        (, uint256 assets) = _simulatedTotals(S);
+        return assets;
     }
 
     /// @dev Internal implementation of {totalSupply}.
     function _totalSupply(
         StrategyData storage S
     ) internal view returns (uint256) {
-        return S.totalSupply - _unlockedShares(S);
+        return S.totalSupply;
+    }
+
+    /// @dev Internal helper to simulate the supply/assets state under the current block latch.
+    function _simulatedTotals(
+        StrategyData storage S
+    ) internal view returns (uint256 supply, uint256 assets) {
+        supply = S.totalSupply;
+
+        if (S.entered == ENTERED || block.timestamp == S.lastReport) {
+            return (supply, S.lastTotalAssets);
+        }
+
+        assets = _strategyTotalAssets();
+        if (assets <= S.lastTotalAssets) {
+            return (supply, assets);
+        }
+
+        uint256 profit;
+        unchecked {
+            profit = assets - S.lastTotalAssets;
+        }
+
+        if (S.lastTotalAssets == 0 && supply == 0) {
+            return (assets, assets);
+        }
+
+        uint16 fee = S.performanceFee;
+        if (fee != 0 && supply != 0) {
+            uint256 totalFees = (profit * fee) / MAX_BPS;
+            if (totalFees != 0) {
+                supply += _feeSharesForAmount(S, totalFees, assets);
+            }
+        }
+    }
+
+    /// @dev Internal helper to ask the strategy for its current total assets.
+    function _strategyTotalAssets() internal view returns (uint256) {
+        return IBaseStrategy(address(this)).strategyTotalAssets();
+    }
+
+    /// @dev Calculates shares that represent `assets` after fee minting dilution.
+    function _feeSharesForAmount(
+        StrategyData storage S,
+        uint256 assets,
+        uint256 totalAssets_
+    ) internal view returns (uint256) {
+        uint256 supply = S.totalSupply;
+        if (assets == 0 || supply == 0) return 0;
+
+        return assets.mulDiv(supply, totalAssets_ - assets, Math.Rounding.Down);
     }
 
     /// @dev Internal implementation of {convertToShares}.
@@ -839,12 +877,10 @@ contract TokenizedStrategy {
         uint256 assets,
         Math.Rounding _rounding
     ) internal view returns (uint256) {
-        // Saves an extra SLOAD if values are non-zero.
-        uint256 totalSupply_ = _totalSupply(S);
+        (uint256 totalSupply_, uint256 totalAssets_) = _simulatedTotals(S);
         // If supply is 0, PPS = 1.
         if (totalSupply_ == 0) return assets;
 
-        uint256 totalAssets_ = _totalAssets(S);
         // If assets are 0 but supply is not PPS = 0.
         if (totalAssets_ == 0) return 0;
 
@@ -857,13 +893,12 @@ contract TokenizedStrategy {
         uint256 shares,
         Math.Rounding _rounding
     ) internal view returns (uint256) {
-        // Saves an extra SLOAD if totalSupply() is non-zero.
-        uint256 supply = _totalSupply(S);
+        (uint256 supply, uint256 totalAssets_) = _simulatedTotals(S);
 
         return
             supply == 0
                 ? shares
-                : shares.mulDiv(_totalAssets(S), supply, _rounding);
+                : shares.mulDiv(totalAssets_, supply, _rounding);
     }
 
     /// @dev Internal implementation of {maxDeposit}.
@@ -969,7 +1004,7 @@ contract TokenizedStrategy {
         );
 
         // Adjust total Assets.
-        S.totalAssets += assets;
+        S.lastTotalAssets += assets;
 
         // mint shares
         _mint(S, receiver, shares);
@@ -1036,7 +1071,7 @@ contract TokenizedStrategy {
         }
 
         // Update assets based on how much we took.
-        S.totalAssets -= (assets + loss);
+        S.lastTotalAssets -= (assets + loss);
 
         _burn(S, owner, shares);
 
@@ -1049,29 +1084,112 @@ contract TokenizedStrategy {
         return assets;
     }
 
+    /// @dev Synchronize accounting using the strategy's current view estimate unless this block is already latched.
+    function _accrue(
+        StrategyData storage S
+    ) internal returns (uint256 profit, uint256 loss) {
+        return _accrue(S, _strategyTotalAssets(), false);
+    }
+
+    /**
+     * @dev Synchronize accounting to the strategy's latest asset balance and
+     * realize any accrued fees or losses.
+     *
+     * When `force` is false this can only happen once per block. `report()`
+     * passes `force = true` so it can refresh accounting again intra-block.
+     */
+    function _accrue(
+        StrategyData storage S,
+        uint256 newTotalAssets,
+        bool force
+    ) internal returns (uint256 profit, uint256 loss) {
+        if (!force && block.timestamp == S.lastReport) {
+            return (0, 0);
+        }
+
+        uint256 oldTotalAssets = S.lastTotalAssets;
+        uint256 totalFees;
+        uint256 protocolFees;
+
+        if (newTotalAssets > oldTotalAssets) {
+            unchecked {
+                profit = newTotalAssets - oldTotalAssets;
+            }
+
+            // Any assets that show up before the first depositor should not be
+            // claimable by that first depositor. Mint matching dead shares so
+            // the vault starts from a 1:1 PPS.
+            if (oldTotalAssets == 0 && S.totalSupply == 0) {
+                _mint(S, address(this), newTotalAssets);
+            }
+
+            uint16 fee = S.performanceFee;
+            if (fee != 0 && oldTotalAssets != 0 && S.totalSupply != 0) {
+                totalFees = (profit * fee) / MAX_BPS;
+
+                if (totalFees != 0) {
+                    uint256 totalFeeShares = _feeSharesForAmount(
+                        S,
+                        totalFees,
+                        newTotalAssets
+                    );
+
+                    if (totalFeeShares != 0) {
+                        (
+                            uint16 protocolFeeBps,
+                            address protocolFeesRecipient
+                        ) = IFactory(FACTORY).protocol_fee_config();
+
+                        uint256 protocolFeeShares;
+                        if (protocolFeeBps != 0) {
+                            protocolFees =
+                                (totalFees * protocolFeeBps) /
+                                MAX_BPS;
+                            protocolFeeShares =
+                                (totalFeeShares * protocolFeeBps) /
+                                MAX_BPS;
+
+                            if (protocolFeeShares != 0) {
+                                _mint(
+                                    S,
+                                    protocolFeesRecipient,
+                                    protocolFeeShares
+                                );
+                            }
+                        }
+
+                        unchecked {
+                            _mint(
+                                S,
+                                S.performanceFeeRecipient,
+                                totalFeeShares - protocolFeeShares
+                            );
+                        }
+                    }
+                }
+            }
+        } else if (oldTotalAssets > newTotalAssets) {
+            unchecked {
+                loss = oldTotalAssets - newTotalAssets;
+            }
+        }
+
+        S.lastTotalAssets = newTotalAssets;
+        S.lastReport = uint96(block.timestamp);
+
+        emit Reported(profit, loss, protocolFees, totalFees - protocolFees);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         PROFIT REPORTING
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Function for keepers to call to harvest and record all
-     * profits accrued.
+     * @notice Function for keepers to synchronize accounting to the latest
+     * strategy asset balance.
      *
-     * @dev This will account for any gains/losses since the last report
-     * and charge fees accordingly.
-     *
-     * Any profit over the fees charged will be immediately locked
-     * so there is no change in PricePerShare. Then slowly unlocked
-     * over the `maxProfitUnlockTime` each second based on the
-     * calculated `profitUnlockingRate`.
-     *
-     * In case of a loss it will first attempt to offset the loss
-     * with any remaining locked shares from the last report in
-     * order to reduce any negative impact to PPS.
-     *
-     * Will then recalculate the new time to unlock profits over and the
-     * rate based on a weighted average of any remaining time from the
-     * last report and the new amount of shares to be locked.
+     * @dev This will account for any gains/losses since the last sync and
+     * charge fees accordingly.
      *
      * @return profit The notional amount of gain if any since the last
      * report in terms of `asset`.
@@ -1084,208 +1202,9 @@ contract TokenizedStrategy {
         onlyKeepers
         returns (uint256 profit, uint256 loss)
     {
-        // Cache storage pointer since its used repeatedly.
         StrategyData storage S = _strategyStorage();
-
-        // Tell the strategy to report the real total assets it has.
-        // It should do all reward selling and redepositing now and
-        // account for deployed and loose `asset` so we can accurately
-        // account for all funds including those potentially airdropped
-        // and then have any profits immediately locked.
-        uint256 newTotalAssets = IBaseStrategy(address(this))
-            .harvestAndReport();
-
-        uint256 oldTotalAssets = _totalAssets(S);
-
-        // Get the amount of shares we need to burn from previous reports.
-        uint256 sharesToBurn = _unlockedShares(S);
-
-        // Initialize variables needed throughout.
-        uint256 totalFees;
-        uint256 protocolFees;
-        uint256 sharesToLock;
-        uint256 _profitMaxUnlockTime = S.profitMaxUnlockTime;
-        // Calculate profit/loss.
-        if (newTotalAssets > oldTotalAssets) {
-            // We have a profit.
-            unchecked {
-                profit = newTotalAssets - oldTotalAssets;
-            }
-
-            // We need to get the equivalent amount of shares
-            // at the current PPS before any minting or burning.
-            sharesToLock = _convertToShares(S, profit, Math.Rounding.Down);
-
-            // Cache the performance fee.
-            uint16 fee = S.performanceFee;
-            uint256 totalFeeShares;
-            // If we are charging a performance fee
-            if (fee != 0) {
-                // Asses performance fees.
-                unchecked {
-                    // Get in `asset` for the event.
-                    totalFees = (profit * fee) / MAX_BPS;
-                    // And in shares for the payment.
-                    totalFeeShares = (sharesToLock * fee) / MAX_BPS;
-                }
-
-                // Get the protocol fee config from the factory.
-                (
-                    uint16 protocolFeeBps,
-                    address protocolFeesRecipient
-                ) = IFactory(FACTORY).protocol_fee_config();
-
-                uint256 protocolFeeShares;
-                // Check if there is a protocol fee to charge.
-                if (protocolFeeBps != 0) {
-                    unchecked {
-                        // Calculate protocol fees based on the performance Fees.
-                        protocolFeeShares =
-                            (totalFeeShares * protocolFeeBps) /
-                            MAX_BPS;
-                        // Need amount in underlying for event.
-                        protocolFees = (totalFees * protocolFeeBps) / MAX_BPS;
-                    }
-
-                    // Mint the protocol fees to the recipient.
-                    _mint(S, protocolFeesRecipient, protocolFeeShares);
-                }
-
-                // Mint the difference to the strategy fee recipient.
-                unchecked {
-                    _mint(
-                        S,
-                        S.performanceFeeRecipient,
-                        totalFeeShares - protocolFeeShares
-                    );
-                }
-            }
-
-            // Check if we are locking profit.
-            if (_profitMaxUnlockTime != 0) {
-                // lock (profit - fees)
-                unchecked {
-                    sharesToLock -= totalFeeShares;
-                }
-
-                // If we are burning more than re-locking.
-                if (sharesToBurn > sharesToLock) {
-                    // Burn the difference
-                    unchecked {
-                        _burn(S, address(this), sharesToBurn - sharesToLock);
-                    }
-                } else if (sharesToLock > sharesToBurn) {
-                    // Mint the shares to lock the strategy.
-                    unchecked {
-                        _mint(S, address(this), sharesToLock - sharesToBurn);
-                    }
-                }
-            }
-        } else {
-            // Expect we have a loss.
-            unchecked {
-                loss = oldTotalAssets - newTotalAssets;
-            }
-
-            // Check in case `else` was due to being equal.
-            if (loss != 0) {
-                // We will try and burn the unlocked shares and as much from any
-                // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
-                sharesToBurn = Math.min(
-                    // Cannot burn more than we have.
-                    S.balances[address(this)],
-                    // Try and burn both the shares already unlocked and the amount for the loss.
-                    _convertToShares(S, loss, Math.Rounding.Down) + sharesToBurn
-                );
-            }
-
-            // Check if there is anything to burn.
-            if (sharesToBurn != 0) {
-                _burn(S, address(this), sharesToBurn);
-            }
-        }
-
-        // Update unlocking rate and time to fully unlocked.
-        uint256 totalLockedShares = S.balances[address(this)];
-        if (totalLockedShares != 0) {
-            uint256 previouslyLockedTime;
-            uint96 _fullProfitUnlockDate = S.fullProfitUnlockDate;
-            // Check if we need to account for shares still unlocking.
-            if (_fullProfitUnlockDate > block.timestamp) {
-                unchecked {
-                    // There will only be previously locked shares if time remains.
-                    // We calculate this here since it should be rare.
-                    previouslyLockedTime =
-                        (_fullProfitUnlockDate - block.timestamp) *
-                        (totalLockedShares - sharesToLock);
-                }
-            }
-
-            // newProfitLockingPeriod is a weighted average between the remaining
-            // time of the previously locked shares and the profitMaxUnlockTime.
-            uint256 newProfitLockingPeriod = (previouslyLockedTime +
-                sharesToLock *
-                _profitMaxUnlockTime) / totalLockedShares;
-
-            // Calculate how many shares unlock per second.
-            S.profitUnlockingRate =
-                (totalLockedShares * MAX_BPS_EXTENDED) /
-                newProfitLockingPeriod;
-
-            // Calculate how long until the full amount of shares is unlocked.
-            S.fullProfitUnlockDate = uint96(
-                block.timestamp + newProfitLockingPeriod
-            );
-        } else {
-            // Only setting this to 0 will turn in the desired effect,
-            // no need to update profitUnlockingRate.
-            S.fullProfitUnlockDate = 0;
-        }
-
-        // Update the new total assets value.
-        S.totalAssets = newTotalAssets;
-        S.lastReport = uint96(block.timestamp);
-
-        // Emit event with info
-        emit Reported(
-            profit,
-            loss,
-            protocolFees, // Protocol fees
-            totalFees - protocolFees // Performance Fees
-        );
-    }
-
-    /**
-     * @notice Get how many shares have been unlocked since last report.
-     * @return . The amount of shares that have unlocked.
-     */
-    function unlockedShares() external view returns (uint256) {
-        return _unlockedShares(_strategyStorage());
-    }
-
-    /**
-     * @dev To determine how many of the shares that were locked during the last
-     * report have since unlocked.
-     *
-     * If the `fullProfitUnlockDate` has passed the full strategy's balance will
-     * count as unlocked.
-     *
-     * @return unlocked The amount of shares that have unlocked.
-     */
-    function _unlockedShares(
-        StrategyData storage S
-    ) internal view returns (uint256 unlocked) {
-        uint96 _fullProfitUnlockDate = S.fullProfitUnlockDate;
-        if (_fullProfitUnlockDate > block.timestamp) {
-            unchecked {
-                unlocked =
-                    (S.profitUnlockingRate * (block.timestamp - S.lastReport)) /
-                    MAX_BPS_EXTENDED;
-            }
-        } else if (_fullProfitUnlockDate != 0) {
-            // All shares have been unlocked.
-            unlocked = S.balances[address(this)];
-        }
+        return
+            _accrue(S, IBaseStrategy(address(this)).harvestAndReport(), true);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1433,23 +1352,6 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice Gets the timestamp at which all profits will be unlocked.
-     * @return . The full profit unlocking timestamp
-     */
-    function fullProfitUnlockDate() external view returns (uint256) {
-        return uint256(_strategyStorage().fullProfitUnlockDate);
-    }
-
-    /**
-     * @notice The per second rate at which profits are unlocking.
-     * @dev This is denominated in EXTENDED_BPS decimals.
-     * @return . The current profit unlocking rate.
-     */
-    function profitUnlockingRate() external view returns (uint256) {
-        return _strategyStorage().profitUnlockingRate;
-    }
-
-    /**
      * @notice Gets the current time profits are set to unlock over.
      * @return . The current profit max unlock time.
      */
@@ -1458,11 +1360,19 @@ contract TokenizedStrategy {
     }
 
     /**
-     * @notice The timestamp of the last time protocol fees were charged.
+     * @notice The timestamp of the last accounting sync.
      * @return . The last report.
      */
     function lastReport() external view returns (uint256) {
         return uint256(_strategyStorage().lastReport);
+    }
+
+    /**
+     * @notice The last realized total assets baseline.
+     * @return . The last stored total assets.
+     */
+    function lastTotalAssets() external view returns (uint256) {
+        return _strategyStorage().lastTotalAssets;
     }
 
     /**
@@ -1555,6 +1465,7 @@ contract TokenizedStrategy {
      * @param _performanceFee New performance fee.
      */
     function setPerformanceFee(uint16 _performanceFee) external onlyManagement {
+        _accrue(_strategyStorage());
         require(_performanceFee <= MAX_FEE, "MAX FEE");
         _strategyStorage().performanceFee = _performanceFee;
 
@@ -1572,6 +1483,7 @@ contract TokenizedStrategy {
     function setPerformanceFeeRecipient(
         address _performanceFeeRecipient
     ) external onlyManagement {
+        _accrue(_strategyStorage());
         require(_performanceFeeRecipient != address(0), "ZERO ADDRESS");
         require(_performanceFeeRecipient != address(this), "Cannot be self");
         _strategyStorage().performanceFeeRecipient = _performanceFeeRecipient;
@@ -1598,21 +1510,7 @@ contract TokenizedStrategy {
     ) external onlyManagement {
         // Must be less than a year.
         require(_profitMaxUnlockTime <= SECONDS_PER_YEAR, "too long");
-        StrategyData storage S = _strategyStorage();
-
-        // If we are setting to 0 we need to adjust amounts.
-        if (_profitMaxUnlockTime == 0) {
-            uint256 shares = S.balances[address(this)];
-            if (shares != 0) {
-                // Burn all shares if applicable.
-                _burn(S, address(this), shares);
-            }
-            // Reset unlocking variables
-            S.profitUnlockingRate = 0;
-            S.fullProfitUnlockDate = 0;
-        }
-
-        S.profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
+        _strategyStorage().profitMaxUnlockTime = uint32(_profitMaxUnlockTime);
 
         emit UpdateProfitMaxUnlockTime(_profitMaxUnlockTime);
     }
@@ -1657,8 +1555,6 @@ contract TokenizedStrategy {
 
     /**
      * @notice Returns the current balance for a given '_account'.
-     * @dev If the '_account` is the strategy then this will subtract
-     * the amount of shares that have been unlocked since the last profit first.
      * @param account the address to return the balance for.
      * @return . The current balance in y shares of the '_account'.
      */
@@ -1671,9 +1567,6 @@ contract TokenizedStrategy {
         StrategyData storage S,
         address account
     ) internal view returns (uint256) {
-        if (account == address(this)) {
-            return S.balances[account] - _unlockedShares(S);
-        }
         return S.balances[account];
     }
 

@@ -54,9 +54,7 @@ contract CustomImplementationsTest is Setup {
         vm.prank(_address);
         strategy.withdraw(_amount, _address, _address);
 
-        createAndCheckProfit(strategy, profit, 0, 0);
-
-        increaseTimeAndCheckBuffer(strategy, 5 days, profit / 2);
+        asset.mint(address(yieldSource), profit);
 
         idle = asset.balanceOf(address(strategy));
         assertGt(idle, 0);
@@ -148,9 +146,7 @@ contract CustomImplementationsTest is Setup {
         vm.prank(_address);
         strategy.withdraw(_amount, _address, _address);
 
-        createAndCheckProfit(strategy, profit, 0, 0);
-
-        increaseTimeAndCheckBuffer(strategy, 5 days, profit / 2);
+        asset.mint(address(yieldSource), profit);
 
         idle = asset.balanceOf(address(strategy));
         assertGt(idle, 0);

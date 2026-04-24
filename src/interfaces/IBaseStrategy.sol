@@ -16,6 +16,8 @@ interface IBaseStrategy {
         address _owner
     ) external view returns (uint256);
 
+    function strategyTotalAssets() external view returns (uint256);
+
     function deployFunds(uint256 _assets) external;
 
     function freeFunds(uint256 _amount) external;

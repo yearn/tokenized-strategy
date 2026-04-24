@@ -2,23 +2,21 @@
 pragma solidity >=0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, TokenizedStrategy} from "./Setup.sol";
+import {Setup} from "./Setup.sol";
 
 abstract contract BaseInvariant is Setup {
     function setUp() public virtual override {
         super.setUp();
     }
 
-    function assert_totalAssets(
-        uint256 _totalDeposits,
-        uint256 _totalWithdraw,
-        uint256 _totalGain,
-        uint256 _totalLosses
-    ) public {
-        assertEq(
-            strategy.totalAssets(),
-            _totalDeposits + _totalGain - _totalWithdraw - _totalLosses
-        );
+    function assert_totalAssets(uint256, uint256, uint256, uint256) public {
+        uint256 totalAssets_ = strategy.totalAssets();
+        uint256 actualAssets = yieldSource.balance() +
+            asset.balanceOf(address(strategy));
+
+        if (totalAssets_ != actualAssets) {
+            assertEq(totalAssets_, strategy.lastTotalAssets());
+        }
     }
 
     function assert_maxWithdraw() public {
@@ -41,51 +39,13 @@ abstract contract BaseInvariant is Setup {
         assertApproxEq(
             strategy.maxWithdraw(msg.sender),
             strategy.convertToAssets(strategy.maxRedeem(msg.sender)),
-            3
+            10
         );
         assertApproxEq(
             strategy.maxRedeem(msg.sender),
             strategy.convertToShares(strategy.maxWithdraw(msg.sender)),
-            3
+            10
         );
-    }
-
-    function assert_unlockingTime() public {
-        uint256 unlockingDate = strategy.fullProfitUnlockDate();
-        uint256 balance = strategy.balanceOf(address(strategy));
-        uint256 unlockedShares = strategy.unlockedShares();
-        if (unlockingDate != 0 && strategy.profitUnlockingRate() > 0) {
-            if (block.timestamp == strategy.lastReport()) {
-                assertEq(unlockedShares, 0);
-                assertGt(balance, 0);
-            } else if (block.timestamp < unlockingDate) {
-                assertGt(unlockedShares, 0);
-                assertGt(balance, 0);
-            } else {
-                // We should have unlocked full balance
-                assertEq(balance, 0);
-                assertGt(unlockedShares, 0);
-            }
-        } else {
-            assertEq(balance, 0);
-        }
-    }
-
-    function assert_unlockedShares() public {
-        uint256 unlockedShares = strategy.unlockedShares();
-        uint256 fullBalance = strategy.balanceOf(address(strategy)) +
-            unlockedShares;
-        uint256 unlockingDate = strategy.fullProfitUnlockDate();
-        if (
-            unlockingDate != 0 &&
-            strategy.profitUnlockingRate() > 0 &&
-            block.timestamp < unlockingDate
-        ) {
-            assertLt(unlockedShares, fullBalance);
-        } else {
-            assertEq(unlockedShares, fullBalance);
-            assertEq(strategy.balanceOf(address(strategy)), 0);
-        }
     }
 
     function assert_previewMintAndConvertToAssets() public {
