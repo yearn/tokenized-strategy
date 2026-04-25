@@ -1129,6 +1129,7 @@ contract TokenizedStrategy {
             unchecked {
                 loss = oldTotalAssets - newTotalAssets;
             }
+            _realizeLoss(S, loss);
         }
 
         S.lastTotalAssets = newTotalAssets;
@@ -1195,6 +1196,24 @@ contract TokenizedStrategy {
         }
     }
 
+    function _realizeLoss(StrategyData storage S, uint256 loss) internal {
+        uint256 sharesToBurn = _unlockedShares(S);
+
+        // We will try and burn the unlocked shares and as much from any
+        // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
+        sharesToBurn = Math.min(
+            // Cannot burn more than we have.
+            S.balances[address(this)],
+            // Try and burn both the shares already unlocked and the amount for the loss.
+            _convertToShares(S, loss, Math.Rounding.Down) + sharesToBurn
+        );
+
+        // Check if there is anything to burn.
+        if (sharesToBurn != 0) {
+            _burn(S, address(this), sharesToBurn);
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                         PROFIT REPORTING
     //////////////////////////////////////////////////////////////*/
@@ -1233,6 +1252,9 @@ contract TokenizedStrategy {
         // Cache storage pointer since its used repeatedly.
         StrategyData storage S = _strategyStorage();
 
+        // Accrue to update total assets for non harvestable yield
+        _accrue(S);
+
         // Tell the strategy to report the real total assets it has.
         // It should do all reward selling and redepositing now and
         // account for deployed and loose `asset` so we can accurately
@@ -1242,9 +1264,6 @@ contract TokenizedStrategy {
             .harvestAndReport();
 
         uint256 oldTotalAssets = _totalAssets(S);
-
-        // Get the amount of shares we need to burn from previous reports.
-        uint256 sharesToBurn = _unlockedShares(S);
 
         // Initialize variables needed throughout.
         uint256 totalFees;
@@ -1276,6 +1295,7 @@ contract TokenizedStrategy {
                     sharesToLock -= totalFeeShares;
                 }
 
+                uint256 sharesToBurn = _unlockedShares(S);
                 // If we are burning more than re-locking.
                 if (sharesToBurn > sharesToLock) {
                     // Burn the difference
@@ -1294,23 +1314,7 @@ contract TokenizedStrategy {
             unchecked {
                 loss = oldTotalAssets - newTotalAssets;
             }
-
-            // Check in case `else` was due to being equal.
-            if (loss != 0) {
-                // We will try and burn the unlocked shares and as much from any
-                // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
-                sharesToBurn = Math.min(
-                    // Cannot burn more than we have.
-                    S.balances[address(this)],
-                    // Try and burn both the shares already unlocked and the amount for the loss.
-                    _convertToShares(S, loss, Math.Rounding.Down) + sharesToBurn
-                );
-            }
-
-            // Check if there is anything to burn.
-            if (sharesToBurn != 0) {
-                _burn(S, address(this), sharesToBurn);
-            }
+            _realizeLoss(S, loss);
         }
 
         // Update unlocking rate and time to fully unlocked.

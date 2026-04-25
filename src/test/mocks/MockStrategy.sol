@@ -39,6 +39,7 @@ contract MockStrategy is BaseStrategy {
     }
 
     function _harvestAndReport() internal override returns (uint256) {
+        MockYieldSource(yieldSource).harvest();
         uint256 balance = ERC20(asset).balanceOf(address(this));
         if (balance > 0 && !TokenizedStrategy.isShutdown()) {
             MockYieldSource(yieldSource).deposit(balance);

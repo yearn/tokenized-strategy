@@ -5,6 +5,7 @@ import "forge-std/console.sol";
 import {ExtendedTest} from "../utils/ExtendedTest.sol";
 import {Setup, IMockStrategy, ERC20Mock} from "../utils/Setup.sol";
 import {LibAddressSet, AddressSet} from "../utils/LibAddressSet.sol";
+import {MockYieldSource} from "../mocks/MockYieldSource.sol";
 
 contract StrategyHandler is ExtendedTest {
     using LibAddressSet for AddressSet;
@@ -125,8 +126,9 @@ contract StrategyHandler is ExtendedTest {
     function reportProfit(uint256 _amount) public countCall("reportProfit") {
         _amount = bound(_amount, 1_000, strategy.totalAssets() / 2);
 
-        // Simulate earning interest
-        asset.mint(address(strategy), _amount);
+        // Queue chunky profit so it only exists after harvestAndReport().
+        asset.mint(address(setup.yieldSource()), _amount);
+        MockYieldSource(address(setup.yieldSource())).queueRewards(_amount);
 
         vm.prank(setup.keeper());
         (uint256 profit, uint256 loss) = strategy.report();
@@ -139,9 +141,8 @@ contract StrategyHandler is ExtendedTest {
     function reportLoss(uint256 _amount) public countCall("reportLoss") {
         _amount = bound(_amount, 0, strategy.totalAssets() / 2);
 
-        // Simulate losing money
-        vm.prank(address(setup.yieldSource()));
-        asset.transfer(address(69), _amount);
+        // Queue chunky loss so it only exists after harvestAndReport().
+        MockYieldSource(address(setup.yieldSource())).queueLoss(_amount);
 
         vm.prank(setup.keeper());
         (uint256 profit, uint256 loss) = strategy.report();

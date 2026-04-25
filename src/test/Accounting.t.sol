@@ -293,6 +293,49 @@ contract AccountingTest is Setup {
         assertEq(asset.balanceOf(_user) - before, _amount - loss, "!out");
     }
 
+    function test_visibleLossSyncsBeforeReportAfterLatchOpens(
+        address _user,
+        uint256 _amount,
+        uint16 _lossFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _lossFactor = uint16(bound(uint256(_lossFactor), 10, 5_000));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != keeper &&
+                _user != management &&
+                _user != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        skip(1);
+
+        uint256 loss = (_amount * _lossFactor) / MAX_BPS;
+        yieldSource.simulateLoss(loss);
+
+        uint256 assetsBeforeReport = strategy.totalAssets();
+        uint256 ppsBeforeReport = strategy.pricePerShare();
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Reported(0, loss, 0, 0);
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Reported(0, 0, 0, 0);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertEq(strategy.totalAssets(), assetsBeforeReport, "!assets");
+        assertEq(strategy.pricePerShare(), ppsBeforeReport, "!pps");
+    }
+
     function test_initialDonationMintsDeadShares(
         address _user,
         uint256 _amount,
