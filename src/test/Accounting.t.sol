@@ -383,4 +383,50 @@ contract AccountingTest is Setup {
         assertEq(asset.balanceOf(_user) - before, _amount, "!out");
         assertEq(strategy.totalAssets(), _donation, "!remaining");
     }
+
+    // Invariant: a view quote (e.g. `previewWithdraw`) must match what the
+    // same write path would actually execute in the same block. The
+    // unlatched loss branch of `_simulatedTotals` must simulate the buffer
+    // burn that `_accrue` would perform on the same observed loss.
+    function test_previewWithdrawMatchesWritePathOnVisibleLoss() public {
+        uint256 _amount = 1_000e18;
+        uint256 profit = 200e18;
+        uint256 loss = 50e18;
+        uint256 quoteAssets = 100e18;
+        address depositor = address(0x5678);
+
+        setFees(0, 0);
+
+        mintAndDepositIntoStrategy(strategy, depositor, _amount);
+
+        // Establish a buffer via report() so a loss has something to burn.
+        createAndCheckProfit(strategy, profit, 0, 0);
+
+        // Open the latch (so views run the live `_simulatedTotals` branch)
+        // while keeping the unlock formula in its rate-based regime.
+        skip(profitMaxUnlockTime / 2);
+
+        // Visible loss not yet accrued.
+        yieldSource.simulateLoss(loss);
+
+        // Quote BEFORE `_accrue`: must already account for the burn that
+        // `_accrue` would perform on this loss.
+        uint256 sharesBefore = strategy.previewWithdraw(quoteAssets);
+
+        // Trigger `_accrue` with no other state change.
+        // `setPerformanceFeeRecipient` calls `_accrue(S)` first; passing the
+        // existing recipient makes the rest of the call a no-op.
+        vm.prank(management);
+        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+
+        // Quote AFTER `_accrue`: latched branch reflects the burned buffer.
+        // The two quotes must agree — view/write parity in the same block.
+        uint256 sharesAfter = strategy.previewWithdraw(quoteAssets);
+
+        assertEq(
+            sharesBefore,
+            sharesAfter,
+            "view quote must match write-path quote"
+        );
+    }
 }
