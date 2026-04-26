@@ -840,6 +840,20 @@ contract TokenizedStrategy {
 
         assets = _strategyTotalAssets();
         if (assets <= S.lastTotalAssets) {
+            if (assets < S.lastTotalAssets) {
+                uint256 loss;
+                unchecked {
+                    loss = S.lastTotalAssets - assets;
+                }
+
+                (uint256 lockedBurn, ) = _lossBurnState(
+                    S,
+                    loss,
+                    supply,
+                    S.lastTotalAssets
+                );
+                supply -= lockedBurn;
+            }
             return (supply, assets);
         }
 
@@ -856,7 +870,12 @@ contract TokenizedStrategy {
         if (fee != 0 && supply != 0) {
             uint256 totalFees = (profit * fee) / MAX_BPS;
             if (totalFees != 0) {
-                supply += _feeSharesForAmount(S, totalFees, assets);
+                supply += _convertToSharesFromTotals(
+                    totalFees,
+                    supply,
+                    assets - totalFees,
+                    Math.Rounding.Down
+                );
             }
         }
     }
@@ -866,16 +885,58 @@ contract TokenizedStrategy {
         return IBaseStrategy(address(this)).strategyTotalAssets();
     }
 
-    /// @dev Calculates shares that represent `assets` after fee minting dilution.
-    function _feeSharesForAmount(
+    /// @dev Returns the loss burn split between already-unlocked and still-locked shares.
+    function _lossBurnState(
         StrategyData storage S,
-        uint256 assets,
+        uint256 loss,
+        uint256 supply,
         uint256 totalAssets_
-    ) internal view returns (uint256) {
-        uint256 supply = _totalSupply(S);
-        if (assets == 0 || supply == 0) return 0;
+    ) internal view returns (uint256 lockedBurn, uint256 totalBurn) {
+        uint256 buffer = S.balances[address(this)];
+        if (buffer == 0) return (0, 0);
 
-        return assets.mulDiv(supply, totalAssets_ - assets, Math.Rounding.Down);
+        uint256 unlocked = _unlockedShares(S);
+        if (unlocked > buffer) {
+            unlocked = buffer;
+        }
+
+        uint256 lossShares = _convertToSharesFromTotals(
+            loss,
+            supply,
+            totalAssets_,
+            Math.Rounding.Down
+        );
+
+        unchecked {
+            lockedBurn = Math.min(buffer - unlocked, lossShares);
+            totalBurn = unlocked + lockedBurn;
+        }
+    }
+
+    /// @dev Converts using an explicit supply/assets snapshot.
+    function _convertToSharesFromTotals(
+        uint256 assets,
+        uint256 supply,
+        uint256 totalAssets_,
+        Math.Rounding _rounding
+    ) internal pure returns (uint256) {
+        if (supply == 0) return assets;
+        if (totalAssets_ == 0) return 0;
+
+        return assets.mulDiv(supply, totalAssets_, _rounding);
+    }
+
+    /// @dev Converts using an explicit supply/assets snapshot.
+    function _convertToAssetsFromTotals(
+        uint256 shares,
+        uint256 supply,
+        uint256 totalAssets_,
+        Math.Rounding _rounding
+    ) internal pure returns (uint256) {
+        return
+            supply == 0
+                ? shares
+                : shares.mulDiv(totalAssets_, supply, _rounding);
     }
 
     /// @dev Internal implementation of {convertToShares}.
@@ -886,12 +947,13 @@ contract TokenizedStrategy {
     ) internal view returns (uint256) {
         (uint256 totalSupply_, uint256 totalAssets_) = _simulatedTotals(S);
         // If supply is 0, PPS = 1.
-        if (totalSupply_ == 0) return assets;
-
-        // If assets are 0 but supply is not PPS = 0.
-        if (totalAssets_ == 0) return 0;
-
-        return assets.mulDiv(totalSupply_, totalAssets_, _rounding);
+        return
+            _convertToSharesFromTotals(
+                assets,
+                totalSupply_,
+                totalAssets_,
+                _rounding
+            );
     }
 
     /// @dev Internal implementation of {convertToAssets}.
@@ -903,9 +965,7 @@ contract TokenizedStrategy {
         (uint256 supply, uint256 totalAssets_) = _simulatedTotals(S);
 
         return
-            supply == 0
-                ? shares
-                : shares.mulDiv(totalAssets_, supply, _rounding);
+            _convertToAssetsFromTotals(shares, supply, totalAssets_, _rounding);
     }
 
     /// @dev Internal implementation of {maxDeposit}.
@@ -1130,6 +1190,7 @@ contract TokenizedStrategy {
                 loss = oldTotalAssets - newTotalAssets;
             }
             _realizeLoss(S, loss);
+            _syncUnlockScheduleAfterLoss(S);
         }
 
         S.lastTotalAssets = newTotalAssets;
@@ -1165,7 +1226,12 @@ contract TokenizedStrategy {
         // fees must be priced against the new diluted PPS. During locked-profit
         // reports we need master-style old-PPS fee shares.
         totalFeeShares = useNewPps
-            ? _feeSharesForAmount(S, totalFees, newTotalAssets)
+            ? _convertToSharesFromTotals(
+                totalFees,
+                _totalSupply(S),
+                newTotalAssets - totalFees,
+                Math.Rounding.Down
+            )
             : _convertToShares(S, totalFees, Math.Rounding.Down);
 
         (uint16 protocolFeeBps, address protocolFeesRecipient) = IFactory(
@@ -1197,20 +1263,33 @@ contract TokenizedStrategy {
     }
 
     function _realizeLoss(StrategyData storage S, uint256 loss) internal {
-        uint256 sharesToBurn = _unlockedShares(S);
-
-        // We will try and burn the unlocked shares and as much from any
-        // pending profit still unlocking to offset the loss to prevent any PPS decline post report.
-        sharesToBurn = Math.min(
-            // Cannot burn more than we have.
-            S.balances[address(this)],
-            // Try and burn both the shares already unlocked and the amount for the loss.
-            _convertToShares(S, loss, Math.Rounding.Down) + sharesToBurn
+        (, uint256 sharesToBurn) = _lossBurnState(
+            S,
+            loss,
+            _totalSupply(S),
+            S.lastTotalAssets
         );
 
         // Check if there is anything to burn.
         if (sharesToBurn != 0) {
             _burn(S, address(this), sharesToBurn);
+        }
+    }
+
+    /// @dev Re-seeds unlock accounting after `_accrue` burns buffer shares for a loss.
+    function _syncUnlockScheduleAfterLoss(StrategyData storage S) internal {
+        uint256 totalLockedShares = S.balances[address(this)];
+        S.lastReport = uint96(block.timestamp);
+        uint96 _fullProfitUnlockDate = S.fullProfitUnlockDate;
+
+        if (_fullProfitUnlockDate > block.timestamp && totalLockedShares != 0) {
+            unchecked {
+                S.profitUnlockingRate =
+                    (totalLockedShares * MAX_BPS_EXTENDED) /
+                    (_fullProfitUnlockDate - block.timestamp);
+            }
+        } else {
+            S.profitUnlockingRate = 0;
         }
     }
 

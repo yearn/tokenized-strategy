@@ -2657,9 +2657,7 @@ contract ProfitLockingTest is Setup {
     // and never underflow, even after `_accrue` has burned the locked-profit
     // buffer to absorb a mid-unlock-window loss. `unlockedShares()` must
     // never exceed `S.balances[address(this)]`.
-    function test_balanceOfStrategySurvivesLossBurnDuringUnlockWindow()
-        public
-    {
+    function test_balanceOfStrategySurvivesLossBurnDuringUnlockWindow() public {
         uint256 _amount = 1_000e18;
         uint256 profit = 200e18;
         uint256 loss = 800e18;
