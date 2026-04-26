@@ -70,4 +70,42 @@ abstract contract BaseInvariant is Setup {
             yieldSource.balance() + asset.balanceOf(address(strategy))
         );
     }
+
+    function assert_unlockingTime() public {
+        uint256 unlockingDate = strategy.fullProfitUnlockDate();
+        uint256 balance = strategy.balanceOf(address(strategy));
+        uint256 unlockedShares = strategy.unlockedShares();
+        if (unlockingDate != 0 && strategy.profitUnlockingRate() > 0) {
+            if (block.timestamp == strategy.lastReport()) {
+                assertEq(unlockedShares, 0);
+                assertGt(balance, 0);
+            } else if (block.timestamp < unlockingDate) {
+                assertGt(unlockedShares, 0);
+                assertGt(balance, 0);
+            } else {
+                // We should have unlocked full balance
+                assertEq(balance, 0);
+                assertGt(unlockedShares, 0);
+            }
+        } else {
+            assertEq(balance, 0);
+        }
+    }
+
+    function assert_unlockedShares() public {
+        uint256 unlockedShares = strategy.unlockedShares();
+        uint256 fullBalance = strategy.balanceOf(address(strategy)) +
+            unlockedShares;
+        uint256 unlockingDate = strategy.fullProfitUnlockDate();
+        if (
+            unlockingDate != 0 &&
+            strategy.profitUnlockingRate() > 0 &&
+            block.timestamp < unlockingDate
+        ) {
+            assertLt(unlockedShares, fullBalance);
+        } else {
+            assertEq(unlockedShares, fullBalance);
+            assertEq(strategy.balanceOf(address(strategy)), 0);
+        }
+    }
 }

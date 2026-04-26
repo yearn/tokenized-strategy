@@ -456,7 +456,8 @@ contract TokenizedStrategy {
         S.performanceFee = 1_000;
         // Initialize both timestamps to the deployment block.
         S.lastReport = uint96(block.timestamp);
-        S.lastAccrual = uint96(block.timestamp);
+        // -1 to not allow first deposit inflation
+        S.lastAccrual = uint96(block.timestamp - 1);
 
         // Set the default management address. Can't be 0.
         require(_management != address(0), "ZERO ADDRESS");
@@ -822,6 +823,8 @@ contract TokenizedStrategy {
     }
 
     /// @dev Internal implementation of {totalSupply}.
+    /// @notice We don't increase totalSupply until actual shares are minted.
+    ///    This can cause disconnection between conversions done manually
     function _totalSupply(
         StrategyData storage S
     ) internal view returns (uint256) {
@@ -838,38 +841,20 @@ contract TokenizedStrategy {
             return (supply, S.lastTotalAssets);
         }
 
-        assets = _strategyTotalAssets();
-        if (assets <= S.lastTotalAssets) {
-            if (assets < S.lastTotalAssets) {
-                uint256 loss;
-                unchecked {
-                    loss = S.lastTotalAssets - assets;
-                }
-
-                (uint256 lockedBurn, ) = _lossBurnState(
-                    S,
-                    loss,
-                    supply,
-                    S.lastTotalAssets
-                );
-                supply -= lockedBurn;
-            }
-            return (supply, assets);
-        }
-
-        uint256 profit;
-        unchecked {
-            profit = assets - S.lastTotalAssets;
-        }
-
         if (S.lastTotalAssets == 0 && supply == 0) {
             return (assets, assets);
         }
 
-        uint16 fee = S.performanceFee;
-        if (fee != 0 && supply != 0) {
-            uint256 totalFees = (profit * fee) / MAX_BPS;
-            if (totalFees != 0) {
+        assets = _strategyTotalAssets();
+        if (assets > S.lastTotalAssets) {
+            uint256 profit;
+            unchecked {
+                profit = assets - S.lastTotalAssets;
+            }
+
+            uint16 fee = S.performanceFee;
+            if (fee != 0 && supply != 0) {
+                uint256 totalFees = (profit * fee) / MAX_BPS;
                 supply += _convertToSharesFromTotals(
                     totalFees,
                     supply,
@@ -877,40 +862,27 @@ contract TokenizedStrategy {
                     Math.Rounding.Down
                 );
             }
+        } else if (assets < S.lastTotalAssets) {
+            uint256 loss;
+            unchecked {
+                loss = S.lastTotalAssets - assets;
+            }
+
+            (uint256 lockedBurn, ) = _lossBurnState(
+                S,
+                loss,
+                supply,
+                S.lastTotalAssets
+            );
+            supply -= lockedBurn;
+
+            return (supply, assets);
         }
     }
 
     /// @dev Internal helper to ask the strategy for its current total assets.
     function _strategyTotalAssets() internal view returns (uint256) {
         return IBaseStrategy(address(this)).strategyTotalAssets();
-    }
-
-    /// @dev Returns the loss burn split between already-unlocked and still-locked shares.
-    function _lossBurnState(
-        StrategyData storage S,
-        uint256 loss,
-        uint256 supply,
-        uint256 totalAssets_
-    ) internal view returns (uint256 lockedBurn, uint256 totalBurn) {
-        uint256 buffer = S.balances[address(this)];
-        if (buffer == 0) return (0, 0);
-
-        uint256 unlocked = _unlockedShares(S);
-        if (unlocked > buffer) {
-            unlocked = buffer;
-        }
-
-        uint256 lossShares = _convertToSharesFromTotals(
-            loss,
-            supply,
-            totalAssets_,
-            Math.Rounding.Down
-        );
-
-        unchecked {
-            lockedBurn = Math.min(buffer - unlocked, lossShares);
-            totalBurn = unlocked + lockedBurn;
-        }
     }
 
     /// @dev Converts using an explicit supply/assets snapshot.
@@ -1159,8 +1131,7 @@ contract TokenizedStrategy {
             return (0, 0);
         }
 
-        uint256 newTotalAssets = IBaseStrategy(address(this))
-            .strategyTotalAssets();
+        uint256 newTotalAssets = _strategyTotalAssets();
         uint256 oldTotalAssets = S.lastTotalAssets;
         uint256 totalFees;
         uint256 protocolFees;
@@ -1225,14 +1196,12 @@ contract TokenizedStrategy {
         // During live accrual there is no gross profit-share bucket to slice, so
         // fees must be priced against the new diluted PPS. During locked-profit
         // reports we need master-style old-PPS fee shares.
-        totalFeeShares = useNewPps
-            ? _convertToSharesFromTotals(
-                totalFees,
-                _totalSupply(S),
-                newTotalAssets - totalFees,
-                Math.Rounding.Down
-            )
-            : _convertToShares(S, totalFees, Math.Rounding.Down);
+        totalFeeShares = _convertToSharesFromTotals(
+            totalFees,
+            _totalSupply(S),
+            useNewPps ? newTotalAssets - totalFees : S.lastTotalAssets,
+            Math.Rounding.Down
+        );
 
         (uint16 protocolFeeBps, address protocolFeesRecipient) = IFactory(
             FACTORY
@@ -1273,6 +1242,32 @@ contract TokenizedStrategy {
         // Check if there is anything to burn.
         if (sharesToBurn != 0) {
             _burn(S, address(this), sharesToBurn);
+        }
+    }
+
+    /// @dev Returns the loss burn split between already-unlocked and still-locked shares.
+    function _lossBurnState(
+        StrategyData storage S,
+        uint256 loss,
+        uint256 supply,
+        uint256 totalAssets_
+    ) internal view returns (uint256 lockedBurn, uint256 totalBurn) {
+        uint256 buffer = S.balances[address(this)];
+        if (buffer == 0) return (0, 0);
+
+        uint256 unlocked = _unlockedShares(S);
+        if (unlocked >= buffer) return (0, buffer);
+
+        uint256 lossShares = _convertToSharesFromTotals(
+            loss,
+            supply,
+            totalAssets_,
+            Math.Rounding.Down
+        );
+
+        unchecked {
+            lockedBurn = Math.min(buffer - unlocked, lossShares);
+            totalBurn = unlocked + lockedBurn;
         }
     }
 
