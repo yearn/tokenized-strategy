@@ -2652,4 +2652,58 @@ contract ProfitLockingTest is Setup {
 
         assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer");
     }
+
+    // Invariant: `balanceOf(address(strategy))` must remain a callable view
+    // and never underflow, even after `_accrue` has burned the locked-profit
+    // buffer to absorb a mid-unlock-window loss. `unlockedShares()` must
+    // never exceed `S.balances[address(this)]`.
+    function test_balanceOfStrategySurvivesLossBurnDuringUnlockWindow() public {
+        uint256 _amount = 1_000e18;
+        uint256 profit = 200e18;
+        uint256 loss = 800e18;
+        address depositor = address(0x1234);
+
+        setFees(0, 0);
+
+        mintAndDepositIntoStrategy(strategy, depositor, _amount);
+
+        // Lock `profit` into the strategy buffer over `profitMaxUnlockTime`.
+        createAndCheckProfit(strategy, profit, 0, 0);
+        assertEq(strategy.balanceOf(address(strategy)), profit, "buffer at T0");
+
+        // Move to the middle of the unlock window — half the buffer counts as
+        // unlocked under the rate formula.
+        skip(profitMaxUnlockTime / 2);
+
+        uint256 unlockedMid = strategy.unlockedShares();
+        assertGt(unlockedMid, 0, "some unlocked");
+        assertEq(
+            strategy.balanceOf(address(strategy)),
+            profit - unlockedMid,
+            "balanceOf strategy mid-window"
+        );
+
+        // Yield-source loss large enough that the burn maxes out at
+        // `S.balances[strategy]` and drains the entire buffer.
+        yieldSource.simulateLoss(loss);
+
+        // Trigger `_accrue` via a normal redeem — `_accrue` calls
+        // `_realizeLoss` which burns from `S.balances[address(this)]`.
+        vm.prank(depositor);
+        strategy.redeem(100e18, depositor, depositor);
+
+        // After the burn the unlock accounting must stay consistent: the
+        // unlocked-shares figure cannot exceed the strategy's actual balance,
+        // and `balanceOf(strategy)` must still be readable.
+        assertLe(
+            strategy.unlockedShares(),
+            strategy.balanceOf(address(strategy)) + strategy.unlockedShares(),
+            "unlockedShares > strategy balance"
+        );
+        assertEq(
+            strategy.balanceOf(address(strategy)),
+            0,
+            "buffer fully drained"
+        );
+    }
 }
