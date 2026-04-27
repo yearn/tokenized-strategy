@@ -384,6 +384,43 @@ contract AccountingTest is Setup {
         assertEq(strategy.totalAssets(), _donation, "!remaining");
     }
 
+    function test_zeroAssetRecoveryIsFeeFreeAndPreviewMatchesDeposit() public {
+        address depositor = address(0xA11CE);
+        address recoveryDepositor = address(0xB0B);
+        uint256 amount = 100e18;
+
+        setFees(0, 1_000);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+
+        skip(1);
+        yieldSource.simulateLoss(amount);
+
+        vm.prank(keeper);
+        strategy.report();
+
+        assertEq(strategy.totalAssets(), 0, "!zero assets");
+        assertEq(strategy.totalSupply(), amount, "!supply remains");
+
+        asset.mint(address(yieldSource), amount);
+        skip(1);
+
+        uint256 preview = strategy.previewDeposit(amount);
+        assertEq(preview, amount, "!fee-free preview");
+
+        asset.mint(recoveryDepositor, amount);
+        vm.prank(recoveryDepositor);
+        asset.approve(address(strategy), amount);
+
+        vm.prank(recoveryDepositor);
+        uint256 minted = strategy.deposit(amount, recoveryDepositor);
+
+        assertEq(minted, preview, "!preview");
+        assertEq(minted, amount, "!shares");
+        assertEq(strategy.balanceOf(performanceFeeRecipient), 0, "!fees");
+        assertEq(strategy.totalAssets(), amount * 2, "!assets");
+        assertEq(strategy.totalSupply(), amount * 2, "!supply");
+    }
+
     // Invariant: a view quote (e.g. `previewWithdraw`) must match what the
     // same write path would actually execute in the same block. The
     // unlatched loss branch of `_simulatedTotals` must simulate the buffer

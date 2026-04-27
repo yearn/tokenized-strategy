@@ -569,6 +569,7 @@ contract TokenizedStrategy {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         _accrue(S);
+
         require(
             assets <= _maxWithdraw(S, owner),
             "ERC4626: withdraw more than max"
@@ -620,6 +621,7 @@ contract TokenizedStrategy {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         _accrue(S);
+
         require(
             shares <= _maxRedeem(S, owner),
             "ERC4626: redeem more than max"
@@ -837,15 +839,14 @@ contract TokenizedStrategy {
     ) internal view returns (uint256 supply, uint256 assets) {
         supply = _totalSupply(S);
 
-        if (S.entered == ENTERED || block.timestamp == S.lastAccrual) {
+        if (S.entered == ENTERED || block.timestamp == S.lastAccrual)
             return (supply, S.lastTotalAssets);
-        }
-
-        if (S.lastTotalAssets == 0 && supply == 0) {
-            return (assets, assets);
-        }
 
         assets = _strategyTotalAssets();
+
+        if (S.lastTotalAssets == 0)
+            return (supply == 0 ? assets : supply, assets);
+
         if (assets > S.lastTotalAssets) {
             uint256 profit;
             unchecked {
@@ -875,8 +876,6 @@ contract TokenizedStrategy {
                 S.lastTotalAssets
             );
             supply -= lockedBurn;
-
-            return (supply, assets);
         }
     }
 
@@ -1193,9 +1192,10 @@ contract TokenizedStrategy {
             totalFees = (profit * fee) / MAX_BPS;
         }
 
-        // During live accrual there is no gross profit-share bucket to slice, so
-        // fees must be priced against the new diluted PPS. During locked-profit
-        // reports we need master-style old-PPS fee shares.
+        // Get fee shares based on PPS that the txn will end on.
+        // During live accrual or when profit unlock is 0,
+        // we use the new diluted PPS. During locked-profit
+        // reports we need to use the old PPS since it does not change.
         totalFeeShares = _convertToSharesFromTotals(
             totalFees,
             _totalSupply(S),
@@ -1354,6 +1354,7 @@ contract TokenizedStrategy {
             // We need to get the equivalent amount of shares
             // at the current PPS before any minting or burning.
             sharesToLock = _convertToShares(S, profit, Math.Rounding.Down);
+
             uint256 totalFeeShares;
             (totalFees, protocolFees, totalFeeShares) = _chargeFees(
                 S,
@@ -1431,7 +1432,6 @@ contract TokenizedStrategy {
         // Update the new total assets value.
         S.lastTotalAssets = newTotalAssets;
         S.lastReport = uint96(block.timestamp);
-        S.lastAccrual = uint96(block.timestamp);
 
         // Emit event with info
         emit Reported(

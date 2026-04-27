@@ -137,11 +137,11 @@ abstract contract BaseStrategy {
      * @param _name Name the strategy will use.
      */
     constructor(address _asset, string memory _name) {
-        asset = ERC20(_asset);
+        (asset, TokenizedStrategy) = _initialize(_asset, _name);
+    }
 
-        // Set instance of the implementation for internal use.
-        TokenizedStrategy = ITokenizedStrategy(address(this));
-
+    /// @dev Internal function to initialize the strategy.
+    function _initialize(address _asset, string memory _name) internal virtual returns (ERC20, ITokenizedStrategy) {
         // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(
@@ -160,6 +160,8 @@ abstract contract BaseStrategy {
                 tokenizedStrategyAddress
             )
         }
+
+        return (ERC20(_asset), ITokenizedStrategy(address(this)));
     }
 
     /*//////////////////////////////////////////////////////////////
