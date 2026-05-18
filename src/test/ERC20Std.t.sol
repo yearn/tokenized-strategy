@@ -97,6 +97,15 @@ contract ERC20BaseTest is Setup {
         }
     }
 
+    function test_transferFromStrategyReverts() public {
+        address recipient = address(0xBEEF);
+        uint256 lockedShares = _lockStrategyShares();
+
+        vm.prank(address(strategy));
+        vm.expectRevert("ERC20 transfer from strategy");
+        strategy.transfer(recipient, lockedShares);
+    }
+
     function testFuzz_transferFrom(
         address recipient_,
         uint256 approval_,
@@ -131,6 +140,21 @@ contract ERC20BaseTest is Setup {
             assertEq(strategy.balanceOf(address(owner)), 0);
             assertEq(strategy.balanceOf(recipient_), amount_);
         }
+    }
+
+    function test_transferFromStrategyWithAllowanceReverts() public {
+        address spender = address(0xCAFE);
+        address recipient = address(0xBEEF);
+        uint256 lockedShares = _lockStrategyShares();
+
+        vm.prank(address(strategy));
+        strategy.approve(spender, lockedShares);
+
+        vm.prank(spender);
+        vm.expectRevert("ERC20 transfer from strategy");
+        strategy.transferFrom(address(strategy), recipient, lockedShares);
+
+        assertEq(strategy.allowance(address(strategy), spender), lockedShares);
     }
 
     function testFuzz_transferFrom_infiniteApproval(
@@ -241,6 +265,17 @@ contract ERC20BaseTest is Setup {
         strategy.transferFrom(address(owner), recipient_, amount_);
 
         assertEq(strategy.balanceOf(recipient_), amount_);
+    }
+
+    function _lockStrategyShares() internal returns (uint256 lockedShares) {
+        mintAndDepositIntoStrategy(strategy, self, 100 ether);
+        queueHarvestProfit(strategy, 10 ether);
+
+        vm.prank(keeper);
+        strategy.report();
+
+        lockedShares = strategy.balanceOf(address(strategy));
+        assertGt(lockedShares, 0);
     }
 }
 

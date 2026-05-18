@@ -1889,6 +1889,7 @@ contract TokenizedStrategy {
      * @dev
      * Requirements:
      *
+     * - `from` cannot be the address of the strategy.
      * - `to` cannot be the zero address.
      * - `to` cannot be the address of the strategy.
      * - the caller must have a balance of at least `_amount`.
@@ -1972,6 +1973,7 @@ contract TokenizedStrategy {
      * Requirements:
      *
      * - `from` and `to` cannot be the zero address.
+     * - `from` cannot be the address of the strategy.
      * - `to` cannot be the address of the strategy.
      * - `from` must have a balance of at least `amount`.
      * - the caller must have allowance for ``from``'s tokens of at least
@@ -2007,7 +2009,8 @@ contract TokenizedStrategy {
      *
      * - `from` cannot be the zero address.
      * - `to` cannot be the zero address.
-     * - `to` cannot be the strategies address
+     * - `from` cannot be the strategies address.
+     * - `to` cannot be the strategies address.
      * - `from` must have a balance of at least `amount`.
      *
      */
@@ -2019,6 +2022,7 @@ contract TokenizedStrategy {
     ) internal {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
+        require(from != address(this), "ERC20 transfer from strategy");
         require(to != address(this), "ERC20 transfer to strategy");
 
         S.balances[from] -= amount;
