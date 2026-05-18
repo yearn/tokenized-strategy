@@ -32,6 +32,13 @@ interface IEvents {
         uint256 performanceFees
     );
 
+    event Accrued(
+        uint256 profit,
+        uint256 loss,
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
+
     /**
      * @notice Emitted when the 'performanceFeeRecipient' address is
      * updated to 'newPerformanceFeeRecipient'.

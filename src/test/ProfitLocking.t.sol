@@ -2413,7 +2413,7 @@ contract ProfitLockingTest is Setup {
         uint256 ppsBeforeReport = strategy.pricePerShare();
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit Reported(profit, 0, 0, 0);
+        emit Accrued(profit, 0, 0, 0);
         vm.expectEmit(true, true, true, true, address(strategy));
         emit Reported(0, 0, 0, 0);
 
@@ -2462,7 +2462,7 @@ contract ProfitLockingTest is Setup {
         queueHarvestProfit(strategy, reportProfit);
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit Reported(liveProfit, 0, 0, 0);
+        emit Accrued(liveProfit, 0, 0, 0);
         vm.expectEmit(true, true, true, true, address(strategy));
         emit Reported(reportProfit, 0, 0, 0);
 
@@ -2517,7 +2517,7 @@ contract ProfitLockingTest is Setup {
         queueHarvestLoss(strategy, reportLoss);
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit Reported(0, liveLoss, 0, 0);
+        emit Accrued(0, liveLoss, 0, 0);
         vm.expectEmit(true, true, true, true, address(strategy));
         emit Reported(0, reportLoss, 0, 0);
 
@@ -2560,7 +2560,7 @@ contract ProfitLockingTest is Setup {
         uint256 ppsBeforeReport = strategy.pricePerShare();
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit Reported(airdrop, 0, 0, 0);
+        emit Accrued(airdrop, 0, 0, 0);
         vm.expectEmit(true, true, true, true, address(strategy));
         emit Reported(0, 0, 0, 0);
 

@@ -323,7 +323,7 @@ contract AccountingTest is Setup {
         uint256 ppsBeforeReport = strategy.pricePerShare();
 
         vm.expectEmit(true, true, true, true, address(strategy));
-        emit Reported(0, loss, 0, 0);
+        emit Accrued(0, loss, 0, 0);
         vm.expectEmit(true, true, true, true, address(strategy));
         emit Reported(0, 0, 0, 0);
 

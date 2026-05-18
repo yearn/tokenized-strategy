@@ -105,6 +105,17 @@ contract TokenizedStrategy {
     );
 
     /**
+     * @notice Emitted when the strategy accrues `profit` or `loss` outside of
+     * an explicit report and `performanceFees` and `protocolFees` are paid out.
+     */
+    event Accrued(
+        uint256 profit,
+        uint256 loss,
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
+
+    /**
      * @notice Emitted when the 'performanceFeeRecipient' address is
      * updated to 'newPerformanceFeeRecipient'.
      */
@@ -1166,7 +1177,7 @@ contract TokenizedStrategy {
         S.lastTotalAssets = newTotalAssets;
         S.lastAccrual = uint96(block.timestamp);
 
-        emit Reported(profit, loss, protocolFees, totalFees - protocolFees);
+        emit Accrued(profit, loss, protocolFees, totalFees - protocolFees);
     }
 
     /// @dev Mint fee shares for asset-based live accrual.
