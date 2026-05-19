@@ -4,6 +4,52 @@ pragma solidity >=0.8.18;
 import "forge-std/console.sol";
 import {Setup} from "./utils/Setup.sol";
 
+import {BaseStrategy, ERC20} from "../BaseStrategy.sol";
+import {ITokenizedStrategy} from "../interfaces/ITokenizedStrategy.sol";
+
+// Minimal strategy that overrides `_initialize` to demonstrate that role
+// addresses passed to `super._initialize` land in the correct storage slots.
+// The override uses named arguments, so it only compiles when the parent's
+// parameter names align with `ITokenizedStrategy.initialize`.
+contract CustomInitMockStrategy is BaseStrategy {
+    address internal constant CUSTOM_MANAGEMENT =
+        0x1111111111111111111111111111111111111111;
+    address internal constant CUSTOM_FEE_RECIPIENT =
+        0x2222222222222222222222222222222222222222;
+    address internal constant CUSTOM_KEEPER =
+        0x3333333333333333333333333333333333333333;
+
+    constructor(address _asset) BaseStrategy(_asset, "Custom Init") {}
+
+    function _initialize(
+        address _asset,
+        string memory _name,
+        address,
+        address,
+        address
+    ) internal override {
+        super._initialize({
+            _asset: _asset,
+            _name: _name,
+            _management: CUSTOM_MANAGEMENT,
+            _performanceFeeRecipient: CUSTOM_FEE_RECIPIENT,
+            _keeper: CUSTOM_KEEPER
+        });
+    }
+
+    function _deployFunds(uint256) internal override {}
+
+    function _freeFunds(uint256) internal override {}
+
+    function _totalAssets() internal view override returns (uint256) {
+        return asset.balanceOf(address(this));
+    }
+
+    function _harvestAndReport() internal override returns (uint256) {
+        return _totalAssets();
+    }
+}
+
 contract AccessControlTest is Setup {
     function setUp() public override {
         super.setUp();
@@ -369,6 +415,29 @@ contract AccessControlTest is Setup {
 
         vm.prank(keeper);
         strategy.tend();
+    }
+
+    function test_initializeOverride_routesAddressesToCorrectSlots() public {
+        CustomInitMockStrategy custom = new CustomInitMockStrategy(
+            address(asset)
+        );
+        ITokenizedStrategy s = ITokenizedStrategy(address(custom));
+
+        assertEq(
+            s.management(),
+            0x1111111111111111111111111111111111111111,
+            "!management"
+        );
+        assertEq(
+            s.performanceFeeRecipient(),
+            0x2222222222222222222222222222222222222222,
+            "!performanceFeeRecipient"
+        );
+        assertEq(
+            s.keeper(),
+            0x3333333333333333333333333333333333333333,
+            "!keeper"
+        );
     }
 
     function test_setName(address _address) public {

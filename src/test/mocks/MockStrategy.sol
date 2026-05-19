@@ -77,4 +77,203 @@ contract MockStrategy is BaseStrategy {
     function onlyLetEmergencyAdminsIn() public onlyEmergencyAuthorized {
         emergentizated = true;
     }
+
+    function libraryAsset() external view returns (address) {
+        return TokenizedStrategy.asset();
+    }
+
+    function libraryName() external view returns (string memory) {
+        return TokenizedStrategy.name();
+    }
+
+    function librarySymbol() external view returns (string memory) {
+        return TokenizedStrategy.symbol();
+    }
+
+    function libraryDecimals() external view returns (uint8) {
+        return TokenizedStrategy.decimals();
+    }
+
+    function libraryApiVersion() external view returns (string memory) {
+        return TokenizedStrategy.apiVersion();
+    }
+
+    function libraryMAX_FEE() external view returns (uint16) {
+        return TokenizedStrategy.MAX_FEE();
+    }
+
+    function libraryFACTORY() external view returns (address) {
+        return TokenizedStrategy.FACTORY();
+    }
+
+    function libraryManagement() external view returns (address) {
+        return TokenizedStrategy.management();
+    }
+
+    function libraryPendingManagement() external view returns (address) {
+        return TokenizedStrategy.pendingManagement();
+    }
+
+    function libraryKeeper() external view returns (address) {
+        return TokenizedStrategy.keeper();
+    }
+
+    function libraryEmergencyAdmin() external view returns (address) {
+        return TokenizedStrategy.emergencyAdmin();
+    }
+
+    function libraryPerformanceFee() external view returns (uint16) {
+        return TokenizedStrategy.performanceFee();
+    }
+
+    function libraryPerformanceFeeRecipient() external view returns (address) {
+        return TokenizedStrategy.performanceFeeRecipient();
+    }
+
+    function libraryProfitMaxUnlockTime() external view returns (uint256) {
+        return TokenizedStrategy.profitMaxUnlockTime();
+    }
+
+    function libraryLastReport() external view returns (uint256) {
+        return TokenizedStrategy.lastReport();
+    }
+
+    function libraryLastAccrual() external view returns (uint256) {
+        return TokenizedStrategy.lastAccrual();
+    }
+
+    function libraryLastTotalAssets() external view returns (uint256) {
+        return TokenizedStrategy.lastTotalAssets();
+    }
+
+    function libraryFullProfitUnlockDate() external view returns (uint256) {
+        return TokenizedStrategy.fullProfitUnlockDate();
+    }
+
+    function libraryProfitUnlockingRate() external view returns (uint256) {
+        return TokenizedStrategy.profitUnlockingRate();
+    }
+
+    function libraryIsShutdown() external view returns (bool) {
+        return TokenizedStrategy.isShutdown();
+    }
+
+    function libraryTotalAssets() external view returns (uint256) {
+        return TokenizedStrategy.totalAssets();
+    }
+
+    function libraryTotalSupply() external view returns (uint256) {
+        return TokenizedStrategy.totalSupply();
+    }
+
+    function libraryBalanceOf(
+        address _account
+    ) external view returns (uint256) {
+        return TokenizedStrategy.balanceOf(_account);
+    }
+
+    function libraryAllowance(
+        address _owner,
+        address _spender
+    ) external view returns (uint256) {
+        return TokenizedStrategy.allowance(_owner, _spender);
+    }
+
+    function libraryNonces(address _owner) external view returns (uint256) {
+        return TokenizedStrategy.nonces(_owner);
+    }
+
+    function libraryDOMAIN_SEPARATOR() external view returns (bytes32) {
+        return TokenizedStrategy.DOMAIN_SEPARATOR();
+    }
+
+    function libraryUnlockedShares() external view returns (uint256) {
+        return TokenizedStrategy.unlockedShares();
+    }
+
+    function libraryPricePerShare() external view returns (uint256) {
+        return TokenizedStrategy.pricePerShare();
+    }
+
+    function libraryConvertToShares(
+        uint256 _assets
+    ) external view returns (uint256) {
+        return TokenizedStrategy.convertToShares(_assets);
+    }
+
+    function libraryConvertToAssets(
+        uint256 _shares
+    ) external view returns (uint256) {
+        return TokenizedStrategy.convertToAssets(_shares);
+    }
+
+    function libraryPreviewDeposit(
+        uint256 _assets
+    ) external view returns (uint256) {
+        return TokenizedStrategy.previewDeposit(_assets);
+    }
+
+    function libraryPreviewMint(
+        uint256 _shares
+    ) external view returns (uint256) {
+        return TokenizedStrategy.previewMint(_shares);
+    }
+
+    function libraryPreviewWithdraw(
+        uint256 _assets
+    ) external view returns (uint256) {
+        return TokenizedStrategy.previewWithdraw(_assets);
+    }
+
+    function libraryPreviewRedeem(
+        uint256 _shares
+    ) external view returns (uint256) {
+        return TokenizedStrategy.previewRedeem(_shares);
+    }
+
+    function libraryMaxDeposit(
+        address _receiver
+    ) external view returns (uint256) {
+        return TokenizedStrategy.maxDeposit(_receiver);
+    }
+
+    function libraryMaxMint(address _receiver) external view returns (uint256) {
+        return TokenizedStrategy.maxMint(_receiver);
+    }
+
+    function libraryMaxWithdraw(
+        address _owner
+    ) external view returns (uint256) {
+        return TokenizedStrategy.maxWithdraw(_owner);
+    }
+
+    function libraryMaxWithdraw(
+        address _owner,
+        uint256 _maxLoss
+    ) external view returns (uint256) {
+        return TokenizedStrategy.maxWithdraw(_owner, _maxLoss);
+    }
+
+    function libraryMaxRedeem(address _owner) external view returns (uint256) {
+        return TokenizedStrategy.maxRedeem(_owner);
+    }
+
+    function libraryMaxRedeem(
+        address _owner,
+        uint256 _maxLoss
+    ) external view returns (uint256) {
+        return TokenizedStrategy.maxRedeem(_owner, _maxLoss);
+    }
+
+    function libraryRequireManagement(address _sender) external view {
+        TokenizedStrategy.requireManagement(_sender);
+    }
+
+    function libraryRequireKeeperOrManagement(address _sender) external view {
+        TokenizedStrategy.requireKeeperOrManagement(_sender);
+    }
+
+    function libraryRequireEmergencyAuthorized(address _sender) external view {
+        TokenizedStrategy.requireEmergencyAuthorized(_sender);
+    }
 }

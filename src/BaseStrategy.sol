@@ -129,14 +129,14 @@ abstract contract BaseStrategy {
         address _asset,
         string memory _name,
         address _management,
-        address _keeper,
-        address _emergencyAdmin
+        address _performanceFeeRecipient,
+        address _keeper
     ) internal virtual {
         // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(
                 ITokenizedStrategy.initialize,
-                (_asset, _name, _management, _keeper, _emergencyAdmin)
+                (_asset, _name, _management, _performanceFeeRecipient, _keeper)
             )
         );
 
