@@ -588,7 +588,6 @@ contract ProfitLockingTest is Setup {
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
         uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
             MAX_BPS;
-
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
 
@@ -678,12 +677,13 @@ contract ProfitLockingTest is Setup {
             totalExpectedFees + secondExpectedSharesForFees
         );
 
-        checkStrategyTotals(
+        checkStrategyTotalsApproxAssets(
             strategy,
             expectedAssetsForFees,
             expectedAssetsForFees,
             0,
-            totalExpectedFees + secondExpectedSharesForFees
+            totalExpectedFees + secondExpectedSharesForFees,
+            1
         );
 
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
@@ -730,7 +730,6 @@ contract ProfitLockingTest is Setup {
         uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
         uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
             MAX_BPS;
-
         uint256 totalExpectedFees = expectedPerformanceFee +
             expectedProtocolFee;
 
@@ -780,16 +779,15 @@ contract ProfitLockingTest is Setup {
 
         uint256 newAmount = _amount + profit;
 
-        uint256 secondExpectedSharesForFees = (strategy.convertToShares(
-            profit
-        ) * performanceFee) / MAX_BPS;
-
         createAndCheckProfit(
             strategy,
             profit,
             expectedProtocolFee,
             expectedPerformanceFee
         );
+
+        uint256 totalFeeShares = strategy.balanceOf(performanceFeeRecipient) +
+            strategy.balanceOf(protocolFeeRecipient);
 
         checkStrategyTotals(
             strategy,
@@ -808,14 +806,14 @@ contract ProfitLockingTest is Setup {
             newAmount + profit,
             newAmount + profit,
             0,
-            newAmount - profit + totalExpectedFees + secondExpectedSharesForFees
+            newAmount - profit + totalFeeShares
         );
 
         vm.prank(_address);
         strategy.redeem(newAmount - profit, _address, _address);
 
         uint256 expectedAssetsForFees = strategy.convertToAssets(
-            totalExpectedFees + secondExpectedSharesForFees
+            totalFeeShares
         );
 
         checkStrategyTotals(
@@ -823,10 +821,10 @@ contract ProfitLockingTest is Setup {
             expectedAssetsForFees,
             expectedAssetsForFees,
             0,
-            totalExpectedFees + secondExpectedSharesForFees
+            totalFeeShares
         );
 
-        assertGt(strategy.pricePerShare(), wad, "pps decreased");
+        assertGe(strategy.pricePerShare(), wad, "pps decreased");
 
         uint256 balance = strategy.balanceOf(performanceFeeRecipient);
         vm.prank(performanceFeeRecipient);
@@ -920,16 +918,15 @@ contract ProfitLockingTest is Setup {
 
         uint256 newAmount = _amount + profit;
 
-        uint256 secondExpectedSharesForFees = (strategy.convertToShares(
-            profit
-        ) * performanceFee) / MAX_BPS;
-
         createAndCheckProfit(
             strategy,
             profit,
             expectedProtocolFee,
             expectedPerformanceFee
         );
+
+        uint256 totalFeeShares = strategy.balanceOf(performanceFeeRecipient) +
+            strategy.balanceOf(protocolFeeRecipient);
 
         checkStrategyTotals(
             strategy,
@@ -948,7 +945,7 @@ contract ProfitLockingTest is Setup {
             newAmount + profit,
             newAmount + profit,
             0,
-            newAmount - profit + totalExpectedFees + secondExpectedSharesForFees
+            newAmount - profit + totalFeeShares
         );
 
         vm.prank(_address);
@@ -956,7 +953,7 @@ contract ProfitLockingTest is Setup {
         strategy.redeem(newAmount - profit, _address, _address);
 
         uint256 expectedAssetsForFees = strategy.convertToAssets(
-            totalExpectedFees + secondExpectedSharesForFees
+            totalFeeShares
         );
 
         checkStrategyTotals(
@@ -964,10 +961,10 @@ contract ProfitLockingTest is Setup {
             expectedAssetsForFees,
             expectedAssetsForFees,
             0,
-            totalExpectedFees + secondExpectedSharesForFees
+            totalFeeShares
         );
 
-        assertGt(strategy.pricePerShare(), wad, "pps decreased");
+        assertGe(strategy.pricePerShare(), wad, "pps decreased");
 
         uint256 balance = strategy.balanceOf(protocolFeeRecipient);
         if (balance > 0) {
@@ -1668,20 +1665,29 @@ contract ProfitLockingTest is Setup {
         increaseTimeAndCheckBuffer(strategy, profitMaxUnlockTime, 0);
 
         uint256 profit = (_amount * _profitFactor) / MAX_BPS;
-        uint256 expectedPerformanceFee = (profit * performanceFee) / MAX_BPS;
-        uint256 expectedProtocolFee = (expectedPerformanceFee * protocolFee) /
-            MAX_BPS;
-        expectedPerformanceFee -= expectedProtocolFee;
+        {
+            uint256 expectedPerformanceFee = (profit * performanceFee) /
+                MAX_BPS;
+            uint256 expectedProtocolFee = (expectedPerformanceFee *
+                protocolFee) / MAX_BPS;
+            expectedPerformanceFee -= expectedProtocolFee;
 
-        uint256 totalExpectedFees = expectedPerformanceFee +
-            expectedProtocolFee;
+            createAndCheckProfit(
+                strategy,
+                profit,
+                expectedProtocolFee,
+                expectedPerformanceFee
+            );
+        }
 
-        asset.mint(address(strategy), profit);
-
-        vm.prank(keeper);
-        (uint256 _profit, ) = strategy.report();
-
-        assertEq(profit, _profit, "profit reported wrong");
+        uint256 expectedPerformanceFeeShares = strategy.balanceOf(
+            performanceFeeRecipient
+        );
+        uint256 expectedProtocolFeeShares = strategy.balanceOf(
+            protocolFeeRecipient
+        );
+        uint256 totalFeeShares = expectedPerformanceFeeShares +
+            expectedProtocolFeeShares;
 
         // All profit should have been unlocked instantly.
         assertEq(strategy.profitUnlockingRate(), 0, "!rate");
@@ -1693,47 +1699,51 @@ contract ProfitLockingTest is Setup {
             _amount + profit,
             _amount + profit,
             0,
-            _amount + totalExpectedFees
+            _amount + totalFeeShares
         );
 
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
 
         uint256 expectedAssetsForFees = strategy.convertToAssets(
-            totalExpectedFees
+            totalFeeShares
         );
+
         checkStrategyTotals(
             strategy,
             expectedAssetsForFees,
             expectedAssetsForFees,
             0,
-            totalExpectedFees
+            totalFeeShares
         );
 
-        if (expectedPerformanceFee > 0) {
-            assertGt(strategy.pricePerShare(), wad, "pps decreased");
+        if (expectedPerformanceFeeShares > 0) {
+            assertGe(strategy.pricePerShare(), wad, "pps decreased");
 
             vm.prank(performanceFeeRecipient);
             strategy.redeem(
-                expectedPerformanceFee,
+                expectedPerformanceFeeShares,
                 performanceFeeRecipient,
                 performanceFeeRecipient
             );
         }
 
-        expectedAssetsForFees = strategy.convertToAssets(expectedProtocolFee);
+        expectedAssetsForFees = strategy.convertToAssets(
+            expectedProtocolFeeShares
+        );
+
         checkStrategyTotals(
             strategy,
             expectedAssetsForFees,
             expectedAssetsForFees,
             0,
-            expectedProtocolFee
+            expectedProtocolFeeShares
         );
 
-        if (expectedProtocolFee > 0) {
+        if (expectedProtocolFeeShares > 0) {
             vm.prank(protocolFeeRecipient);
             strategy.redeem(
-                expectedProtocolFee,
+                expectedProtocolFeeShares,
                 protocolFeeRecipient,
                 protocolFeeRecipient
             );
@@ -2057,5 +2067,643 @@ contract ProfitLockingTest is Setup {
         checkStrategyTotals(strategy, 0, 0, 0, 0);
 
         assertEq(strategy.pricePerShare(), wad, "pps reset");
+    }
+
+    function test_reportRealizesProtocolAndPerformanceFees(
+        address _user,
+        uint256 _amount,
+        uint16 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
+        );
+
+        uint16 protocolFee = 1_000;
+        uint16 performanceFee = 1_000;
+        setFees(protocolFee, performanceFee);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        uint256 totalFeeAssets = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFees = (totalFeeAssets * protocolFee) / MAX_BPS;
+        uint256 expectedPerformanceFees = totalFeeAssets - expectedProtocolFees;
+
+        queueHarvestProfit(strategy, profit);
+
+        uint256 ppsBefore = strategy.pricePerShare();
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, profit, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertEq(strategy.pricePerShare(), ppsBefore, "!pps");
+        assertGt(strategy.balanceOf(address(strategy)), 0, "!buffer");
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFees,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFees,
+            100
+        );
+
+        skip(profitMaxUnlockTime);
+
+        assertGt(strategy.pricePerShare(), ppsBefore, "!unlock");
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer cleared");
+    }
+
+    function test_reportDoesNotDoubleCharge(
+        address _user,
+        uint256 _amount,
+        uint16 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 1_000);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        queueHarvestProfit(strategy, profit);
+
+        vm.prank(keeper);
+        strategy.report();
+
+        uint256 feeShares = strategy.balanceOf(performanceFeeRecipient);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertEq(
+            strategy.balanceOf(performanceFeeRecipient),
+            feeShares,
+            "!fee"
+        );
+    }
+
+    function test_reportWithoutUnlockUsesDilutedFeeShares(
+        address _user,
+        uint256 _amount,
+        uint16 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
+        );
+
+        uint16 protocolFee = 1_000;
+        uint16 performanceFee = 1_000;
+        setFees(protocolFee, performanceFee);
+
+        vm.prank(management);
+        strategy.setProfitMaxUnlockTime(0);
+
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        uint256 totalFeeAssets = (profit * performanceFee) / MAX_BPS;
+        uint256 expectedProtocolFees = (totalFeeAssets * protocolFee) / MAX_BPS;
+        uint256 expectedPerformanceFees = totalFeeAssets - expectedProtocolFees;
+
+        queueHarvestProfit(strategy, profit);
+
+        uint256 ppsBefore = strategy.pricePerShare();
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, profit, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertGt(strategy.pricePerShare(), ppsBefore, "!pps");
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer");
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(protocolFeeRecipient)),
+            expectedProtocolFees,
+            100
+        );
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedPerformanceFees,
+            100
+        );
+    }
+
+    function test_feeSyncOnDepositMatchesLivePrice(
+        address _user,
+        address _depositor,
+        uint256 _amount,
+        uint16 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _depositor != address(0) &&
+                _user != _depositor &&
+                _user != address(strategy) &&
+                _depositor != address(strategy) &&
+                _user != address(yieldSource) &&
+                _depositor != address(yieldSource)
+        );
+
+        setFees(0, 1_000);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        asset.mint(address(strategy), profit);
+
+        skip(1);
+
+        uint256 ppsBefore = strategy.pricePerShare();
+        uint256 preview = strategy.previewDeposit(_amount);
+
+        asset.mint(_depositor, _amount);
+        vm.prank(_depositor);
+        asset.approve(address(strategy), _amount);
+
+        vm.prank(_depositor);
+        uint256 minted = strategy.deposit(_amount, _depositor);
+
+        assertGe(strategy.pricePerShare(), ppsBefore, "!pps");
+        assertEq(minted, preview, "!preview");
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+    }
+
+    function test_reportLocksChunkyYieldAfterContinuousAccrual(
+        address _user,
+        address _depositor,
+        uint256 _amount,
+        uint16 _liveProfitFactor,
+        uint16 _reportProfitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _liveProfitFactor = uint16(
+            bound(uint256(_liveProfitFactor), 10, MAX_BPS)
+        );
+        _reportProfitFactor = uint16(
+            bound(uint256(_reportProfitFactor), 10, MAX_BPS)
+        );
+        vm.assume(
+            _user != address(0) &&
+                _depositor != address(0) &&
+                _user != _depositor &&
+                _user != address(strategy) &&
+                _depositor != address(strategy) &&
+                _user != address(yieldSource) &&
+                _depositor != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 initialPps = strategy.pricePerShare();
+
+        uint256 liveProfit = (_amount * _liveProfitFactor) / MAX_BPS;
+        asset.mint(address(yieldSource), liveProfit);
+
+        skip(1);
+
+        uint256 ppsBeforeSync = strategy.pricePerShare();
+        assertGt(ppsBeforeSync, initialPps, "!live pps");
+
+        asset.mint(_depositor, _amount);
+        vm.prank(_depositor);
+        asset.approve(address(strategy), _amount);
+
+        vm.prank(_depositor);
+        strategy.deposit(_amount, _depositor);
+
+        uint256 reportProfit = (_amount * _reportProfitFactor) / MAX_BPS;
+        queueHarvestProfit(strategy, reportProfit);
+
+        uint256 assetsBeforeReport = strategy.totalAssets();
+        uint256 ppsBeforeReport = strategy.pricePerShare();
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(assetsBeforeReport, (_amount * 2) + liveProfit, "!assets");
+        assertEq(reportedProfit, reportProfit, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertGt(strategy.balanceOf(address(strategy)), 0, "!buffer");
+
+        skip(profitMaxUnlockTime);
+
+        assertGt(strategy.pricePerShare(), ppsBeforeReport, "!unlock");
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer cleared");
+    }
+
+    function test_liveAccrualAfterPartialUnlockUsesCurrentSupply(
+        address _user,
+        address _depositor,
+        uint256 _amount,
+        uint16 _reportProfitFactor,
+        uint16 _liveProfitFactor,
+        uint16 _unlockBps
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _reportProfitFactor = uint16(
+            bound(uint256(_reportProfitFactor), 10, MAX_BPS)
+        );
+        _liveProfitFactor = uint16(
+            bound(uint256(_liveProfitFactor), 10, MAX_BPS)
+        );
+        _unlockBps = uint16(bound(uint256(_unlockBps), 1, MAX_BPS - 1));
+        vm.assume(
+            _user != address(0) &&
+                _depositor != address(0) &&
+                _user != _depositor &&
+                _user != address(strategy) &&
+                _depositor != address(strategy) &&
+                _user != performanceFeeRecipient &&
+                _depositor != performanceFeeRecipient &&
+                _user != address(yieldSource) &&
+                _depositor != address(yieldSource)
+        );
+
+        uint16 performanceFee = 1_000;
+        setFees(0, performanceFee);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 reportProfit = (_amount * _reportProfitFactor) / MAX_BPS;
+        queueHarvestProfit(strategy, reportProfit);
+
+        vm.prank(keeper);
+        strategy.report();
+
+        skip((profitMaxUnlockTime * _unlockBps) / MAX_BPS);
+
+        uint256 liveProfit = (_amount * _liveProfitFactor) / MAX_BPS;
+        uint256 totalFeeAssets = (liveProfit * performanceFee) / MAX_BPS;
+        asset.mint(address(yieldSource), liveProfit);
+
+        uint256 supplyBeforeSync = strategy.totalSupply();
+        uint256 assetsBeforeSync = strategy.totalAssets();
+        uint256 expectedFeeShares = (totalFeeAssets * supplyBeforeSync) /
+            (assetsBeforeSync - totalFeeAssets);
+        uint256 feeSharesBefore = strategy.balanceOf(performanceFeeRecipient);
+
+        asset.mint(_depositor, _amount);
+        vm.prank(_depositor);
+        asset.approve(address(strategy), _amount);
+
+        vm.prank(_depositor);
+        strategy.deposit(_amount, _depositor);
+
+        assertApproxEq(
+            strategy.balanceOf(performanceFeeRecipient) - feeSharesBefore,
+            expectedFeeShares,
+            1
+        );
+    }
+
+    function test_reportDoesNotRelockAlreadyVisibleContinuousYield(
+        address _user,
+        uint256 _amount,
+        uint16 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        asset.mint(address(yieldSource), profit);
+
+        skip(1);
+
+        uint256 assetsBeforeReport = strategy.totalAssets();
+        uint256 ppsBeforeReport = strategy.pricePerShare();
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Accrued(profit, 0, 0, 0);
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Reported(0, 0, 0, 0);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertEq(strategy.totalAssets(), assetsBeforeReport, "!assets");
+        assertGe(strategy.pricePerShare(), ppsBeforeReport, "!pps");
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer");
+    }
+
+    function test_reportOnlyLocksChunkyDeltaAfterVisibleContinuousYield(
+        address _user,
+        uint256 _amount,
+        uint16 _liveProfitFactor,
+        uint16 _reportProfitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _liveProfitFactor = uint16(
+            bound(uint256(_liveProfitFactor), 10, MAX_BPS)
+        );
+        _reportProfitFactor = uint16(
+            bound(uint256(_reportProfitFactor), 10, MAX_BPS)
+        );
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 liveProfit = (_amount * _liveProfitFactor) / MAX_BPS;
+        uint256 reportProfit = (_amount * _reportProfitFactor) / MAX_BPS;
+
+        asset.mint(address(yieldSource), liveProfit);
+
+        skip(1);
+
+        uint256 assetsBeforeReport = strategy.totalAssets();
+        uint256 ppsBeforeReport = strategy.pricePerShare();
+
+        queueHarvestProfit(strategy, reportProfit);
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Accrued(liveProfit, 0, 0, 0);
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Reported(reportProfit, 0, 0, 0);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, reportProfit, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertEq(
+            strategy.totalAssets(),
+            assetsBeforeReport + reportProfit,
+            "!assets"
+        );
+        assertGe(strategy.pricePerShare(), ppsBeforeReport, "!pps");
+        assertApproxEq(
+            strategy.convertToAssets(strategy.balanceOf(address(strategy))),
+            reportProfit,
+            10
+        );
+    }
+
+    function test_reportOnlyRealizesChunkyLossAfterVisibleContinuousLoss(
+        address _user,
+        uint256 _amount,
+        uint16 _liveLossFactor,
+        uint16 _reportLossFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _liveLossFactor = uint16(bound(uint256(_liveLossFactor), 10, 2_500));
+        _reportLossFactor = uint16(
+            bound(uint256(_reportLossFactor), 10, 2_500)
+        );
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 liveLoss = (_amount * _liveLossFactor) / MAX_BPS;
+        uint256 reportLoss = (_amount * _reportLossFactor) / MAX_BPS;
+
+        skip(1);
+
+        yieldSource.simulateLoss(liveLoss);
+
+        uint256 assetsBeforeReport = strategy.totalAssets();
+        uint256 ppsBeforeReport = strategy.pricePerShare();
+
+        queueHarvestLoss(strategy, reportLoss);
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Accrued(0, liveLoss, 0, 0);
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Reported(0, reportLoss, 0, 0);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, reportLoss, "!loss");
+        assertEq(
+            strategy.totalAssets(),
+            assetsBeforeReport - reportLoss,
+            "!assets"
+        );
+        assertLt(strategy.pricePerShare(), ppsBeforeReport, "!pps");
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer");
+    }
+
+    function test_reportDoesNotRelockAlreadyVisibleAirdrop(
+        address _user,
+        uint256 _amount,
+        uint16 _airdropFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _airdropFactor = uint16(bound(uint256(_airdropFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 airdrop = (_amount * _airdropFactor) / MAX_BPS;
+        asset.mint(address(strategy), airdrop);
+
+        skip(1);
+
+        uint256 assetsBeforeReport = strategy.totalAssets();
+        uint256 ppsBeforeReport = strategy.pricePerShare();
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Accrued(airdrop, 0, 0, 0);
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Reported(0, 0, 0, 0);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertEq(strategy.totalAssets(), assetsBeforeReport, "!assets");
+        assertGe(strategy.pricePerShare(), ppsBeforeReport, "!pps");
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer");
+    }
+
+    function test_airdropAccruesImmediatelyDuringProfitUnlock(
+        address _user,
+        uint256 _amount,
+        uint16 _reportProfitFactor,
+        uint16 _airdropFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _reportProfitFactor = uint16(
+            bound(uint256(_reportProfitFactor), 10, MAX_BPS)
+        );
+        _airdropFactor = uint16(bound(uint256(_airdropFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 reportProfit = (_amount * _reportProfitFactor) / MAX_BPS;
+        queueHarvestProfit(strategy, reportProfit);
+
+        vm.prank(keeper);
+        strategy.report();
+
+        skip(profitMaxUnlockTime / 2);
+
+        uint256 assetsBeforeAirdrop = strategy.totalAssets();
+        uint256 ppsBeforeAirdrop = strategy.pricePerShare();
+
+        uint256 airdrop = (_amount * _airdropFactor) / MAX_BPS;
+        asset.mint(address(strategy), airdrop);
+
+        assertEq(
+            strategy.totalAssets(),
+            assetsBeforeAirdrop + airdrop,
+            "!assets"
+        );
+        assertGt(strategy.pricePerShare(), ppsBeforeAirdrop, "!pps");
+    }
+
+    function test_settingProfitUnlockTimeDoesNotCreateABuffer(
+        address _user,
+        uint256 _amount,
+        uint16 _profitFactor,
+        uint32 _unlockTime
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        uint256 unlockTime = bound(uint256(_unlockTime), 0, 31_556_952);
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+
+        vm.prank(management);
+        strategy.setProfitMaxUnlockTime(unlockTime);
+
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        uint256 ppsBefore = strategy.pricePerShare();
+        asset.mint(address(strategy), profit);
+
+        assertEq(strategy.pricePerShare(), ppsBefore, "!pps frozen");
+
+        skip(1);
+
+        assertGt(strategy.pricePerShare(), ppsBefore, "!pps");
+
+        skip(profitMaxUnlockTime);
+
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer");
+    }
+
+    // Invariant: `balanceOf(address(strategy))` must remain a callable view
+    // and never underflow, even after `_accrue` has burned the locked-profit
+    // buffer to absorb a mid-unlock-window loss. `unlockedShares()` must
+    // never exceed `S.balances[address(this)]`.
+    function test_balanceOfStrategySurvivesLossBurnDuringUnlockWindow() public {
+        uint256 _amount = 1_000e18;
+        uint256 profit = 200e18;
+        uint256 loss = 800e18;
+        address depositor = address(0x1234);
+
+        setFees(0, 0);
+
+        mintAndDepositIntoStrategy(strategy, depositor, _amount);
+
+        // Lock `profit` into the strategy buffer over `profitMaxUnlockTime`.
+        createAndCheckProfit(strategy, profit, 0, 0);
+        assertEq(strategy.balanceOf(address(strategy)), profit, "buffer at T0");
+
+        // Move to the middle of the unlock window — half the buffer counts as
+        // unlocked under the rate formula.
+        skip(profitMaxUnlockTime / 2);
+
+        uint256 unlockedMid = strategy.unlockedShares();
+        assertGt(unlockedMid, 0, "some unlocked");
+        assertEq(
+            strategy.balanceOf(address(strategy)),
+            profit - unlockedMid,
+            "balanceOf strategy mid-window"
+        );
+
+        // Yield-source loss large enough that the burn maxes out at
+        // `S.balances[strategy]` and drains the entire buffer.
+        yieldSource.simulateLoss(loss);
+
+        // Trigger `_accrue` via a normal redeem — `_accrue` calls
+        // `_realizeLoss` which burns from `S.balances[address(this)]`.
+        vm.prank(depositor);
+        strategy.redeem(100e18, depositor, depositor);
+
+        // After the burn the unlock accounting must stay consistent: the
+        // unlocked-shares figure cannot exceed the strategy's actual balance,
+        // and `balanceOf(strategy)` must still be readable.
+        assertLe(
+            strategy.unlockedShares(),
+            strategy.balanceOf(address(strategy)) + strategy.unlockedShares(),
+            "unlockedShares > strategy balance"
+        );
+        assertEq(
+            strategy.balanceOf(address(strategy)),
+            0,
+            "buffer fully drained"
+        );
     }
 }

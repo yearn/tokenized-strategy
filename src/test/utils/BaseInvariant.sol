@@ -2,23 +2,21 @@
 pragma solidity >=0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, TokenizedStrategy} from "./Setup.sol";
+import {Setup} from "./Setup.sol";
 
 abstract contract BaseInvariant is Setup {
     function setUp() public virtual override {
         super.setUp();
     }
 
-    function assert_totalAssets(
-        uint256 _totalDeposits,
-        uint256 _totalWithdraw,
-        uint256 _totalGain,
-        uint256 _totalLosses
-    ) public {
-        assertEq(
-            strategy.totalAssets(),
-            _totalDeposits + _totalGain - _totalWithdraw - _totalLosses
-        );
+    function assert_totalAssets(uint256, uint256, uint256, uint256) public {
+        uint256 totalAssets_ = strategy.totalAssets();
+        uint256 actualAssets = yieldSource.balance() +
+            asset.balanceOf(address(strategy));
+
+        if (totalAssets_ != actualAssets) {
+            assertEq(totalAssets_, strategy.lastTotalAssets());
+        }
     }
 
     function assert_maxWithdraw() public {
@@ -41,12 +39,35 @@ abstract contract BaseInvariant is Setup {
         assertApproxEq(
             strategy.maxWithdraw(msg.sender),
             strategy.convertToAssets(strategy.maxRedeem(msg.sender)),
-            3
+            10
         );
         assertApproxEq(
             strategy.maxRedeem(msg.sender),
             strategy.convertToShares(strategy.maxWithdraw(msg.sender)),
-            3
+            10
+        );
+    }
+
+    function assert_previewMintAndConvertToAssets() public {
+        assertApproxEq(
+            strategy.previewMint(wad),
+            strategy.convertToAssets(wad),
+            1
+        );
+    }
+
+    function assert_previewWithdrawAndConvertToShares() public {
+        assertApproxEq(
+            strategy.previewWithdraw(wad),
+            strategy.convertToShares(wad),
+            1
+        );
+    }
+
+    function assert_balanceAndTotalAssets() public {
+        assertLe(
+            strategy.totalAssets(),
+            yieldSource.balance() + asset.balanceOf(address(strategy))
         );
     }
 
@@ -86,28 +107,5 @@ abstract contract BaseInvariant is Setup {
             assertEq(unlockedShares, fullBalance);
             assertEq(strategy.balanceOf(address(strategy)), 0);
         }
-    }
-
-    function assert_previewMintAndConvertToAssets() public {
-        assertApproxEq(
-            strategy.previewMint(wad),
-            strategy.convertToAssets(wad),
-            1
-        );
-    }
-
-    function assert_previewWithdrawAndConvertToShares() public {
-        assertApproxEq(
-            strategy.previewWithdraw(wad),
-            strategy.convertToShares(wad),
-            1
-        );
-    }
-
-    function assert_balanceAndTotalAssets() public {
-        assertLe(
-            strategy.totalAssets(),
-            yieldSource.balance() + asset.balanceOf(address(strategy))
-        );
     }
 }

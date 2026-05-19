@@ -25,14 +25,16 @@ contract MockIlliquidStrategy is BaseStrategy {
         //MockYieldSource(yieldSource).withdraw(_amount);
     }
 
-    function _harvestAndReport() internal override returns (uint256) {
-        uint256 balance = ERC20(asset).balanceOf(address(this));
-        if (balance > 0) {
-            MockYieldSource(yieldSource).deposit(balance / 2);
-        }
+    function _totalAssets() internal view override returns (uint256) {
         return
             MockYieldSource(yieldSource).balance() +
             ERC20(asset).balanceOf(address(this));
+    }
+
+    function _harvestAndReport() internal view override returns (uint256) {
+        // Live write-path syncing now runs before user withdraw/redeem flows.
+        // Keep this mock's withdrawal limit stable by not moving idle funds here.
+        return _totalAssets();
     }
 
     function _tend(uint256 /*_idle*/) internal override {

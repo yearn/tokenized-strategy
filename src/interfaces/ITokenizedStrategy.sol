@@ -26,6 +26,13 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
         uint256 performanceFees
     );
 
+    event Accrued(
+        uint256 profit,
+        uint256 loss,
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
+
     event UpdatePerformanceFeeRecipient(
         address indexed newPerformanceFeeRecipient
     );
@@ -135,6 +142,10 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     function profitMaxUnlockTime() external view returns (uint256);
 
     function lastReport() external view returns (uint256);
+
+    function lastAccrual() external view returns (uint256);
+
+    function lastTotalAssets() external view returns (uint256);
 
     function isShutdown() external view returns (bool);
 

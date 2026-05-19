@@ -94,8 +94,7 @@ contract e2eTest is Setup {
                 info.strat,
                 info.toDeposit + info.profit,
                 info.toDeposit + info.profit,
-                0,
-                info.toDeposit
+                0
             );
 
             uint256 before = asset.balanceOf(_address);
@@ -197,8 +196,7 @@ contract e2eTest is Setup {
                 info.strat,
                 info.toDeposit + info.profit,
                 info.toDeposit + info.profit,
-                0,
-                info.toDeposit
+                0
             );
 
             uint256 before = asset.balanceOf(_address);
@@ -347,7 +345,8 @@ contract e2eTest is Setup {
             vm.prank(_address);
             info.strat.redeem(info.toDeposit, _address, _address);
 
-            assertGt(asset.balanceOf(_address) - before, info.toDeposit);
+            uint256 firstPayout = asset.balanceOf(_address) - before;
+            assertGt(firstPayout, info.toDeposit);
 
             before = asset.balanceOf(_secondAddress);
             uint256 balance = info.strat.balanceOf(_secondAddress);
@@ -355,7 +354,8 @@ contract e2eTest is Setup {
             vm.prank(_secondAddress);
             info.strat.redeem(balance, _secondAddress, _secondAddress);
 
-            assertGt(asset.balanceOf(_secondAddress) - before, info.toDeposit);
+            uint256 secondPayout = asset.balanceOf(_secondAddress) - before;
+            assertLt(secondPayout, firstPayout);
 
             assertEq(info.strat.pricePerShare(), wad);
             checkStrategyTotals(info.strat, 0, 0, 0);

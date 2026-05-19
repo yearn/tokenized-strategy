@@ -3,8 +3,8 @@ pragma solidity >=0.8.18;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-// TokenizedStrategy interface used for internal view delegateCalls.
 import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
+import {TokenizedStrategyLib as TokenizedStrategy} from "./libraries/TokenizedStrategyLib.sol";
 
 /**
  * @title YearnV3 Base Strategy
@@ -22,7 +22,7 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *  can only be concerned with writing their strategy specific code.
  *
  *  This contract should be inherited and the three main abstract methods
- *  `_deployFunds`, `_freeFunds` and `_harvestAndReport` implemented to adapt
+ *  `_deployFunds`, `_freeFunds` and `_totalAssets` implemented to adapt
  *  the Strategy to the particular needs it has to generate yield. There are
  *  other optional methods that can be implemented to further customize
  *  the strategy if desired.
@@ -32,8 +32,7 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *  contains all needed global variables in a manual storage slot. This
  *  means strategists can feel free to implement their own custom storage
  *  variables as they need with no concern of collisions. All global variables
- *  can be viewed within the Strategy by a simple call using the
- *  `TokenizedStrategy` variable. IE: TokenizedStrategy.globalVariable();.
+ *  can be viewed within the Strategy using `TokenizedStrategy`.
  */
 abstract contract BaseStrategy {
     /*//////////////////////////////////////////////////////////////
@@ -112,41 +111,32 @@ abstract contract BaseStrategy {
     ERC20 internal immutable asset;
 
     /**
-     * @dev This variable is set to address(this) during initialization of each strategy.
-     *
-     * This can be used to retrieve storage data within the strategy
-     * contract as if it were a linked library.
-     *
-     *       i.e. uint256 totalAssets = TokenizedStrategy.totalAssets()
-     *
-     * Using address(this) will mean any calls using this variable will lead
-     * to a call to itself. Which will hit the fallback function and
-     * delegateCall that to the actual TokenizedStrategy.
-     */
-    ITokenizedStrategy internal immutable TokenizedStrategy;
-
-    /**
      * @notice Used to initialize the strategy on deployment.
      *
-     * This will set the `TokenizedStrategy` variable for easy
-     * internal view calls to the implementation. As well as
-     * initializing the default storage variables based on the
-     * parameters and using the deployer for the permissioned roles.
+     * This will initialize the default storage variables based on the
+     * parameters and use the deployer for the permissioned roles.
      *
      * @param _asset Address of the underlying asset.
      * @param _name Name the strategy will use.
      */
     constructor(address _asset, string memory _name) {
         asset = ERC20(_asset);
+        _initialize(_asset, _name, msg.sender, msg.sender, msg.sender);
+    }
 
-        // Set instance of the implementation for internal use.
-        TokenizedStrategy = ITokenizedStrategy(address(this));
-
+    /// @dev Internal function to initialize the strategy.
+    function _initialize(
+        address _asset,
+        string memory _name,
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
+    ) internal virtual {
         // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(
                 ITokenizedStrategy.initialize,
-                (_asset, _name, msg.sender, msg.sender, msg.sender)
+                (_asset, _name, _management, _performanceFeeRecipient, _keeper)
             )
         );
 
@@ -203,31 +193,36 @@ abstract contract BaseStrategy {
     function _freeFunds(uint256 _amount) internal virtual;
 
     /**
-     * @dev Internal function to harvest all rewards, redeploy any idle
-     * funds and return an accurate accounting of all funds currently
-     * held by the Strategy.
-     *
-     * This should do any needed harvesting, rewards selling, accrual,
-     * redepositing etc. to get the most accurate view of current assets.
+     * @dev Internal function to return an accurate accounting of all funds
+     * currently held by the Strategy.
      *
      * NOTE: All applicable assets including loose assets should be
      * accounted for in this function.
      *
-     * Care should be taken when relying on oracles or swap values rather
-     * than actual amounts as all Strategy profit/loss accounting will
-     * be done based on this returned value.
-     *
-     * This can still be called post a shutdown, a strategist can check
-     * `TokenizedStrategy.isShutdown()` to decide if funds should be
-     * redeployed or simply realize any profits/losses.
+     * This function is used by ERC4626 view methods whenever the current block
+     * is not already latched, and by normal state changing accounting syncs
+     * when they refresh. It must be strictly read only and should not harvest,
+     * claim or otherwise mutate state.
      *
      * @return _totalAssets A trusted and accurate account for the total
+     * amount of 'asset' the strategy currently holds including idle funds.
+     */
+    function _totalAssets() internal view virtual returns (uint256);
+
+    /**
+     * @dev Internal hook used by explicit {report()} accounting syncs.
+     *
+     * This can harvest rewards, claim fees, realize external position changes
+     * or perform any other mutable work needed before returning the strategy's
+     * up-to-date total assets.
+     *
+     * @return _reportedAssets A trusted and accurate account for the total
      * amount of 'asset' the strategy currently holds including idle funds.
      */
     function _harvestAndReport()
         internal
         virtual
-        returns (uint256 _totalAssets);
+        returns (uint256 _reportedAssets);
 
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
@@ -314,11 +309,11 @@ abstract contract BaseStrategy {
      * be overridden by strategists.
      *
      * This function will be called before any withdraw or redeem to enforce
-     * any limits desired by the strategist. This can be used for illiquid
-     * or sandwichable strategies. It should never be lower than `totalIdle`.
+     * any limits desired by the strategist or integrated protocol. This can
+     * be used for illiquid or sandwichable strategies.
      *
      *   EX:
-     *       return TokenIzedStrategy.totalIdle();
+     *       return asset.balanceOf(address(this));
      *
      * This does not need to take into account the `_owner`'s share balance
      * or conversion rates from shares to assets.
@@ -375,6 +370,23 @@ abstract contract BaseStrategy {
      */
     function deployFunds(uint256 _amount) external virtual onlySelf {
         _deployFunds(_amount);
+    }
+
+    /**
+     * @notice Returns the strategies best current estimate for total assets.
+     * @dev Read-only callback for the TokenizedStrategy.
+     *
+     * This can only be called by this strategy during a delegate call flow so
+     * msg.sender must equal address(this).
+     */
+    function strategyTotalAssets()
+        external
+        view
+        virtual
+        onlySelf
+        returns (uint256)
+    {
+        return _totalAssets();
     }
 
     /**

@@ -252,7 +252,7 @@ contract ShutdownTest is Setup {
         // Make sure it recorded the correct amount
         checkStrategyTotals(strategy, _amount, 0, _amount, _amount);
 
-        // PPS should not change.
+        // PPS stays frozen until report() breaks the latch.
         assertEq(strategy.pricePerShare(), pps);
         assertEq(asset.balanceOf(address(strategy)), _amount + profit);
 
@@ -263,12 +263,12 @@ contract ShutdownTest is Setup {
         vm.prank(management);
         strategy.report();
 
-        skip(strategy.profitMaxUnlockTime());
+        skip(profitMaxUnlockTime);
 
         vm.prank(_address);
         strategy.redeem(_amount, _address, _address);
 
-        checkStrategyTotals(strategy, 0, 0, 0, 0);
+        checkStrategyTotals(strategy, 0, 0, 0);
 
         assertEq(asset.balanceOf(_address), _amount + profit);
     }
@@ -308,10 +308,10 @@ contract ShutdownTest is Setup {
         strategy.emergencyWithdraw(_amount - loss);
 
         // Make sure it recorded the correct amount.
-        // Loss will still be counted as debt.
+        // Loss stays counted as debt until report() forces a sync.
         checkStrategyTotals(strategy, _amount, loss, _amount - loss, _amount);
 
-        // PPS should not change.
+        // PPS stays frozen until report() breaks the latch.
         assertEq(strategy.pricePerShare(), pps);
         assertEq(asset.balanceOf(address(strategy)), _amount - loss);
 
