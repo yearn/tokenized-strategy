@@ -3,8 +3,8 @@ pragma solidity >=0.8.18;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-// TokenizedStrategy interface used for internal view delegateCalls.
 import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
+import {TokenizedStrategyLib as TokenizedStrategy} from "./libraries/TokenizedStrategyLib.sol";
 
 /**
  * @title YearnV3 Base Strategy
@@ -32,8 +32,7 @@ import {ITokenizedStrategy} from "./interfaces/ITokenizedStrategy.sol";
  *  contains all needed global variables in a manual storage slot. This
  *  means strategists can feel free to implement their own custom storage
  *  variables as they need with no concern of collisions. All global variables
- *  can be viewed within the Strategy by a simple call using the
- *  `TokenizedStrategy` variable. IE: TokenizedStrategy.globalVariable();.
+ *  can be viewed within the Strategy using `TokenizedStrategy`.
  */
 abstract contract BaseStrategy {
     /*//////////////////////////////////////////////////////////////
@@ -112,44 +111,32 @@ abstract contract BaseStrategy {
     ERC20 internal immutable asset;
 
     /**
-     * @dev This variable is set to address(this) during initialization of each strategy.
-     *
-     * This can be used to retrieve storage data within the strategy
-     * contract as if it were a linked library.
-     *
-     *       i.e. uint256 totalAssets = TokenizedStrategy.totalAssets()
-     *
-     * Using address(this) will mean any calls using this variable will lead
-     * to a call to itself. Which will hit the fallback function and
-     * delegateCall that to the actual TokenizedStrategy.
-     */
-    ITokenizedStrategy internal immutable TokenizedStrategy;
-
-    /**
      * @notice Used to initialize the strategy on deployment.
      *
-     * This will set the `TokenizedStrategy` variable for easy
-     * internal view calls to the implementation. As well as
-     * initializing the default storage variables based on the
-     * parameters and using the deployer for the permissioned roles.
+     * This will initialize the default storage variables based on the
+     * parameters and use the deployer for the permissioned roles.
      *
      * @param _asset Address of the underlying asset.
      * @param _name Name the strategy will use.
      */
     constructor(address _asset, string memory _name) {
-        (asset, TokenizedStrategy) = _initialize(_asset, _name);
+        asset = ERC20(_asset);
+        _initialize(_asset, _name, msg.sender, msg.sender, msg.sender);
     }
 
     /// @dev Internal function to initialize the strategy.
     function _initialize(
         address _asset,
-        string memory _name
-    ) internal virtual returns (ERC20, ITokenizedStrategy) {
+        string memory _name,
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
+    ) internal virtual {
         // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(
                 ITokenizedStrategy.initialize,
-                (_asset, _name, msg.sender, msg.sender, msg.sender)
+                (_asset, _name, _management, _performanceFeeRecipient, _keeper)
             )
         );
 
@@ -163,8 +150,6 @@ abstract contract BaseStrategy {
                 tokenizedStrategyAddress
             )
         }
-
-        return (ERC20(_asset), ITokenizedStrategy(address(this)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -324,11 +309,11 @@ abstract contract BaseStrategy {
      * be overridden by strategists.
      *
      * This function will be called before any withdraw or redeem to enforce
-     * any limits desired by the strategist. This can be used for illiquid
-     * or sandwichable strategies. It should never be lower than `totalIdle`.
+     * any limits desired by the strategist or integrated protocol. This can
+     * be used for illiquid or sandwichable strategies.
      *
      *   EX:
-     *       return TokenIzedStrategy.totalIdle();
+     *       return asset.balanceOf(address(this));
      *
      * This does not need to take into account the `_owner`'s share balance
      * or conversion rates from shares to assets.
