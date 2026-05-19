@@ -141,7 +141,10 @@ abstract contract BaseStrategy {
     }
 
     /// @dev Internal function to initialize the strategy.
-    function _initialize(address _asset, string memory _name) internal virtual returns (ERC20, ITokenizedStrategy) {
+    function _initialize(
+        address _asset,
+        string memory _name
+    ) internal virtual returns (ERC20, ITokenizedStrategy) {
         // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(

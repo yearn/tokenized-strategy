@@ -228,9 +228,15 @@ contract TokenizedStrategy {
         mapping(address => uint256) nonces; // Mapping of nonces used for permit functions.
         mapping(address => uint256) balances; // Mapping to track current balances for each account that holds shares.
         mapping(address => mapping(address => uint256)) allowances; // Mapping to track the allowances for the strategies shares.
+
         // Last realized total assets. This is used as the accrual baseline during
         // write flows and to freeze view math during in-flight external callbacks.
         uint256 lastTotalAssets;
+
+        // Variables for profit reporting and locking.
+        // We use uint96 for timestamps to fit in the same slot as an address. That overflows in 2.5e+21 years.
+        // I know Yearn moves slowly but surely V4 will be out by then.
+        // If the timestamps ever overflow tell the cyborgs still using this code I'm sorry for being cheap.
         uint256 profitUnlockingRate; // The rate at which locked profit is unlocking.
         uint96 fullProfitUnlockDate; // The timestamp at which all locked shares will unlock.
         address keeper; // Address given permission to call {report} and {tend}.
@@ -238,8 +244,6 @@ contract TokenizedStrategy {
         uint16 performanceFee; // The percent in basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
         uint96 lastReport; // The last time a report updated the lock schedule.
-        uint96 lastAccrual; // The last time accounting synced.
-
 
         // Access management variables.
         address management; // Main address that can set all configurable variables.
@@ -249,6 +253,8 @@ contract TokenizedStrategy {
         // Strategy Status
         uint8 entered; // To prevent reentrancy. Use uint8 for gas savings.
         bool shutdown; // Bool that can be used to stop deposits into the strategy.
+
+        uint96 lastAccrual; // The last time accounting synced.
     }
 
     /*//////////////////////////////////////////////////////////////
