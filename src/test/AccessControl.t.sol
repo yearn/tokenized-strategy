@@ -356,6 +356,26 @@ contract AccessControlTest is Setup {
         assertEq(asset.balanceOf(address(strategy)), _amount, "!out");
     }
 
+    function test_accessControl_strategyTotalAssets(
+        address _address,
+        uint256 _amount
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        vm.assume(_address != address(0) && _address != address(strategy));
+
+        // deposit into the vault and should deploy funds
+        mintAndDepositIntoStrategy(strategy, user, _amount);
+        asset.mint(address(strategy), _amount);
+
+        // works from random address
+        vm.prank(_address);
+        assertEq(strategy.strategyTotalAssets(), _amount * 2, "!random");
+
+        // works from management
+        vm.prank(management);
+        assertEq(strategy.strategyTotalAssets(), _amount * 2, "!management");
+    }
+
     function test_accessControl_harvestAndReport(
         address _address,
         uint256 _amount

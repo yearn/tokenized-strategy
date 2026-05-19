@@ -375,15 +375,11 @@ abstract contract BaseStrategy {
     /**
      * @notice Returns the strategies best current estimate for total assets.
      * @dev Read-only callback for the TokenizedStrategy.
-     *
-     * This can only be called by this strategy during a delegate call flow so
-     * msg.sender must equal address(this).
      */
     function strategyTotalAssets()
         external
         view
         virtual
-        onlySelf
         returns (uint256)
     {
         return _totalAssets();
