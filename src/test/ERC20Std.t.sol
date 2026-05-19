@@ -23,7 +23,7 @@ contract ERC20BaseTest is Setup {
             string(abi.encodePacked("ys", asset.symbol()))
         );
         assertEq(strategy.decimals(), 18);
-        assertEq(strategy.apiVersion(), "3.0.4");
+        assertEq(strategy.apiVersion(), "3.1.0");
     }
 
     function testFuzz_mint(address account_, uint256 amount_) public {

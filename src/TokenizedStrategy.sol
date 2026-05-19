@@ -354,7 +354,7 @@ contract TokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice API version this TokenizedStrategy implements.
-    string internal constant API_VERSION = "3.0.4";
+    string internal constant API_VERSION = "3.1.0";
 
     /// @notice Value to set the `entered` flag to during a call.
     uint8 internal constant ENTERED = 2;
