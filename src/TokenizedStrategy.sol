@@ -1814,6 +1814,8 @@ contract TokenizedStrategy {
         uint256 _profitMaxUnlockTime
     ) external onlyManagement {
         StrategyData storage S = _strategyStorage();
+        _accrue(S);
+
         uint32 newProfitMaxUnlockTime = _profitMaxUnlockTime > type(uint32).max
             ? type(uint32).max
             : uint32(_profitMaxUnlockTime);

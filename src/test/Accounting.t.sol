@@ -248,6 +248,48 @@ contract AccountingTest is Setup {
         );
     }
 
+    function test_settingProfitMaxUnlockTimeSyncsExistingProfit(
+        address _user,
+        uint256 _amount,
+        uint16 _profitFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != keeper &&
+                _user != management &&
+                _user != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        asset.mint(address(strategy), profit);
+
+        skip(1);
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Accrued(profit, 0, 0, 0);
+
+        vm.prank(management);
+        strategy.setProfitMaxUnlockTime(0);
+
+        assertEq(strategy.profitMaxUnlockTime(), 0, "!unlock time");
+        assertEq(strategy.lastTotalAssets(), _amount + profit, "!synced");
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+    }
+
     function test_lossHitsViewsImmediately(
         address _user,
         uint256 _amount,
