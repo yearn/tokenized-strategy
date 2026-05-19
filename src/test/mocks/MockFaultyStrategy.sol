@@ -3,6 +3,7 @@ pragma solidity >=0.8.18;
 
 import {MockYieldSource} from "./MockYieldSource.sol";
 import {BaseStrategy, ERC20} from "../../BaseStrategy.sol";
+import {TokenizedStrategyLib as TokenizedStrategy} from "../../libraries/TokenizedStrategyLib.sol";
 
 interface IPappa {
     function callBack(
