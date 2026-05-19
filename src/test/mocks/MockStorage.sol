@@ -34,7 +34,6 @@ contract MockStorage {
         uint16 performanceFee; // The percent in basis points of profit that is charged as a fee.
         address performanceFeeRecipient; // The address to pay the `performanceFee` to.
         uint96 lastReport; // The last time a report updated the lock schedule.
-        uint96 lastAccrual; // The last time accounting synced.
 
 
         // Access management variables.
@@ -44,6 +43,7 @@ contract MockStorage {
 
      
         // Strategy status checks.
-        bool entered; // Bool to prevent reentrancy.
-        bool shutdown; // Bool that can be used to stop deposits into the strategy. 
+        uint8 entered; // To prevent reentrancy. Use uint8 for gas savings.
+        bool shutdown; // Bool that can be used to stop deposits into the strategy.
+        uint80 lastAccrual; // The last time accounting synced.
 }

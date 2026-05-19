@@ -254,7 +254,7 @@ contract TokenizedStrategy {
         uint8 entered; // To prevent reentrancy. Use uint8 for gas savings.
         bool shutdown; // Bool that can be used to stop deposits into the strategy.
 
-        uint96 lastAccrual; // The last time accounting synced.
+        uint80 lastAccrual; // The last time accounting synced.
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -474,7 +474,7 @@ contract TokenizedStrategy {
         // Initialize both timestamps to the deployment block.
         S.lastReport = uint96(block.timestamp);
         // -1 to not allow first deposit inflation
-        S.lastAccrual = uint96(block.timestamp - 1);
+        S.lastAccrual = uint80(block.timestamp - 1);
 
         // Set the default management address. Can't be 0.
         require(_management != address(0), "ZERO ADDRESS");
@@ -843,7 +843,7 @@ contract TokenizedStrategy {
 
     /// @dev Internal implementation of {totalSupply}.
     /// @notice We don't increase totalSupply until actual shares are minted.
-    ///    This can cause disconnection between conversions done manually
+    ///    This can cause disconnection between conversions done manually.
     function _totalSupply(
         StrategyData storage S
     ) internal view returns (uint256) {
@@ -1181,7 +1181,7 @@ contract TokenizedStrategy {
         }
 
         S.lastTotalAssets = newTotalAssets;
-        S.lastAccrual = uint96(block.timestamp);
+        S.lastAccrual = uint80(block.timestamp);
 
         emit Accrued(profit, loss, protocolFees, totalFees - protocolFees);
     }

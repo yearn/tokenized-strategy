@@ -31,7 +31,7 @@ library TokenizedStrategyLib {
         address emergencyAdmin;
         uint8 entered;
         bool shutdown;
-        uint96 lastAccrual;
+        uint80 lastAccrual;
     }
 
     function strategyStorage() internal pure returns (StrategyData storage S) {

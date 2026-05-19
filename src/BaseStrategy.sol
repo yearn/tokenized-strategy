@@ -376,12 +376,7 @@ abstract contract BaseStrategy {
      * @notice Returns the strategies best current estimate for total assets.
      * @dev Read-only callback for the TokenizedStrategy.
      */
-    function strategyTotalAssets()
-        external
-        view
-        virtual
-        returns (uint256)
-    {
+    function strategyTotalAssets() external view virtual returns (uint256) {
         return _totalAssets();
     }
 
