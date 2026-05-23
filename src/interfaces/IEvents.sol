@@ -12,6 +12,11 @@ interface IEvents {
     event StrategyShutdown();
 
     /**
+     * @notice Emitted when a strategies paused status is updated.
+     */
+    event UpdatePaused(bool paused);
+
+    /**
      * @notice Emitted on the initialization of any new `strategy` that uses `asset`
      * with this specific `apiVersion`.
      */

@@ -84,6 +84,11 @@ contract TokenizedStrategy {
     event StrategyShutdown();
 
     /**
+     * @notice Emitted when a strategies paused status is updated.
+     */
+    event UpdatePaused(bool paused);
+
+    /**
      * @notice Emitted on the initialization of any new `strategy` that uses `asset`
      * with this specific `apiVersion`.
      */
@@ -253,8 +258,9 @@ contract TokenizedStrategy {
         // Strategy Status
         uint8 entered; // To prevent reentrancy. Use uint8 for gas savings.
         bool shutdown; // Bool that can be used to stop deposits into the strategy.
+        bool paused; // Bool that can be used to stop user facing 4626 functions.
 
-        uint80 lastAccrual; // The last time accounting synced.
+        uint72 lastAccrual; // The last time accounting synced.
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -303,6 +309,14 @@ contract TokenizedStrategy {
 
         // Reset to false (1) once call has finished.
         S.entered = NOT_ENTERED;
+    }
+
+    /**
+     * @dev Require that the strategy is not paused.
+     */
+    modifier whenNotPaused() {
+        require(!_strategyStorage().paused, "paused");
+        _;
     }
 
     /**
@@ -474,7 +488,7 @@ contract TokenizedStrategy {
         // Initialize both timestamps to the deployment block.
         S.lastReport = uint96(block.timestamp);
         // -1 to not allow first deposit inflation
-        S.lastAccrual = uint80(block.timestamp - 1);
+        S.lastAccrual = uint72(block.timestamp - 1);
 
         // Set the default management address. Can't be 0.
         require(_management != address(0), "ZERO ADDRESS");
@@ -500,7 +514,7 @@ contract TokenizedStrategy {
     function deposit(
         uint256 assets,
         address receiver
-    ) external nonReentrant returns (uint256 shares) {
+    ) external whenNotPaused nonReentrant returns (uint256 shares) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         _accrue(S);
@@ -534,7 +548,7 @@ contract TokenizedStrategy {
     function mint(
         uint256 shares,
         address receiver
-    ) external nonReentrant returns (uint256 assets) {
+    ) external whenNotPaused nonReentrant returns (uint256 assets) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         _accrue(S);
@@ -582,7 +596,7 @@ contract TokenizedStrategy {
         address receiver,
         address owner,
         uint256 maxLoss
-    ) public nonReentrant returns (uint256 shares) {
+    ) public whenNotPaused nonReentrant returns (uint256 shares) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         _accrue(S);
@@ -634,7 +648,7 @@ contract TokenizedStrategy {
         address receiver,
         address owner,
         uint256 maxLoss
-    ) public nonReentrant returns (uint256) {
+    ) public whenNotPaused nonReentrant returns (uint256) {
         // Get the storage slot for all following calls.
         StrategyData storage S = _strategyStorage();
         _accrue(S);
@@ -961,8 +975,8 @@ contract TokenizedStrategy {
         StrategyData storage S,
         address receiver
     ) internal view returns (uint256) {
-        // Cannot deposit when shutdown or to the strategy.
-        if (S.shutdown || receiver == address(this)) return 0;
+        // Cannot deposit when shutdown, paused or to the strategy.
+        if (S.shutdown || S.paused || receiver == address(this)) return 0;
 
         return IBaseStrategy(address(this)).availableDepositLimit(receiver);
     }
@@ -972,8 +986,8 @@ contract TokenizedStrategy {
         StrategyData storage S,
         address receiver
     ) internal view returns (uint256 maxMint_) {
-        // Cannot mint when shutdown or to the strategy.
-        if (S.shutdown || receiver == address(this)) return 0;
+        // Cannot mint when shutdown, paused or to the strategy.
+        if (S.shutdown || S.paused || receiver == address(this)) return 0;
 
         maxMint_ = IBaseStrategy(address(this)).availableDepositLimit(receiver);
         if (maxMint_ != type(uint256).max) {
@@ -986,6 +1000,9 @@ contract TokenizedStrategy {
         StrategyData storage S,
         address owner
     ) internal view returns (uint256 maxWithdraw_) {
+        // Cannot withdraw when paused.
+        if (S.paused) return 0;
+
         // Get the max the owner could withdraw currently.
         maxWithdraw_ = IBaseStrategy(address(this)).availableWithdrawLimit(
             owner
@@ -1012,6 +1029,9 @@ contract TokenizedStrategy {
         StrategyData storage S,
         address owner
     ) internal view returns (uint256 maxRedeem_) {
+        // Cannot redeem when paused.
+        if (S.paused) return 0;
+
         // Get the max the owner could withdraw currently.
         maxRedeem_ = IBaseStrategy(address(this)).availableWithdrawLimit(owner);
 
@@ -1181,7 +1201,7 @@ contract TokenizedStrategy {
         }
 
         S.lastTotalAssets = newTotalAssets;
-        S.lastAccrual = uint80(block.timestamp);
+        S.lastAccrual = uint72(block.timestamp);
 
         emit Accrued(profit, loss, protocolFees, totalFees - protocolFees);
     }
@@ -1536,9 +1556,29 @@ contract TokenizedStrategy {
     }
 
     /**
+     * @notice Used to set the pause status for user facing 4626 functions.
+     * @dev Pausing can be called by the current `management` or `emergencyAdmin`.
+     * Unpausing can only be called by the current `management`.
+     *
+     * This will stop {deposit}, {mint}, {withdraw} and {redeem}, but will
+     * leave management functions live so the strategy can still be tended,
+     * reported, configured, shutdown or manually withdrawn in an emergency.
+     */
+    function setPaused(bool paused) external {
+        if (paused) {
+            requireEmergencyAuthorized(msg.sender);
+        } else {
+            requireManagement(msg.sender);
+        }
+        _strategyStorage().paused = paused;
+
+        emit UpdatePaused(paused);
+    }
+
+    /**
      * @notice To manually withdraw funds from the yield source after a
      * strategy has been shutdown.
-     * @dev This can only be called post {shutdownStrategy}.
+     * @dev This can only be called when the strategy is paused or shutdown.
      *
      * This will never cause a change in PPS. Total assets will
      * be the same before and after.
@@ -1551,8 +1591,10 @@ contract TokenizedStrategy {
     function emergencyWithdraw(
         uint256 amount
     ) external nonReentrant onlyEmergencyAuthorized {
-        // Make sure the strategy has been shutdown.
-        require(_strategyStorage().shutdown, "not shutdown");
+        StrategyData storage S = _strategyStorage();
+
+        // Make sure the strategy has been paused or shutdown.
+        require(S.paused || S.shutdown, "not paused or shutdown");
 
         // Withdraw from the yield source.
         IBaseStrategy(address(this)).shutdownWithdraw(amount);
@@ -1699,6 +1741,14 @@ contract TokenizedStrategy {
      */
     function isShutdown() external view returns (bool) {
         return _strategyStorage().shutdown;
+    }
+
+    /**
+     * @notice To check if the strategy has been paused.
+     * @return . Whether or not the strategy is paused.
+     */
+    function isPaused() external view returns (bool) {
+        return _strategyStorage().paused;
     }
 
     /*//////////////////////////////////////////////////////////////

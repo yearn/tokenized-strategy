@@ -45,5 +45,6 @@ contract MockStorage {
         // Strategy status checks.
         uint8 entered; // To prevent reentrancy. Use uint8 for gas savings.
         bool shutdown; // Bool that can be used to stop deposits into the strategy.
-        uint80 lastAccrual; // The last time accounting synced.
+        bool paused; // Bool that can be used to stop user facing 4626 functions.
+        uint72 lastAccrual; // The last time accounting synced.
 }

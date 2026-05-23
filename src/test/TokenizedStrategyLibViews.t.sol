@@ -167,6 +167,11 @@ contract TokenizedStrategyLibViewsTest is Setup {
             "isShutdown"
         );
         assertEq(
+            libraryStrategy.libraryIsPaused(),
+            strategy.isPaused(),
+            "isPaused"
+        );
+        assertEq(
             libraryStrategy.libraryTotalAssets(),
             strategy.totalAssets(),
             "totalAssets"
