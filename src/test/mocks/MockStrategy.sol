@@ -158,6 +158,10 @@ contract MockStrategy is BaseStrategy {
         return TokenizedStrategy.isShutdown();
     }
 
+    function libraryIsPaused() external view returns (bool) {
+        return TokenizedStrategy.isPaused();
+    }
+
     function libraryTotalAssets() external view returns (uint256) {
         return TokenizedStrategy.totalAssets();
     }

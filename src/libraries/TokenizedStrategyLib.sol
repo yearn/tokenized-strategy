@@ -31,7 +31,8 @@ library TokenizedStrategyLib {
         address emergencyAdmin;
         uint8 entered;
         bool shutdown;
-        uint80 lastAccrual;
+        bool paused;
+        uint72 lastAccrual;
     }
 
     function strategyStorage() internal pure returns (StrategyData storage S) {
@@ -124,6 +125,10 @@ library TokenizedStrategyLib {
 
     function isShutdown() internal view returns (bool) {
         return strategyStorage().shutdown;
+    }
+
+    function isPaused() internal view returns (bool) {
+        return strategyStorage().paused;
     }
 
     function totalAssets() internal view returns (uint256) {

@@ -347,7 +347,7 @@ contract ShutdownTest is Setup {
 
         uint256 toWithdraw = _amount / 2;
 
-        vm.expectRevert("not shutdown");
+        vm.expectRevert("not paused or shutdown");
         vm.prank(management);
         strategy.emergencyWithdraw(toWithdraw);
     }
