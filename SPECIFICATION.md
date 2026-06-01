@@ -87,9 +87,9 @@ Users can deposit ASSET tokens to receive shares.
 Deposits are limited by the availableDepositLimit function that can be changed by the strategist if non uint256.max values are desired.
 
 #### Withdrawals / Redeems
-Users can redeem their shares at any point in time if there is liquidity available. 
+Users can redeem their shares when the strategy is not paused and there is liquidity available.
 
-The amount of a withdraw or redeem can be limited by the strategist by overriding the availableWithdrawLimit function.
+The amount of a withdraw or redeem can be limited by the strategist by overriding the availableWithdrawLimit function. If the strategy is paused, withdraw and redeem are blocked.
 
 In order to properly comply with the ERC-4626 standard and still allow losses, both withdraw and redeem have an additional optional parameter of 'maxLoss' that can be used. The default for 'maxLoss' is 0 (i.e. revert if any loss) for withdraws, and 10_000 (100%) for redeems.
 
@@ -169,18 +169,18 @@ This can be customized based on the strategy. Based on aspects such as TVL, expe
 Strategy Shares are ERC4626 compliant. 
 
 ## Emergency Operation
-There is default emergency functions built in. First of which is `shutdownStrategy`. This can only ever be called by the management address and is non-reversible.
+There is default emergency functions built in. First of which is `shutdownStrategy`. This can be called by the management address or emergencyAdmin and is non-reversible.
 
-Once this is called it will stop any further deposit or mints but will have no effect on any other functionality including withdraw, redeem, report and tend. This is to allow management to continue potentially recording profits or losses and users to withdraw even post shutdown.
+Once this is called it will stop any further deposit or mints but will have no effect on any other functionality including withdraw, redeem, report and tend. This is to allow management to continue potentially recording profits or losses and users to withdraw even post shutdown. If the strategy is also paused, the pause still blocks deposit, mint, withdraw and redeem until management unpauses.
 
 This can be used in an emergency or simply to retire a vault.
 
-Once a strategy is shutdown management can also call `emergencyWithdraw(amount)`. Which will tell the strategy to withdraw a specified `amount` from the yield source and keep it as idle in the vault. This function will also do any needed updates to totalDebt and totalIdle, based on amounts withdrawn to assure withdraws continue to function properly.
+Once a strategy is shutdown or paused, management or emergencyAdmin can also call `emergencyWithdraw(amount)`. Which will tell the strategy to withdraw a specified `amount` from the yield source and keep it as idle in the vault. This function will also do any needed updates to totalDebt and totalIdle, based on amounts withdrawn to assure withdraws continue to function properly.
 
 All other emergency functionality is left up to the individual strategist.
 
 ### Withdrawals
-Withdrawals can't be paused under any circumstance unless built in a specific implementation.
+Withdrawals and redemptions are paused by `setPaused(true)`, which can be called by management or emergencyAdmin. Only management can unpause. Shutdown alone does not pause withdrawals or redemptions; liquidity, `availableWithdrawLimit`, and the paused state determine whether a user can withdraw.
 
 
 ## Use
