@@ -2706,4 +2706,282 @@ contract ProfitLockingTest is Setup {
             "buffer fully drained"
         );
     }
+
+    function test_liveLossThenReportLossTwoStagePartialBufferBurn() public {
+        uint256 amount = 1_000e18;
+        uint256 profit = 200e18;
+        uint256 liveLoss = 20e18;
+        uint256 reportLoss = 20e18;
+        address depositor = address(0xCAFE01);
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+        createAndCheckProfit(strategy, profit, 0, 0);
+
+        skip(profitMaxUnlockTime / 2);
+
+        uint256 rawBefore = _rawLockedBuffer();
+        assertGt(rawBefore, 0, "!rawBefore");
+
+        yieldSource.simulateLoss(liveLoss);
+        queueHarvestLoss(strategy, reportLoss);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, reportLoss, "!loss");
+
+        uint256 rawAfter = _rawLockedBuffer();
+        assertGt(rawAfter, 0, "!rawAfter");
+        assertLt(rawAfter, rawBefore, "!burned");
+        assertGt(strategy.fullProfitUnlockDate(), block.timestamp, "!date");
+        assertGt(strategy.profitUnlockingRate(), 0, "!rate");
+    }
+
+    function test_liveLossThenReportLossFullyDrainsBuffer() public {
+        uint256 amount = 1_000e18;
+        uint256 profit = 200e18;
+        uint256 liveLoss = 500e18;
+        uint256 reportLoss = 50e18;
+        address depositor = address(0xCAFE02);
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+        createAndCheckProfit(strategy, profit, 0, 0);
+
+        skip(profitMaxUnlockTime / 2);
+
+        assertGt(_rawLockedBuffer(), 0, "!rawBefore");
+
+        yieldSource.simulateLoss(liveLoss);
+        queueHarvestLoss(strategy, reportLoss);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, reportLoss, "!loss");
+        assertEq(_rawLockedBuffer(), 0, "!rawAfter");
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer");
+        assertEq(strategy.fullProfitUnlockDate(), 0, "!date");
+    }
+
+    function test_liveLossFullyDrainsBufferThenReportLossHitsPps() public {
+        uint256 amount = 1_000e18;
+        uint256 profit = 200e18;
+        uint256 liveLoss = 500e18;
+        uint256 reportLoss = 200e18;
+        address depositor = address(0xCAFE03);
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+        createAndCheckProfit(strategy, profit, 0, 0);
+
+        skip(profitMaxUnlockTime / 2);
+
+        yieldSource.simulateLoss(liveLoss);
+
+        vm.prank(management);
+        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+
+        assertEq(_rawLockedBuffer(), 0, "!drained");
+
+        uint256 ppsBeforeReport = strategy.pricePerShare();
+
+        queueHarvestLoss(strategy, reportLoss);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, reportLoss, "!loss");
+        assertEq(_rawLockedBuffer(), 0, "!rawAfter");
+        assertLt(strategy.pricePerShare(), ppsBeforeReport, "!pps");
+    }
+
+    function test_liveProfitAccruesFeesThenReportLoss() public {
+        uint256 amount = 1_000e18;
+        uint256 liveProfit = 100e18;
+        uint256 reportLoss = 50e18;
+        address depositor = address(0xCAFE04);
+
+        setFees(100, 1_000);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+
+        skip(1);
+
+        asset.mint(address(yieldSource), liveProfit);
+        queueHarvestLoss(strategy, reportLoss);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, reportLoss, "!loss");
+        assertEq(strategy.totalAssets(), amount + liveProfit - reportLoss);
+        assertGt(strategy.balanceOf(performanceFeeRecipient), 0, "!fees");
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!buffer");
+    }
+
+    function test_liveLossThenReportProfitOnlyLocksQueuedProfit() public {
+        uint256 amount = 1_000e18;
+        uint256 liveLoss = 50e18;
+        uint256 reportProfit = 100e18;
+        address depositor = address(0xCAFE05);
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+
+        skip(1);
+
+        yieldSource.simulateLoss(liveLoss);
+        queueHarvestProfit(strategy, reportProfit);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, reportProfit, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertEq(strategy.totalAssets(), amount - liveLoss + reportProfit);
+        assertApproxEq(
+            strategy.convertToAssets(_rawLockedBuffer()),
+            reportProfit,
+            10,
+            "!locked"
+        );
+    }
+
+    function test_secondReportSameBlockAfterQueuedProfitIsNoop() public {
+        uint256 amount = 1_000e18;
+        uint256 profit = 100e18;
+        address depositor = address(0xCAFE06);
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+        queueHarvestProfit(strategy, profit);
+
+        vm.prank(keeper);
+        (uint256 firstProfit, uint256 firstLoss) = strategy.report();
+
+        assertEq(firstProfit, profit, "!firstProfit");
+        assertEq(firstLoss, 0, "!firstLoss");
+
+        uint256 rawBefore = _rawLockedBuffer();
+        uint256 dateBefore = strategy.fullProfitUnlockDate();
+        uint256 rateBefore = strategy.profitUnlockingRate();
+        uint256 assetsBefore = strategy.totalAssets();
+
+        vm.prank(keeper);
+        (uint256 secondProfit, uint256 secondLoss) = strategy.report();
+
+        assertEq(secondProfit, 0, "!secondProfit");
+        assertEq(secondLoss, 0, "!secondLoss");
+        assertEq(_rawLockedBuffer(), rawBefore, "!raw");
+        assertEq(strategy.fullProfitUnlockDate(), dateBefore, "!date");
+        assertEq(strategy.profitUnlockingRate(), rateBefore, "!rate");
+        assertEq(strategy.totalAssets(), assetsBefore, "!assets");
+    }
+
+    function test_secondAccrualTriggerSameBlockIsLatched() public {
+        uint256 amount = 1_000e18;
+        uint256 firstLiveProfit = 100e18;
+        uint256 secondLiveProfit = 50e18;
+        address depositor = address(0xCAFE09);
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+
+        skip(1);
+
+        asset.mint(address(yieldSource), firstLiveProfit);
+
+        vm.prank(management);
+        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+
+        assertEq(strategy.lastAccrual(), block.timestamp, "!accrual");
+        assertEq(strategy.lastTotalAssets(), amount + firstLiveProfit);
+
+        uint256 assetsAfterFirstSync = strategy.totalAssets();
+        uint256 ppsAfterFirstSync = strategy.pricePerShare();
+        uint256 lastTotalAssetsAfterFirstSync = strategy.lastTotalAssets();
+
+        asset.mint(address(yieldSource), secondLiveProfit);
+
+        vm.prank(management);
+        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+
+        assertEq(strategy.lastTotalAssets(), lastTotalAssetsAfterFirstSync);
+        assertEq(strategy.totalAssets(), assetsAfterFirstSync);
+        assertEq(strategy.pricePerShare(), ppsAfterFirstSync);
+
+        skip(1);
+
+        assertEq(
+            strategy.totalAssets(),
+            amount + firstLiveProfit + secondLiveProfit,
+            "!unlatched"
+        );
+    }
+
+    function test_repeatedNoopReportsOnlyDrainUnlockingBuffer() public {
+        uint256 amount = 1_000e18;
+        uint256 profit = 100e18;
+        address depositor = address(0xCAFE07);
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+        createAndCheckProfit(strategy, profit, 0, 0);
+
+        uint256 previousRaw = _rawLockedBuffer();
+        assertGt(previousRaw, 0, "!raw");
+
+        for (uint256 i; i < 3; ++i) {
+            skip(1 days);
+
+            vm.prank(keeper);
+            (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+            assertEq(reportedProfit, 0, "!profit");
+            assertEq(reportedLoss, 0, "!loss");
+            assertLe(_rawLockedBuffer(), previousRaw, "!monotonic");
+            previousRaw = _rawLockedBuffer();
+        }
+
+        skip(profitMaxUnlockTime + 1);
+
+        vm.prank(keeper);
+        strategy.report();
+
+        assertEq(_rawLockedBuffer(), 0, "!rawAfter");
+        assertEq(strategy.fullProfitUnlockDate(), 0, "!date");
+    }
+
+    function test_expiredUnlockNoopReportClearsRawBuffer() public {
+        uint256 amount = 1_000e18;
+        uint256 profit = 100e18;
+        address depositor = address(0xCAFE08);
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+        createAndCheckProfit(strategy, profit, 0, 0);
+
+        skip(profitMaxUnlockTime + 1);
+
+        assertGt(strategy.unlockedShares(), 0, "!unlocked");
+        assertEq(strategy.balanceOf(address(strategy)), 0, "!visible");
+        assertGt(_rawLockedBuffer(), 0, "!rawBefore");
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertEq(_rawLockedBuffer(), 0, "!rawAfter");
+        assertEq(strategy.fullProfitUnlockDate(), 0, "!date");
+    }
+
+    function _rawLockedBuffer() internal view returns (uint256) {
+        return strategy.balanceOf(address(strategy)) + strategy.unlockedShares();
+    }
 }
