@@ -2982,6 +2982,7 @@ contract ProfitLockingTest is Setup {
     }
 
     function _rawLockedBuffer() internal view returns (uint256) {
-        return strategy.balanceOf(address(strategy)) + strategy.unlockedShares();
+        return
+            strategy.balanceOf(address(strategy)) + strategy.unlockedShares();
     }
 }

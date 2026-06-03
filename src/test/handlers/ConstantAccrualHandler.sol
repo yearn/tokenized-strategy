@@ -10,7 +10,8 @@ import {MockYieldSource} from "../mocks/MockYieldSource.sol";
 contract ConstantAccrualHandler is ExtendedTest {
     using LibAddressSet for AddressSet;
 
-    address internal constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    address internal constant DEAD_ADDRESS =
+        0x000000000000000000000000000000000000dEaD;
 
     Setup public setup;
     IMockStrategy public strategy;
@@ -111,7 +112,10 @@ contract ConstantAccrualHandler is ExtendedTest {
         ghost_depositSum += deposited;
     }
 
-    function withdraw(uint256 actorSeed, uint256 amount) public useActor(actorSeed) countCall("withdraw") {
+    function withdraw(
+        uint256 actorSeed,
+        uint256 amount
+    ) public useActor(actorSeed) countCall("withdraw") {
         uint256 maxWithdraw = strategy.maxWithdraw(actor);
         if (maxWithdraw == 0) return;
 
@@ -128,7 +132,10 @@ contract ConstantAccrualHandler is ExtendedTest {
         ghost_withdrawSum += amount;
     }
 
-    function redeem(uint256 actorSeed, uint256 shares) public useActor(actorSeed) countCall("redeem") {
+    function redeem(
+        uint256 actorSeed,
+        uint256 shares
+    ) public useActor(actorSeed) countCall("redeem") {
         uint256 maxRedeem = strategy.maxRedeem(actor);
         if (maxRedeem == 0) return;
 
@@ -176,12 +183,17 @@ contract ConstantAccrualHandler is ExtendedTest {
         ghost_liveLossSum += amount;
         pendingLiveLoss = true;
 
-        if (rawBufferBefore != 0 && strategy.fullProfitUnlockDate() > block.timestamp) {
+        if (
+            rawBufferBefore != 0 &&
+            strategy.fullProfitUnlockDate() > block.timestamp
+        ) {
             activeUnlockLossBurns++;
         }
     }
 
-    function queueReportProfit(uint256 amount) public countCall("queueReportProfit") {
+    function queueReportProfit(
+        uint256 amount
+    ) public countCall("queueReportProfit") {
         _ensureActor();
         amount = _boundDelta(amount);
 
@@ -191,7 +203,9 @@ contract ConstantAccrualHandler is ExtendedTest {
         ghost_pendingQueuedProfit += amount;
     }
 
-    function queueReportLoss(uint256 amount) public countCall("queueReportLoss") {
+    function queueReportLoss(
+        uint256 amount
+    ) public countCall("queueReportLoss") {
         _ensureActor();
         uint256 available = yieldSource.balance();
         if (available <= ghost_pendingQueuedLoss) return;
@@ -214,7 +228,9 @@ contract ConstantAccrualHandler is ExtendedTest {
         uint256 expectedLoss;
 
         if (ghost_pendingQueuedProfit > ghost_pendingQueuedLoss) {
-            expectedProfit = ghost_pendingQueuedProfit - ghost_pendingQueuedLoss;
+            expectedProfit =
+                ghost_pendingQueuedProfit -
+                ghost_pendingQueuedLoss;
         } else {
             expectedLoss = ghost_pendingQueuedLoss - ghost_pendingQueuedProfit;
         }
@@ -233,7 +249,9 @@ contract ConstantAccrualHandler is ExtendedTest {
             }
         }
 
-        if (accrualCanRun && hadPendingLiveProfitNoBuffer && expectedProfit == 0) {
+        if (
+            accrualCanRun && hadPendingLiveProfitNoBuffer && expectedProfit == 0
+        ) {
             if (rawStrategyBuffer() != 0) {
                 accountingViolations++;
             } else {
@@ -245,7 +263,14 @@ contract ConstantAccrualHandler is ExtendedTest {
         if (hadLiveProfit && loss != 0) liveProfitReportLoss++;
         if (hadLiveLoss && profit != 0) liveLossReportProfit++;
         if (hadLiveLoss && loss != 0) liveLossReportLoss++;
-        if (!hadLiveProfit && !hadLiveLoss && expectedProfit == 0 && expectedLoss == 0 && profit == 0 && loss == 0) {
+        if (
+            !hadLiveProfit &&
+            !hadLiveLoss &&
+            expectedProfit == 0 &&
+            expectedLoss == 0 &&
+            profit == 0 &&
+            loss == 0
+        ) {
             noopReports++;
         }
 
@@ -256,12 +281,16 @@ contract ConstantAccrualHandler is ExtendedTest {
         pendingLiveProfitNoBuffer = false;
     }
 
-    function reportWithQueuedProfit(uint256 amount) public countCall("reportWithQueuedProfit") {
+    function reportWithQueuedProfit(
+        uint256 amount
+    ) public countCall("reportWithQueuedProfit") {
         queueReportProfit(amount);
         report();
     }
 
-    function reportWithQueuedLoss(uint256 amount) public countCall("reportWithQueuedLoss") {
+    function reportWithQueuedLoss(
+        uint256 amount
+    ) public countCall("reportWithQueuedLoss") {
         queueReportLoss(amount);
         report();
     }
@@ -277,7 +306,9 @@ contract ConstantAccrualHandler is ExtendedTest {
         _afterAccrualSync(lastAccrualBefore, hadPendingLiveProfitNoBuffer);
     }
 
-    function sameBlockDoubleAccrual(uint256 amount) public countCall("sameBlockDoubleAccrual") {
+    function sameBlockDoubleAccrual(
+        uint256 amount
+    ) public countCall("sameBlockDoubleAccrual") {
         _ensureActor();
         skip(1);
 
@@ -298,8 +329,9 @@ contract ConstantAccrualHandler is ExtendedTest {
         syncViaManagementSetter();
 
         if (
-            strategy.lastAccrual() != block.timestamp || strategy.lastTotalAssets() != lastTotalAssetsAfterFirstSync
-                || strategy.totalAssets() != totalAssetsAfterFirstSync
+            strategy.lastAccrual() != block.timestamp ||
+            strategy.lastTotalAssets() != lastTotalAssetsAfterFirstSync ||
+            strategy.totalAssets() != totalAssetsAfterFirstSync
         ) {
             accountingViolations++;
         } else {
@@ -322,8 +354,10 @@ contract ConstantAccrualHandler is ExtendedTest {
         strategy.tend();
 
         if (
-            strategy.lastTotalAssets() != lastTotalAssetsBefore || strategy.lastAccrual() != lastAccrualBefore
-                || strategy.totalSupply() != supplyBefore || strategy.pricePerShare() != ppsBefore
+            strategy.lastTotalAssets() != lastTotalAssetsBefore ||
+            strategy.lastAccrual() != lastAccrualBefore ||
+            strategy.totalSupply() != supplyBefore ||
+            strategy.pricePerShare() != ppsBefore
         ) {
             accountingViolations++;
         } else {
@@ -344,7 +378,10 @@ contract ConstantAccrualHandler is ExtendedTest {
         skip(setup.profitMaxUnlockTime() + 1);
     }
 
-    function setFees(uint16 protocolFee, uint16 performanceFee) public countCall("setFees") {
+    function setFees(
+        uint16 protocolFee,
+        uint16 performanceFee
+    ) public countCall("setFees") {
         protocolFee = uint16(bound(uint256(protocolFee), 0, 1_000));
         performanceFee = uint16(bound(uint256(performanceFee), 0, 2_000));
 
@@ -359,8 +396,12 @@ contract ConstantAccrualHandler is ExtendedTest {
         _afterAccrualSync(lastAccrualBefore, hadPendingLiveProfitNoBuffer);
     }
 
-    function setProfitMaxUnlockTime(uint32 unlockTime) public countCall("setProfitMaxUnlockTime") {
-        uint256 bounded = unlockTime % 5 == 0 ? 0 : bound(uint256(unlockTime), 1, 31_556_952);
+    function setProfitMaxUnlockTime(
+        uint32 unlockTime
+    ) public countCall("setProfitMaxUnlockTime") {
+        uint256 bounded = unlockTime % 5 == 0
+            ? 0
+            : bound(uint256(unlockTime), 1, 31_556_952);
         uint256 lastAccrualBefore = strategy.lastAccrual();
         bool hadPendingLiveProfitNoBuffer = pendingLiveProfitNoBuffer;
 
@@ -377,7 +418,8 @@ contract ConstantAccrualHandler is ExtendedTest {
     }
 
     function rawStrategyBuffer() public view returns (uint256) {
-        return strategy.balanceOf(address(strategy)) + strategy.unlockedShares();
+        return
+            strategy.balanceOf(address(strategy)) + strategy.unlockedShares();
     }
 
     function trackedSupply() public view returns (uint256 supply) {
@@ -429,7 +471,10 @@ contract ConstantAccrualHandler is ExtendedTest {
         console.log("accounting violations", accountingViolations);
     }
 
-    function _afterAccrualSync(uint256 lastAccrualBefore, bool hadPendingLiveProfitNoBuffer) internal {
+    function _afterAccrualSync(
+        uint256 lastAccrualBefore,
+        bool hadPendingLiveProfitNoBuffer
+    ) internal {
         if (lastAccrualBefore == block.timestamp) return;
 
         if (hadPendingLiveProfitNoBuffer) {

@@ -5,7 +5,8 @@ import {BaseInvariant} from "./utils/BaseInvariant.sol";
 import {ConstantAccrualHandler} from "./handlers/ConstantAccrualHandler.sol";
 
 contract ConstantAccrualInvariantTest is BaseInvariant {
-    address internal constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    address internal constant DEAD_ADDRESS =
+        0x000000000000000000000000000000000000dEaD;
 
     ConstantAccrualHandler public constantAccrualHandler;
 
@@ -29,14 +30,27 @@ contract ConstantAccrualInvariantTest is BaseInvariant {
 
         targetContract(address(constantAccrualHandler));
 
-        targetSelector(FuzzSelector({addr: address(constantAccrualHandler), selectors: getTargetSelectors()}));
+        targetSelector(
+            FuzzSelector({
+                addr: address(constantAccrualHandler),
+                selectors: getTargetSelectors()
+            })
+        );
     }
 
     function invariant_latchedAssets() public {
         if (strategy.lastAccrual() == block.timestamp) {
-            assertEq(strategy.totalAssets(), strategy.lastTotalAssets(), "latched assets");
+            assertEq(
+                strategy.totalAssets(),
+                strategy.lastTotalAssets(),
+                "latched assets"
+            );
         } else {
-            assertEq(strategy.totalAssets(), constantAccrualHandler.actualAssets(), "unlatched assets");
+            assertEq(
+                strategy.totalAssets(),
+                constantAccrualHandler.actualAssets(),
+                "unlatched assets"
+            );
         }
     }
 
@@ -57,18 +71,33 @@ contract ConstantAccrualInvariantTest is BaseInvariant {
             assertLt(unlockedShares, rawBuffer, "fully unlocked before date");
         }
 
-        if (fullProfitUnlockDate != 0 && fullProfitUnlockDate <= block.timestamp) {
+        if (
+            fullProfitUnlockDate != 0 && fullProfitUnlockDate <= block.timestamp
+        ) {
             assertEq(visibleBuffer, 0, "expired visible buffer");
-            assertEq(unlockedShares, rawBuffer, "expired buffer not fully unlocked");
+            assertEq(
+                unlockedShares,
+                rawBuffer,
+                "expired buffer not fully unlocked"
+            );
         }
     }
 
     function invariant_supplyConservation() public {
-        assertApproxEq(strategy.totalSupply(), constantAccrualHandler.trackedSupply(), 1, "tracked supply");
+        assertApproxEq(
+            strategy.totalSupply(),
+            constantAccrualHandler.trackedSupply(),
+            1,
+            "tracked supply"
+        );
     }
 
     function invariant_handlerAccountingProperties() public {
-        assertEq(constantAccrualHandler.accountingViolations(), 0, "handler accounting violation");
+        assertEq(
+            constantAccrualHandler.accountingViolations(),
+            0,
+            "handler accounting violation"
+        );
     }
 
     function invariant_maxWithdraw() public {
@@ -102,10 +131,18 @@ contract ConstantAccrualInvariantTest is BaseInvariant {
         constantAccrualHandler.syncViaManagementSetter();
         constantAccrualHandler.sameBlockDoubleAccrual(1e17);
         constantAccrualHandler.setProfitMaxUnlockTime(0);
-        assertEq(constantAccrualHandler.accountingViolations(), 0, "handler accounting violation");
+        assertEq(
+            constantAccrualHandler.accountingViolations(),
+            0,
+            "handler accounting violation"
+        );
     }
 
-    function getTargetSelectors() internal view returns (bytes4[] memory selectors) {
+    function getTargetSelectors()
+        internal
+        view
+        returns (bytes4[] memory selectors)
+    {
         selectors = new bytes4[](19);
         selectors[0] = constantAccrualHandler.deposit.selector;
         selectors[1] = constantAccrualHandler.mint.selector;
