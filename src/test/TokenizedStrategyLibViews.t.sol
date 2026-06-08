@@ -67,6 +67,38 @@ contract TokenizedStrategyLibViewsTest is Setup {
         _assertAuthHelpersMatch(newKeeper, newEmergencyAdmin);
     }
 
+    function test_tokenizedStrategyLibraryExposesSharedReentrancyState()
+        public
+    {
+        address owner = address(0xA11CE);
+        uint256 amount = 100_000 * wad;
+
+        assertFalse(libraryStrategy.libraryIsEntered(), "initial isEntered");
+
+        libraryStrategy.useBaseReentrancyGuard();
+
+        assertTrue(libraryStrategy.lastBaseGuardIsEntered(), "base isEntered");
+        assertFalse(libraryStrategy.libraryIsEntered(), "base final isEntered");
+
+        mintAndDepositIntoStrategy(strategy, owner, amount);
+
+        assertTrue(
+            libraryStrategy.lastDeployFundsIsEntered(),
+            "hook isEntered"
+        );
+        assertFalse(libraryStrategy.libraryIsEntered(), "hook final isEntered");
+
+        libraryStrategy.setCallBaseGuardDuringDeploy(true);
+
+        asset.mint(owner, amount);
+        vm.prank(owner);
+        asset.approve(address(strategy), amount);
+
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        vm.prank(owner);
+        strategy.deposit(amount, owner);
+    }
+
     function _assertAllViewsMatch(
         address owner,
         address spender,

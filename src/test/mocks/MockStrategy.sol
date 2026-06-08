@@ -10,6 +10,9 @@ contract MockStrategy is BaseStrategy {
     bool public managed;
     bool public kept;
     bool public emergentizated;
+    bool public callBaseGuardDuringDeploy;
+    bool public lastDeployFundsIsEntered;
+    bool public lastBaseGuardIsEntered;
 
     constructor(
         address _asset,
@@ -25,6 +28,10 @@ contract MockStrategy is BaseStrategy {
     }
 
     function _deployFunds(uint256 _amount) internal override {
+        lastDeployFundsIsEntered = TokenizedStrategy.isEntered();
+        if (callBaseGuardDuringDeploy) {
+            this.useBaseReentrancyGuard();
+        }
         MockYieldSource(yieldSource).deposit(_amount);
     }
 
@@ -76,6 +83,14 @@ contract MockStrategy is BaseStrategy {
 
     function onlyLetEmergencyAdminsIn() public onlyEmergencyAuthorized {
         emergentizated = true;
+    }
+
+    function setCallBaseGuardDuringDeploy(bool _call) external {
+        callBaseGuardDuringDeploy = _call;
+    }
+
+    function useBaseReentrancyGuard() external nonReentrant {
+        lastBaseGuardIsEntered = TokenizedStrategy.isEntered();
     }
 
     function libraryAsset() external view returns (address) {
@@ -160,6 +175,10 @@ contract MockStrategy is BaseStrategy {
 
     function libraryIsPaused() external view returns (bool) {
         return TokenizedStrategy.isPaused();
+    }
+
+    function libraryIsEntered() external view returns (bool) {
+        return TokenizedStrategy.isEntered();
     }
 
     function libraryTotalAssets() external view returns (uint256) {

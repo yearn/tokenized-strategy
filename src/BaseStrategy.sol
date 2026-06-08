@@ -74,6 +74,15 @@ abstract contract BaseStrategy {
     }
 
     /**
+     * @dev Reuses the TokenizedStrategy reentrancy guard for custom strategy functions.
+     */
+    modifier nonReentrant() {
+        TokenizedStrategy.nonReentrantBefore();
+        _;
+        TokenizedStrategy.nonReentrantAfter();
+    }
+
+    /**
      * @dev Require that the msg.sender is this address.
      */
     function _onlySelf() internal view {

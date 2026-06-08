@@ -9,6 +9,9 @@ library TokenizedStrategyLib {
     bytes32 internal constant BASE_STRATEGY_STORAGE =
         bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
 
+    uint8 internal constant ENTERED = 2;
+    uint8 internal constant NOT_ENTERED = 1;
+
     // prettier-ignore
     struct StrategyData {
         ERC20 asset;
@@ -129,6 +132,24 @@ library TokenizedStrategyLib {
 
     function isPaused() internal view returns (bool) {
         return strategyStorage().paused;
+    }
+
+    function isEntered() internal view returns (bool) {
+        return strategyStorage().entered == ENTERED;
+    }
+
+    function nonReentrantBefore() internal {
+        StrategyData storage S = strategyStorage();
+        // On the first call to nonReentrant, `entered` will be false (2)
+        require(S.entered != ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        S.entered = ENTERED;
+    }
+
+    function nonReentrantAfter() internal {
+        // Reset to false (1) once call has finished.
+        strategyStorage().entered = NOT_ENTERED;
     }
 
     function totalAssets() internal view returns (uint256) {

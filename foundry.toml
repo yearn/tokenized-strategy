@@ -6,7 +6,6 @@ solc = "0.8.18"
 evm_version = "paris"
 optimize = true
 optimizer_runs = 200
-no_match_test = "testFail"
 
 remappings = [
     'forge-std/=lib/forge-std/src/',
@@ -15,7 +14,7 @@ remappings = [
 fs_permissions = [{ access = "read", path = "./"}]
 
 [fuzz]
-runs = 10_0
+runs = 10_000
 max_test_rejects = 1_000_000
 
 [invariant]
