@@ -41,12 +41,12 @@ contract CustomInitMockStrategy is BaseStrategy {
 
     function _freeFunds(uint256) internal override {}
 
-    function _totalAssets() internal view override returns (uint256) {
+    function _strategyTotalAssets() internal view override returns (uint256) {
         return asset.balanceOf(address(this));
     }
 
     function _harvestAndReport() internal override returns (uint256) {
-        return _totalAssets();
+        return _strategyTotalAssets();
     }
 }
 
