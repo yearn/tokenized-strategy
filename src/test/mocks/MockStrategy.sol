@@ -89,7 +89,7 @@ contract MockStrategy is BaseStrategy {
         callBaseGuardDuringDeploy = _call;
     }
 
-    function useBaseReentrancyGuard() external nonReentrantTokenized {
+    function useBaseReentrancyGuard() external strategyNonReentrant {
         lastBaseGuardIsEntered = TokenizedStrategy.isEntered();
     }
 
