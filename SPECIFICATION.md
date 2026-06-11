@@ -62,7 +62,7 @@ The majority of functions in the BaseStrategy are either external functions with
 
 `harvestAndReport()/_harvestAndReport()`: Called during reports to tell the strategy a trusted address has called it and to harvest any rewards re-deploy any loose funds and return the actual amount of funds the strategy holds.
 
-`tendThis(uint256)/_tend(uint256)`: Called by the TokenizedStrategy during tend calls to tell the strategy a trusted address has called tend and it has the uint256 parameter of loose asset available to deposit. NOTE: we use `tendThis` to avoid function signature collisions so that `tend` will be forwarded to the TokenizedStrategy.
+`tendThis(uint256)/_tend(uint256)`: Called by the TokenizedStrategy during tend calls to tell the strategy a trusted address has called tend and it has the uint256 parameter of loose asset available to deposit. NOTE: we use `tendThis` to avoid function signature collisions so that `tend` will be forwarded to the TokenizedStrategy. Under constant accrual a tend is not an accounting boundary: value changes it makes price into views through simulated totals and are realized by the next state-changing accrual, not only by a report.
 
 `tendTrigger()/_tendTrigger()`: View function to return if a tend call is needed.
 
@@ -175,7 +175,7 @@ Once this is called it will stop any further deposit or mints but will have no e
 
 This can be used in an emergency or simply to retire a vault.
 
-Once a strategy is shutdown or paused, management or emergencyAdmin can also call `emergencyWithdraw(amount)`. Which will tell the strategy to withdraw a specified `amount` from the yield source and keep it as idle in the vault. This function will also do any needed updates to totalDebt and totalIdle, based on amounts withdrawn to assure withdraws continue to function properly.
+Once a strategy is shutdown or paused, management or emergencyAdmin can also call `emergencyWithdraw(amount)`. Which will tell the strategy to withdraw a specified `amount` from the yield source and keep it as idle in the vault. This function performs no accounting update at call time, so the rescue path has no dependency on the strategy's asset estimate. Any profit or loss caused by the unwind prices into views through simulated totals and is realized by the next state-changing accrual or report.
 
 All other emergency functionality is left up to the individual strategist.
 
@@ -224,7 +224,7 @@ Strategists should be able to use a pre-built "Strategy Mix" that will contain t
 
 While it can be possible to deploy a completely ERC-4626 compliant vault with just those three functions it does allow for further customization if the strategist desires.
 
-*_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports.
+*_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports. Note that under constant accrual any value change made during a tend affects view pricing through simulated totals and is realized by the next state-changing accrual rather than waiting for a report.
 
 *availableDepositLimit(address _owner)* can be overridden to implement any type of deposit limit.
 
