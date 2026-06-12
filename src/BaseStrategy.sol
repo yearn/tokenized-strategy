@@ -76,7 +76,7 @@ abstract contract BaseStrategy {
     /**
      * @dev Reuses the TokenizedStrategy reentrancy guard for custom strategy functions.
      */
-    modifier strategyNonReentrant() {
+    modifier nonReentrantTokenized() {
         TokenizedStrategy.nonReentrantBefore();
         _;
         TokenizedStrategy.nonReentrantAfter();
