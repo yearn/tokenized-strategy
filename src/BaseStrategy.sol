@@ -254,7 +254,13 @@ abstract contract BaseStrategy {
      *       sandwiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
-     * This will have no effect on PPS of the strategy till report() is called.
+     * NOTE: Under constant accrual this is not an accounting boundary.
+     * Value changes made here price into {totalAssets}, conversions and
+     * previews through simulated totals and are realized by the next
+     * state-changing accrual (any deposit, mint, withdraw, redeem, fee
+     * configuration change, or report) — not only by report(). Slippage
+     * or costs incurred here net against any unrealized profit before
+     * performance fees are charged.
      *
      * @param _totalIdle The current amount of idle funds that are available to deploy.
      */
@@ -295,7 +301,7 @@ abstract contract BaseStrategy {
      * traditional deposit limit or for implementing a whitelist etc.
      *
      *   EX:
-     *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
+     *      if(isAllowed[receiver]) return super.availableDepositLimit(receiver);
      *
      * This does not need to take into account any conversion rates
      * from shares to assets. But should know that any non max uint256
@@ -303,11 +309,11 @@ abstract contract BaseStrategy {
      * custom amounts low enough as not to cause overflow when multiplied
      * by `totalSupply`.
      *
-     * @param . The address that is depositing into the strategy.
-     * @return . The available amount the `_owner` can deposit in terms of `asset`
+     * @param . The address that is receiving the shares from the deposit.
+     * @return . The available amount that can be deposited in terms of `asset`
      */
     function availableDepositLimit(
-        address /*_owner*/
+        address /*receiver*/
     ) public view virtual returns (uint256) {
         return type(uint256).max;
     }
@@ -344,11 +350,14 @@ abstract contract BaseStrategy {
      * This should attempt to free `_amount`, noting that `_amount` may
      * be more than is currently deployed.
      *
-     * NOTE: This will not realize any profits or losses. A separate
-     * {report} will be needed in order to record any profit/loss. If
-     * a report may need to be called after a shutdown it is important
-     * to check if the strategy is shutdown during {_harvestAndReport}
-     * so that it does not simply re-deploy all funds that had been freed.
+     * NOTE: Under constant accrual, any profit or loss caused by the
+     * unwind will be reflected in pricing through simulated totals and
+     * realized by the next state-changing accrual without further
+     * action; a {report} is not required but can be used for controlled
+     * realization. If a report may need to be called after a shutdown it
+     * is important to check if the strategy is shutdown during
+     * {_harvestAndReport} so that it does not simply re-deploy all funds
+     * that had been freed.
      *
      * EX:
      *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {

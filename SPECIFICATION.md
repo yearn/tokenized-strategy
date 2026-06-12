@@ -62,7 +62,7 @@ The majority of functions in the BaseStrategy are either external functions with
 
 `harvestAndReport()/_harvestAndReport()`: Called during reports to tell the strategy a trusted address has called it and to harvest any rewards re-deploy any loose funds and return the actual amount of funds the strategy holds.
 
-`tendThis(uint256)/_tend(uint256)`: Called by the TokenizedStrategy during tend calls to tell the strategy a trusted address has called tend and it has the uint256 parameter of loose asset available to deposit. NOTE: we use `tendThis` to avoid function signature collisions so that `tend` will be forwarded to the TokenizedStrategy.
+`tendThis(uint256)/_tend(uint256)`: Called by the TokenizedStrategy during tend calls to tell the strategy a trusted address has called tend and it has the uint256 parameter of loose asset available to deposit. NOTE: we use `tendThis` to avoid function signature collisions so that `tend` will be forwarded to the TokenizedStrategy. Under constant accrual a tend is not an accounting boundary: value changes it makes price into views through simulated totals and are realized by the next state-changing accrual, not only by a report.
 
 `tendTrigger()/_tendTrigger()`: View function to return if a tend call is needed.
 
@@ -85,6 +85,13 @@ The TokenizedStrategy is responsible for handling the logic associated with all 
 Users can deposit ASSET tokens to receive shares.
 
 Deposits are limited by the availableDepositLimit function that can be changed by the strategist if non uint256.max values are desired.
+
+#### First Depositor / Donation Protection
+Profit recognized by an accrual while the effective share supply is below `MINIMUM_SUPPLY` (1e3) is minted to a dead address as shares at a flat price per share rather than accruing to holders. This covers both assets that show up before the first deposit (the vault starts from a 1:1 PPS) and donations made while an attacker controls a dust supply, which bounds the classic first-depositor inflation attack: for a donation to move the share price at all the attacker must hold at least 1e3 shares of their own, capping any victim rounding loss at roughly `donation / 1e3`. Confiscated profit is not charged performance fees.
+
+This guard lives only in the accrual path, which is the single point where unsolicited value can enter pricing for permissionless flows (every deposit, mint, withdraw and redeem accrues first, and all conversions price off accrued or simulated totals). `report()` is intentionally not guarded: it is keeper-permissioned, and with a non-zero `profitMaxUnlockTime` profit locking already prevents any instant PPS jump.
+
+Because no shares are ever carved from depositors, deposits, mints, previews and max functions remain fully ERC-4626 compliant, there is no minimum first deposit, and a vault that is fully exited holds no locked dead shares from normal operation — dead shares only ever result from pre-deposit donations or attacker donations.
 
 #### Withdrawals / Redeems
 Users can redeem their shares when the strategy is not paused and there is liquidity available.
@@ -175,7 +182,7 @@ Once this is called it will stop any further deposit or mints but will have no e
 
 This can be used in an emergency or simply to retire a vault.
 
-Once a strategy is shutdown or paused, management or emergencyAdmin can also call `emergencyWithdraw(amount)`. Which will tell the strategy to withdraw a specified `amount` from the yield source and keep it as idle in the vault. This function will also do any needed updates to totalDebt and totalIdle, based on amounts withdrawn to assure withdraws continue to function properly.
+Once a strategy is shutdown or paused, management or emergencyAdmin can also call `emergencyWithdraw(amount)`. Which will tell the strategy to withdraw a specified `amount` from the yield source and keep it as idle in the vault. This function performs no accounting update at call time, so the rescue path has no dependency on the strategy's asset estimate. Any profit or loss caused by the unwind prices into views through simulated totals and is realized by the next state-changing accrual or report.
 
 All other emergency functionality is left up to the individual strategist.
 
@@ -224,7 +231,7 @@ Strategists should be able to use a pre-built "Strategy Mix" that will contain t
 
 While it can be possible to deploy a completely ERC-4626 compliant vault with just those three functions it does allow for further customization if the strategist desires.
 
-*_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports.
+*_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports. Note that under constant accrual any value change made during a tend affects view pricing through simulated totals and is realized by the next state-changing accrual rather than waiting for a report.
 
 *availableDepositLimit(address _owner)* can be overridden to implement any type of deposit limit.
 

@@ -426,6 +426,161 @@ contract AccountingTest is Setup {
         assertEq(strategy.totalAssets(), _donation, "!remaining");
     }
 
+    /// @dev 1 wei seed + donation: the floor confiscates the donation so
+    /// the victim deposits at ~1:1.
+    function test_accrualFloor_oneWeiSeedAttackConfiscated() public {
+        setFees(0, 1_000);
+        address attacker = address(0xA11CE);
+        address victim = address(0xB0B);
+
+        // No minimum first deposit: 1 wei mints 1 share.
+        asset.mint(attacker, 1);
+        vm.startPrank(attacker);
+        asset.approve(address(strategy), 1);
+        strategy.deposit(1, attacker);
+        vm.stopPrank();
+        assertEq(strategy.balanceOf(attacker), 1, "!seed");
+
+        uint256 donation = 100e18;
+        asset.mint(attacker, donation);
+        vm.prank(attacker);
+        asset.transfer(address(strategy), donation);
+        skip(1);
+
+        uint256 victimDeposit = 200e18;
+        mintAndDepositIntoStrategy(strategy, victim, victimDeposit);
+
+        // The donation was minted to dead shares at a flat PPS.
+        assertEq(strategy.balanceOf(DEAD_ADDRESS), donation, "!dead");
+        assertEq(strategy.balanceOf(victim), victimDeposit, "!victim shares");
+        assertApproxEqAbs(
+            strategy.convertToAssets(strategy.balanceOf(victim)),
+            victimDeposit,
+            2,
+            "!victim value"
+        );
+
+        // No performance fees were charged on the confiscated profit.
+        assertEq(strategy.balanceOf(performanceFeeRecipient), 0, "!fee shares");
+
+        // The attacker's share is back to ~1 wei: the donation is lost.
+        assertLe(
+            strategy.convertToAssets(strategy.balanceOf(attacker)),
+            1,
+            "!attacker value"
+        );
+    }
+
+    /// @dev At or above the floor a donation accrues, but victim rounding
+    /// loss is bounded by ~donation / MINIMUM_SUPPLY.
+    function test_accrualFloor_supplyAboveFloorBoundsAttack() public {
+        setFees(0, 1_000);
+        address attacker = address(0xA11CE);
+        address victim = address(0xB0B);
+
+        uint256 seed = MINIMUM_SUPPLY;
+        asset.mint(attacker, seed);
+        vm.startPrank(attacker);
+        asset.approve(address(strategy), seed);
+        strategy.deposit(seed, attacker);
+        vm.stopPrank();
+
+        uint256 donation = 100e18;
+        asset.mint(attacker, donation);
+        vm.prank(attacker);
+        asset.transfer(address(strategy), donation);
+        skip(1);
+
+        uint256 victimDeposit = 200e18;
+        mintAndDepositIntoStrategy(strategy, victim, victimDeposit);
+
+        // Supply was at the floor: nothing was confiscated.
+        assertEq(strategy.balanceOf(DEAD_ADDRESS), 0, "!dead");
+
+        // Victim rounding loss is bounded by ~donation / MINIMUM_SUPPLY.
+        assertGe(
+            strategy.convertToAssets(strategy.balanceOf(victim)),
+            victimDeposit - donation / MINIMUM_SUPPLY - 1,
+            "!victim bound"
+        );
+
+        // The attacker ends up underwater versus seed + donation.
+        assertLt(
+            strategy.convertToAssets(strategy.balanceOf(attacker)),
+            seed + donation,
+            "!attacker not profitable"
+        );
+    }
+
+    /// @dev Full deposit/profit/exit cycles never mint dead shares.
+    function test_accrualFloor_fullCycleLeavesNoDeadShares(
+        address _user,
+        uint256 _amount
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != address(yieldSource) &&
+                _user != DEAD_ADDRESS
+        );
+
+        setFees(0, 0);
+
+        for (uint256 i; i < 2; ++i) {
+            mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+            // Earn and report a real profit, then let it fully unlock.
+            uint256 profit = _amount / 10;
+            asset.mint(address(yieldSource), profit);
+            skip(1);
+            vm.prank(keeper);
+            strategy.report();
+            skip(profitMaxUnlockTime);
+
+            uint256 shares = strategy.balanceOf(_user);
+            vm.prank(_user);
+            strategy.redeem(shares, _user, _user);
+
+            // Fully emptied: no value stuck in dead shares.
+            assertEq(strategy.balanceOf(DEAD_ADDRESS), 0, "!dead");
+            checkStrategyTotals(strategy, 0, 0, 0, 0);
+        }
+    }
+
+    /// @dev Views simulate the dead mint: previews match actual deposits.
+    function test_accrualFloor_viewsMatchWritePath() public {
+        setFees(0, 1_000);
+        address seeder = address(0xA11CE);
+        address depositor = address(0xB0B);
+
+        uint256 seed = 10;
+        asset.mint(seeder, seed);
+        vm.startPrank(seeder);
+        asset.approve(address(strategy), seed);
+        strategy.deposit(seed, seeder);
+        vm.stopPrank();
+
+        // Pending profit against a dust supply.
+        asset.mint(address(strategy), 1e18);
+        skip(1);
+
+        uint256 amount = 5e18;
+        uint256 preview = strategy.previewDeposit(amount);
+        assertEq(preview, strategy.convertToShares(amount), "!convert");
+        // Flat PPS: the simulated dead mint keeps the price at 1:1.
+        assertEq(preview, amount, "!flat pps");
+
+        asset.mint(depositor, amount);
+        vm.startPrank(depositor);
+        asset.approve(address(strategy), amount);
+        uint256 minted = strategy.deposit(amount, depositor);
+        vm.stopPrank();
+
+        assertEq(minted, preview, "!preview matches");
+        assertEq(strategy.balanceOf(depositor), minted, "!return matches");
+    }
+
     function test_zeroAssetRecoveryIsFeeFreeAndPreviewMatchesDeposit() public {
         address depositor = address(0xA11CE);
         address recoveryDepositor = address(0xB0B);

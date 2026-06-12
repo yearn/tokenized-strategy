@@ -32,6 +32,11 @@ contract Setup is ExtendedTest, IEvents {
     address public protocolFeeRecipient = address(5);
     address public performanceFeeRecipient = address(6);
 
+    // Recipient of shares minted against profit accrued below the supply floor.
+    address public constant DEAD_ADDRESS =
+        0x000000000000000000000000000000000000dEaD;
+    uint256 public constant MINIMUM_SUPPLY = 1e3;
+
     // Integer variables that will be used repeatedly.
     uint256 public decimals = 18;
     uint256 public MAX_BPS = 10_000;

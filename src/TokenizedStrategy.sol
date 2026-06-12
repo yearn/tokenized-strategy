@@ -385,6 +385,9 @@ contract TokenizedStrategy {
     /// @notice Holder for dead shares minted against unsolicited initial assets.
     address internal constant DEAD_ADDRESS =
         0x000000000000000000000000000000000000dEaD;
+    /// @notice Supply floor below which accrued profit is minted to
+    /// {DEAD_ADDRESS} to block first-depositor inflation.
+    uint256 internal constant MINIMUM_SUPPLY = 1e3;
 
     /**
      * @dev Custom storage slot that will be used to store the
@@ -679,6 +682,13 @@ contract TokenizedStrategy {
      * Normal write flows freeze this value after the first sync in a block.
      * A manual {report} can refresh it again within that same block.
      *
+     * @dev This reflects the *simulated* constant-accrual state, including
+     * any pending profit or loss that has not yet been realized by a
+     * state-changing accrual. {convertToShares}, {convertToAssets} and all
+     * preview functions use the same simulated state, while {totalSupply}
+     * only reflects realized ERC20 supply. The two views can therefore
+     * appear inconsistent until the pending accrual is realized.
+     *
      * @return . Total assets the strategy holds.
      */
     function totalAssets() external view returns (uint256) {
@@ -687,6 +697,14 @@ contract TokenizedStrategy {
 
     /**
      * @notice Get the current supply of the strategies shares.
+     *
+     * @dev This is the *realized* ERC20 supply (stored supply minus
+     * unlocked strategy-held shares). It does not include fee shares
+     * that would be minted for pending constant-accrual profit, nor the
+     * locked-share burn simulated for pending losses. {totalAssets},
+     * conversions and previews do reflect that simulated state, so
+     * comparing this value against those views may show different
+     * accounting assumptions until the pending accrual is realized.
      *
      * @return . Total amount of shares outstanding.
      */
@@ -876,7 +894,8 @@ contract TokenizedStrategy {
         assets = _strategyTotalAssets();
 
         if (S.lastTotalAssets == 0)
-            return (supply == 0 ? assets : supply, assets);
+            // Mirrors {_accrue}: supply floor dead mint, fee-free recovery.
+            return (supply < MINIMUM_SUPPLY ? supply + assets : supply, assets);
 
         if (assets > S.lastTotalAssets) {
             uint256 profit;
@@ -884,15 +903,25 @@ contract TokenizedStrategy {
                 profit = assets - S.lastTotalAssets;
             }
 
-            uint16 fee = S.performanceFee;
-            if (fee != 0 && supply != 0) {
-                uint256 totalFees = (profit * fee) / MAX_BPS;
+            if (supply < MINIMUM_SUPPLY) {
+                // Mirrors the {_accrue} supply floor confiscation.
                 supply += _convertToSharesFromTotals(
-                    totalFees,
+                    profit,
                     supply,
-                    assets - totalFees,
-                    Math.Rounding.Down
+                    S.lastTotalAssets,
+                    Math.Rounding.Up
                 );
+            } else {
+                uint16 fee = S.performanceFee;
+                if (fee != 0) {
+                    uint256 totalFees = (profit * fee) / MAX_BPS;
+                    supply += _convertToSharesFromTotals(
+                        totalFees,
+                        supply,
+                        assets - totalFees,
+                        Math.Rounding.Down
+                    );
+                }
             }
         } else if (assets < S.lastTotalAssets) {
             uint256 loss;
@@ -1177,14 +1206,25 @@ contract TokenizedStrategy {
                 profit = newTotalAssets - oldTotalAssets;
             }
 
-            // Any assets that show up before the first depositor should not be
-            // claimable by that first depositor. Mint matching dead shares so
-            // the vault starts from a 1:1 PPS.
-            if (oldTotalAssets == 0 && S.totalSupply == 0) {
-                _mint(S, DEAD_ADDRESS, newTotalAssets);
-            }
-
-            if (oldTotalAssets != 0) {
+            // Profit accrued below the supply floor is confiscated to dead
+            // shares at a flat PPS, fee free, so a dust supply can never
+            // capture a donation.
+            uint256 supply = _totalSupply(S);
+            if (supply < MINIMUM_SUPPLY) {
+                _mint(
+                    S,
+                    DEAD_ADDRESS,
+                    // If there is no prior PPS to preserve, target 1:1.
+                    oldTotalAssets == 0
+                        ? newTotalAssets
+                        : _convertToSharesFromTotals(
+                            profit,
+                            supply,
+                            oldTotalAssets,
+                            Math.Rounding.Up
+                        )
+                );
+            } else if (oldTotalAssets != 0) {
                 (totalFees, protocolFees, ) = _chargeFees(
                     S,
                     profit,
@@ -1374,7 +1414,7 @@ contract TokenizedStrategy {
         uint256 newTotalAssets = IBaseStrategy(address(this))
             .harvestAndReport();
 
-        uint256 oldTotalAssets = _totalAssets(S);
+        uint256 oldTotalAssets = S.lastTotalAssets;
 
         // Initialize variables needed throughout.
         uint256 totalFees;
@@ -1521,10 +1561,18 @@ contract TokenizedStrategy {
      * be used for illiquid or manipulatable strategies to compound
      * rewards, perform maintenance or deposit/withdraw funds.
      *
-     * This will not cause any change in PPS. Total assets will
-     * be the same before and after.
+     * This performs no accounting checkpoint itself. Under constant
+     * accrual, any value change made by '_tend' is reflected in
+     * {totalAssets}, conversions and previews through simulation —
+     * immediately within this block if no accrual has latched it yet
+     * (see {totalAssets}), otherwise from the next block — and is
+     * realized (fees charged, losses offset) by the next state-changing
+     * accrual: any deposit, mint, withdraw, redeem, fee configuration
+     * change, or report.
      *
-     * A report() call will be needed to record any profits or losses.
+     * Any pre-existing pending profit or loss nets against the effects
+     * of the tend before fees are assessed. This is intended: performance
+     * fees are charged on the net result, not the gross.
      */
     function tend() external nonReentrant onlyKeepers {
         // Tend the strategy with the current loose balance.
@@ -1580,8 +1628,13 @@ contract TokenizedStrategy {
      * strategy has been shutdown.
      * @dev This can only be called when the strategy is paused or shutdown.
      *
-     * This will never cause a change in PPS. Total assets will
-     * be the same before and after.
+     * This path deliberately performs no accrual so that the rescue flow
+     * has no dependency on `strategyTotalAssets()`, which may revert or
+     * be unreliable mid-emergency. Any profit or loss caused by the
+     * unwind follows the same rules as {tend}: it is reflected in
+     * {totalAssets}, conversions and previews through simulation and is
+     * realized by the next state-changing accrual. Management can call
+     * {report} afterward if controlled realization is desired.
      *
      * A strategist will need to override the {_emergencyWithdraw} function
      * in their strategy for this to work.

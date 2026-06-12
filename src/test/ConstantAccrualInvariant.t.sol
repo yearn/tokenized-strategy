@@ -5,9 +5,6 @@ import {BaseInvariant} from "./utils/BaseInvariant.sol";
 import {ConstantAccrualHandler} from "./handlers/ConstantAccrualHandler.sol";
 
 contract ConstantAccrualInvariantTest is BaseInvariant {
-    address internal constant DEAD_ADDRESS =
-        0x000000000000000000000000000000000000dEaD;
-
     ConstantAccrualHandler public constantAccrualHandler;
 
     function setUp() public override {
