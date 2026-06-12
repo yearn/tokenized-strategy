@@ -22,7 +22,7 @@ import {TokenizedStrategyLib as TokenizedStrategy} from "./libraries/TokenizedSt
  *  can only be concerned with writing their strategy specific code.
  *
  *  This contract should be inherited and the three main abstract methods
- *  `_deployFunds`, `_freeFunds` and `_totalAssets` implemented to adapt
+ *  `_deployFunds`, `_freeFunds` and `_strategyTotalAssets` implemented to adapt
  *  the Strategy to the particular needs it has to generate yield. There are
  *  other optional methods that can be implemented to further customize
  *  the strategy if desired.
@@ -76,7 +76,7 @@ abstract contract BaseStrategy {
     /**
      * @dev Reuses the TokenizedStrategy reentrancy guard for custom strategy functions.
      */
-    modifier nonReentrant() {
+    modifier nonReentrantTokenized() {
         TokenizedStrategy.nonReentrantBefore();
         _;
         TokenizedStrategy.nonReentrantAfter();
@@ -213,10 +213,10 @@ abstract contract BaseStrategy {
      * when they refresh. It must be strictly read only and should not harvest,
      * claim or otherwise mutate state.
      *
-     * @return _totalAssets A trusted and accurate account for the total
+     * @return _strategyTotalAssets A trusted and accurate account for the total
      * amount of 'asset' the strategy currently holds including idle funds.
      */
-    function _totalAssets() internal view virtual returns (uint256);
+    function _strategyTotalAssets() internal view virtual returns (uint256);
 
     /**
      * @dev Internal hook used by explicit {report()} accounting syncs.
@@ -395,7 +395,7 @@ abstract contract BaseStrategy {
      * @dev Read-only callback for the TokenizedStrategy.
      */
     function strategyTotalAssets() external view virtual returns (uint256) {
-        return _totalAssets();
+        return _strategyTotalAssets();
     }
 
     /**

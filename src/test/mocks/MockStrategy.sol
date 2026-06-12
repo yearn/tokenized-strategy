@@ -39,7 +39,7 @@ contract MockStrategy is BaseStrategy {
         MockYieldSource(yieldSource).withdraw(_amount);
     }
 
-    function _totalAssets() internal view override returns (uint256) {
+    function _strategyTotalAssets() internal view override returns (uint256) {
         return
             MockYieldSource(yieldSource).balance() +
             ERC20(asset).balanceOf(address(this));
@@ -51,7 +51,7 @@ contract MockStrategy is BaseStrategy {
         if (balance > 0 && !TokenizedStrategy.isShutdown()) {
             MockYieldSource(yieldSource).deposit(balance);
         }
-        return _totalAssets();
+        return _strategyTotalAssets();
     }
 
     function _tend(uint256 /*_idle*/) internal override {
@@ -89,7 +89,7 @@ contract MockStrategy is BaseStrategy {
         callBaseGuardDuringDeploy = _call;
     }
 
-    function useBaseReentrancyGuard() external nonReentrant {
+    function useBaseReentrancyGuard() external nonReentrantTokenized {
         lastBaseGuardIsEntered = TokenizedStrategy.isEntered();
     }
 

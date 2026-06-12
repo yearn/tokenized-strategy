@@ -40,7 +40,7 @@ contract MockFaultyStrategy is BaseStrategy {
         MockYieldSource(yieldSource).withdraw(_amount + fault);
     }
 
-    function _totalAssets() internal view override returns (uint256) {
+    function _strategyTotalAssets() internal view override returns (uint256) {
         return
             MockYieldSource(yieldSource).balance() +
             ERC20(asset).balanceOf(address(this));
@@ -54,7 +54,7 @@ contract MockFaultyStrategy is BaseStrategy {
         // Write paths now sync through harvest before user actions. Keep this
         // mock focused on deploy/free/tend callbacks so the reentrancy tests
         // still isolate the path they are named after.
-        return _totalAssets();
+        return _strategyTotalAssets();
     }
 
     function _tend(uint256 _idle) internal override {
