@@ -86,6 +86,13 @@ Users can deposit ASSET tokens to receive shares.
 
 Deposits are limited by the availableDepositLimit function that can be changed by the strategist if non uint256.max values are desired.
 
+#### First Depositor / Donation Protection
+Profit recognized by an accrual while the effective share supply is below `MINIMUM_SUPPLY` (1e3) is minted to a dead address as shares at a flat price per share rather than accruing to holders. This covers both assets that show up before the first deposit (the vault starts from a 1:1 PPS) and donations made while an attacker controls a dust supply, which bounds the classic first-depositor inflation attack: for a donation to move the share price at all the attacker must hold at least 1e3 shares of their own, capping any victim rounding loss at roughly `donation / 1e3`. Confiscated profit is not charged performance fees.
+
+This guard lives only in the accrual path, which is the single point where unsolicited value can enter pricing for permissionless flows (every deposit, mint, withdraw and redeem accrues first, and all conversions price off accrued or simulated totals). `report()` is intentionally not guarded: it is keeper-permissioned, and with a non-zero `profitMaxUnlockTime` profit locking already prevents any instant PPS jump.
+
+Because no shares are ever carved from depositors, deposits, mints, previews and max functions remain fully ERC-4626 compliant, there is no minimum first deposit, and a vault that is fully exited holds no locked dead shares from normal operation — dead shares only ever result from pre-deposit donations or attacker donations.
+
 #### Withdrawals / Redeems
 Users can redeem their shares when the strategy is not paused and there is liquidity available.
 

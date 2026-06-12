@@ -385,6 +385,9 @@ contract TokenizedStrategy {
     /// @notice Holder for dead shares minted against unsolicited initial assets.
     address internal constant DEAD_ADDRESS =
         0x000000000000000000000000000000000000dEaD;
+    /// @notice Supply floor below which accrued profit is minted to
+    /// {DEAD_ADDRESS} to block first-depositor inflation.
+    uint256 internal constant MINIMUM_SUPPLY = 1e3;
 
     /**
      * @dev Custom storage slot that will be used to store the
@@ -891,7 +894,8 @@ contract TokenizedStrategy {
         assets = _strategyTotalAssets();
 
         if (S.lastTotalAssets == 0)
-            return (supply == 0 ? assets : supply, assets);
+            // Mirrors {_accrue}: supply floor dead mint, fee-free recovery.
+            return (supply < MINIMUM_SUPPLY ? supply + assets : supply, assets);
 
         if (assets > S.lastTotalAssets) {
             uint256 profit;
@@ -899,15 +903,25 @@ contract TokenizedStrategy {
                 profit = assets - S.lastTotalAssets;
             }
 
-            uint16 fee = S.performanceFee;
-            if (fee != 0 && supply != 0) {
-                uint256 totalFees = (profit * fee) / MAX_BPS;
+            if (supply < MINIMUM_SUPPLY) {
+                // Mirrors the {_accrue} supply floor confiscation.
                 supply += _convertToSharesFromTotals(
-                    totalFees,
+                    profit,
                     supply,
-                    assets - totalFees,
-                    Math.Rounding.Down
+                    S.lastTotalAssets,
+                    Math.Rounding.Up
                 );
+            } else {
+                uint16 fee = S.performanceFee;
+                if (fee != 0) {
+                    uint256 totalFees = (profit * fee) / MAX_BPS;
+                    supply += _convertToSharesFromTotals(
+                        totalFees,
+                        supply,
+                        assets - totalFees,
+                        Math.Rounding.Down
+                    );
+                }
             }
         } else if (assets < S.lastTotalAssets) {
             uint256 loss;
@@ -1192,14 +1206,25 @@ contract TokenizedStrategy {
                 profit = newTotalAssets - oldTotalAssets;
             }
 
-            // Any assets that show up before the first depositor should not be
-            // claimable by that first depositor. Mint matching dead shares so
-            // the vault starts from a 1:1 PPS.
-            if (oldTotalAssets == 0 && S.totalSupply == 0) {
-                _mint(S, DEAD_ADDRESS, newTotalAssets);
-            }
-
-            if (oldTotalAssets != 0) {
+            // Profit accrued below the supply floor is confiscated to dead
+            // shares at a flat PPS, fee free, so a dust supply can never
+            // capture a donation.
+            uint256 supply = _totalSupply(S);
+            if (supply < MINIMUM_SUPPLY) {
+                _mint(
+                    S,
+                    DEAD_ADDRESS,
+                    // If there is no prior PPS to preserve, target 1:1.
+                    oldTotalAssets == 0
+                        ? newTotalAssets
+                        : _convertToSharesFromTotals(
+                            profit,
+                            supply,
+                            oldTotalAssets,
+                            Math.Rounding.Up
+                        )
+                );
+            } else if (oldTotalAssets != 0) {
                 (totalFees, protocolFees, ) = _chargeFees(
                     S,
                     profit,
