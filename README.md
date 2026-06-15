@@ -1,3 +1,5 @@
+> [!CAUTION]
+> **v3.1.0 risk:** share pricing is driven by `strategyTotalAssets()`, and constant accrual can move PPS, previews, and conversions before `report()`. If a strategy misreports that value, or the value can be manipulated, vault shares can be mispriced. Re-test any strategy or integration that assumes `report()` is the only accounting boundary.
 
 # Yearn Tokenized Strategy
 
