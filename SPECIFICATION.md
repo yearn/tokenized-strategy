@@ -62,7 +62,7 @@ The majority of functions in the BaseStrategy are either external functions with
 
 `harvestAndReport()/_harvestAndReport()`: Called during reports to tell the strategy a trusted address has called it and to harvest any rewards re-deploy any loose funds and return the actual amount of funds the strategy holds.
 
-`tendThis(uint256)/_tend(uint256)`: Called by the TokenizedStrategy during tend calls to tell the strategy a trusted address has called tend and it has the uint256 parameter of loose asset available to deposit. NOTE: we use `tendThis` to avoid function signature collisions so that `tend` will be forwarded to the TokenizedStrategy. Under constant accrual a tend is not an accounting boundary: value changes it makes price into views through simulated totals and are realized by the next state-changing accrual, not only by a report.
+`tendThis(uint256)/_tend(uint256)`: Called by the TokenizedStrategy during tend calls to tell the strategy a trusted address has called tend and it has the uint256 parameter of loose asset available to deposit. NOTE: we use `tendThis` to avoid function signature collisions so that `tend` will be forwarded to the TokenizedStrategy. If `_strategyTotalAssets()` is overridden for constant accrual, a tend is not an accounting boundary: value changes it makes price into views through simulated totals and are realized by the next state-changing accrual, not only by a report.
 
 `tendTrigger()/_tendTrigger()`: View function to return if a tend call is needed.
 
@@ -191,7 +191,7 @@ Withdrawals and redemptions are paused by `setPaused(true)`, which can be called
 
 
 ## Use
-A strategist can simply inherit the BaseStrategy.sol contract and override 3 simple functions with their specific needs. 
+A strategist can simply inherit the BaseStrategy.sol contract and override 3 required functions with their specific needs. They can also override `_strategyTotalAssets()` if they want live accounting instead of the default report-boundary accounting.
 
 The strategies code has been designed as a non-opinionated system to distribute funds of depositors to a single yield generating opportunity while managing accounting in a robust way.
 
@@ -216,7 +216,7 @@ Example constraints:
 - ...
 
 ## Development
-Strategists should be able to use a pre-built "Strategy Mix" that will contain the imported BaseStrategy.sol as well as standardized tests for any 4626 vault. Developing a strategy can be as simple as overriding three functions, with the potential for any number of other constraints or actions to be built on top of it. The Base implementation is only ~2KB, meaning there is plenty of room for strategists to build complex implementations while not having to be concerned with the generic functionality.
+Strategists should be able to use a pre-built "Strategy Mix" that will contain the imported BaseStrategy.sol as well as standardized tests for any 4626 vault. Developing a strategy can be as simple as overriding three required functions, with the potential for any number of other constraints or actions to be built on top of it. The Base implementation is only ~2KB, meaning there is plenty of room for strategists to build complex implementations while not having to be concerned with the generic functionality.
 
 
 ### Needed to Override
@@ -231,7 +231,9 @@ Strategists should be able to use a pre-built "Strategy Mix" that will contain t
 
 While it can be possible to deploy a completely ERC-4626 compliant vault with just those three functions it does allow for further customization if the strategist desires.
 
-*_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports. Note that under constant accrual any value change made during a tend affects view pricing through simulated totals and is realized by the next state-changing accrual rather than waiting for a report.
+*_strategyTotalAssets()*: By default this returns `TokenizedStrategy.lastTotalAssets()`, preserving report-boundary accounting. Override it only when the strategy needs live accounting from a read-only current asset estimate.
+
+*_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports. If `_strategyTotalAssets()` is overridden for constant accrual, any value change made during a tend affects view pricing through simulated totals and is realized by the next state-changing accrual rather than waiting for a report.
 
 *availableDepositLimit(address _owner)* can be overridden to implement any type of deposit limit.
 

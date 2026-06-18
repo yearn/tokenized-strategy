@@ -78,7 +78,7 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(performanceFeeRecipient, "Performance Fee Recipient");
     }
 
-    function setUpStrategy() public returns (address) {
+    function setUpStrategy() public virtual returns (address) {
         // we save the mock base strategy as a IMockStrategy to give it the needed interface
         IMockStrategy _strategy = IMockStrategy(
             address(new MockStrategy(address(asset), address(yieldSource)))
@@ -99,7 +99,7 @@ contract Setup is ExtendedTest, IEvents {
         return address(_strategy);
     }
 
-    function setUpIlliquidStrategy() public returns (address) {
+    function setUpIlliquidStrategy() public virtual returns (address) {
         IMockStrategy _strategy = IMockStrategy(
             address(
                 new MockIlliquidStrategy(address(asset), address(yieldSource))
