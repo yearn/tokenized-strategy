@@ -13,8 +13,8 @@ import {TokenizedStrategyLib as TokenizedStrategy} from "./libraries/TokenizedSt
  *  BaseStrategy implements all of the required functionality to
  *  seamlessly integrate with the `TokenizedStrategy` implementation contract
  *  allowing anyone to easily build a fully permissionless ERC-4626 compliant
- *  Vault by inheriting this contract and overriding three simple functions.
-
+ *  Vault by inheriting this contract and overriding three required functions.
+ *
  *  It utilizes an immutable proxy pattern that allows the BaseStrategy
  *  to remain simple and small. All standard logic is held within the
  *  `TokenizedStrategy` and is reused over any n strategies all using the
@@ -22,10 +22,10 @@ import {TokenizedStrategyLib as TokenizedStrategy} from "./libraries/TokenizedSt
  *  can only be concerned with writing their strategy specific code.
  *
  *  This contract should be inherited and the three main abstract methods
- *  `_deployFunds`, `_freeFunds` and `_strategyTotalAssets` implemented to adapt
- *  the Strategy to the particular needs it has to generate yield. There are
- *  other optional methods that can be implemented to further customize
- *  the strategy if desired.
+ *  `_deployFunds`, `_freeFunds` and `_harvestAndReport` implemented to adapt
+ *  the Strategy to the particular needs it has to generate yield. Optional
+ *  methods, including `_strategyTotalAssets`, can be implemented to further
+ *  customize the strategy if desired.
  *
  *  All default storage for the strategy is controlled and updated by the
  *  `TokenizedStrategy`. The implementation holds a storage struct that
@@ -76,6 +76,7 @@ abstract contract BaseStrategy {
     /**
      * @dev Reuses the TokenizedStrategy reentrancy guard for custom strategy functions.
      */
+
     modifier nonReentrantTokenized() {
         TokenizedStrategy.nonReentrantBefore();
         _;
@@ -202,23 +203,6 @@ abstract contract BaseStrategy {
     function _freeFunds(uint256 _amount) internal virtual;
 
     /**
-     * @dev Internal function to return an accurate accounting of all funds
-     * currently held by the Strategy.
-     *
-     * NOTE: All applicable assets including loose assets should be
-     * accounted for in this function.
-     *
-     * This function is used by ERC4626 view methods whenever the current block
-     * is not already latched, and by normal state changing accounting syncs
-     * when they refresh. It must be strictly read only and should not harvest,
-     * claim or otherwise mutate state.
-     *
-     * @return _strategyTotalAssets A trusted and accurate account for the total
-     * amount of 'asset' the strategy currently holds including idle funds.
-     */
-    function _strategyTotalAssets() internal view virtual returns (uint256);
-
-    /**
      * @dev Internal hook used by explicit {report()} accounting syncs.
      *
      * This can harvest rewards, claim fees, realize external position changes
@@ -238,6 +222,27 @@ abstract contract BaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @dev Internal function to return the Strategy's current asset estimate.
+     *
+     * The default returns the last realized total assets, preserving the
+     * report-boundary accounting behavior used before live accrual. Strategies
+     * that want constant accrual should override this with a strictly read-only
+     * estimate of all assets, including loose funds.
+     *
+     * NOTE: An override must not harvest, claim or otherwise mutate state.
+     *
+     * @return _totalAssets The strategy's current asset estimate.
+     */
+    function _strategyTotalAssets()
+        internal
+        view
+        virtual
+        returns (uint256 _totalAssets)
+    {
+        return TokenizedStrategy.lastTotalAssets();
+    }
+
+    /**
      * @dev Optional function for strategist to override that can
      *  be called in between reports.
      *
@@ -254,12 +259,12 @@ abstract contract BaseStrategy {
      *       sandwiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
-     * NOTE: Under constant accrual this is not an accounting boundary.
-     * Value changes made here price into {totalAssets}, conversions and
-     * previews through simulated totals and are realized by the next
-     * state-changing accrual (any deposit, mint, withdraw, redeem, fee
-     * configuration change, or report) — not only by report(). Slippage
-     * or costs incurred here net against any unrealized profit before
+     * NOTE: If `_strategyTotalAssets` is overridden for constant accrual, this
+     * is not an accounting boundary. Value changes made here price into
+     * {totalAssets}, conversions and previews through simulated totals and are
+     * realized by the next state-changing accrual (any deposit, mint, withdraw,
+     * redeem, fee configuration change, or report) — not only by report().
+     * Slippage or costs incurred here net against any unrealized profit before
      * performance fees are charged.
      *
      * @param _totalIdle The current amount of idle funds that are available to deploy.
@@ -350,14 +355,13 @@ abstract contract BaseStrategy {
      * This should attempt to free `_amount`, noting that `_amount` may
      * be more than is currently deployed.
      *
-     * NOTE: Under constant accrual, any profit or loss caused by the
-     * unwind will be reflected in pricing through simulated totals and
-     * realized by the next state-changing accrual without further
-     * action; a {report} is not required but can be used for controlled
-     * realization. If a report may need to be called after a shutdown it
-     * is important to check if the strategy is shutdown during
-     * {_harvestAndReport} so that it does not simply re-deploy all funds
-     * that had been freed.
+     * NOTE: If `_strategyTotalAssets` is overridden for constant accrual, any
+     * profit or loss caused by the unwind will be reflected in pricing through
+     * simulated totals and realized by the next state-changing accrual without
+     * further action; a {report} is not required but can be used for controlled
+     * realization. If a report may need to be called after a shutdown it is
+     * important to check if the strategy is shutdown during {_harvestAndReport}
+     * so that it does not simply re-deploy all funds that had been freed.
      *
      * EX:
      *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {
@@ -437,7 +441,7 @@ abstract contract BaseStrategy {
      *
      * We name the function `tendThis` so that `tend` calls are forwarded to
      * the TokenizedStrategy.
-
+     *
      * @param _totalIdle The amount of current idle funds that can be
      * deployed during the tend
      */

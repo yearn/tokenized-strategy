@@ -66,7 +66,7 @@ import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
  *  management for a custom strategy that inherits the `BaseStrategy`.
  *  Any function calls to the strategy that are not defined within that
  *  strategy will be forwarded through a delegateCall to this contract.
-
+ *
  *  A strategist only needs to override a few simple functions that are
  *  focused entirely on the strategy specific needs to easily and cheaply
  *  deploy their own permissionless 4626 compliant vault.
@@ -223,7 +223,6 @@ contract TokenizedStrategy {
         // The ERC20 compliant underlying asset that will be
         // used by the Strategy
         ERC20 asset;
-
 
         // These are the corresponding ERC20 variables needed for the
         // strategies token that is issued and burned on each deposit or withdraw.
@@ -888,14 +887,18 @@ contract TokenizedStrategy {
     ) internal view returns (uint256 supply, uint256 assets) {
         supply = _totalSupply(S);
 
-        if (S.entered == ENTERED || block.timestamp == S.lastAccrual)
+        if (S.entered == ENTERED || block.timestamp == S.lastAccrual) {
             return (supply, S.lastTotalAssets);
+        }
 
         assets = _strategyTotalAssets();
 
-        if (S.lastTotalAssets == 0)
+        if (
+            S.lastTotalAssets == 0
             // Mirrors {_accrue}: supply floor dead mint, fee-free recovery.
+        ) {
             return (supply < MINIMUM_SUPPLY ? supply + assets : supply, assets);
+        }
 
         if (assets > S.lastTotalAssets) {
             uint256 profit;
@@ -2144,7 +2147,8 @@ contract TokenizedStrategy {
         emit Transfer(from, to, amount);
     }
 
-    /** @dev Creates `amount` tokens and assigns them to `account`, increasing
+    /**
+     * @dev Creates `amount` tokens and assigns them to `account`, increasing
      * the total supply.
      *
      * Emits a {Transfer} event with `from` set to the zero address.
