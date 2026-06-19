@@ -9,8 +9,8 @@ contract Deploy is Script {
     Deployer public deployer =
         Deployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
-    // Vault factory address for v3.0.4
-    address public factory = 0x770D0d1Fb036483Ed4AbB6d53c1C88fb277D812F;
+    // Vault factory address for v3.1.0
+    address public factory = 0x310aC28ACF5E514abDbFF9Ab25e21f1bfe22bcAC;
 
     function run() external {
         vm.startBroadcast();
@@ -21,7 +21,14 @@ contract Deploy is Script {
             abi.encode(factory)
         );
 
-        bytes32 salt = bytes32(0);
+        // CreateX guards this raw salt to
+        // 0xf45fdd830e8ee48b85bd4c66eb52737e9c490d2bf9485311e0c013ce2b936820,
+        // yielding 0x310f5Db015E9d6E542fd41bd4542640790791e76.
+        bytes32 salt = bytes32(
+            uint256(
+                0x000000000000000000000000000000000000000000000000000000000019fdf1
+            )
+        );
 
         address contractAddress = deployer.deployCreate2(salt, bytecode);
 
@@ -31,11 +38,11 @@ contract Deploy is Script {
     }
 }
 
-contract Deployer {
+interface Deployer {
     event ContractCreation(address indexed newContract, bytes32 indexed salt);
 
     function deployCreate2(
         bytes32 salt,
         bytes memory initCode
-    ) public payable returns (address newContract) {}
+    ) external payable returns (address newContract);
 }
