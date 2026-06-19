@@ -108,8 +108,9 @@ abstract contract BaseStrategy {
      * This address should be the same for every strategy, never be adjusted
      * and always be checked before any integration with the Strategy.
      */
+    // NOTE: This is a holder address based on expected deterministic location for testing
     address public constant tokenizedStrategyAddress =
-        0x310f5Db015E9d6E542fd41bd4542640790791e76;
+        0x2e234DAe75C793f67A35089C9d99245E1C58470b;
 
     /*//////////////////////////////////////////////////////////////
                             IMMUTABLES
@@ -262,8 +263,8 @@ abstract contract BaseStrategy {
      *
      * NOTE: With the default `_strategyTotalAssets`, value changes made here
      * remain report-boundary accounting. If `_strategyTotalAssets` is overridden
-     * for live accounting value changes made here price into {totalAssets}, 
-     * conversions and previews through simulated totals and are realized by 
+     * for live accounting value changes made here price into {totalAssets},
+     * conversions and previews through simulated totals and are realized by
      * the next state-changing accrual
      *
      * @param _totalIdle The current amount of idle funds that are available to deploy.
