@@ -24,8 +24,10 @@ import {TokenizedStrategyLib as TokenizedStrategy} from "./libraries/TokenizedSt
  *  This contract should be inherited and the three main abstract methods
  *  `_deployFunds`, `_freeFunds` and `_harvestAndReport` implemented to adapt
  *  the Strategy to the particular needs it has to generate yield. Optional
- *  methods, including `_strategyTotalAssets`, can be implemented to further
- *  customize the strategy if desired.
+ *  methods can be implemented to further customize the strategy if desired.
+ *  `_strategyTotalAssets` defaults to `lastTotalAssets()` to preserve v3.0.4
+ *  report-boundary accounting and should only be overridden for read-only
+ *  live accounting.
  *
  *  All default storage for the strategy is controlled and updated by the
  *  `TokenizedStrategy`. The implementation holds a storage struct that
@@ -223,10 +225,10 @@ abstract contract BaseStrategy {
     /**
      * @dev Internal function to return the Strategy's current asset estimate.
      *
-     * The default returns the last realized total assets, preserving the
-     * report-boundary accounting behavior used before live accrual. Strategies
-     * that want constant accrual should override this with a strictly read-only
-     * estimate of all assets, including loose funds.
+     * The default returns `TokenizedStrategy.lastTotalAssets()`, preserving
+     * v3.0.4 report-boundary accounting. Strategies that want live accounting
+     * should override this with a strictly read-only estimate of all assets,
+     * including loose funds.
      *
      * NOTE: An override must not harvest, claim or otherwise mutate state.
      *
@@ -258,13 +260,11 @@ abstract contract BaseStrategy {
      *       sandwiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
-     * NOTE: If `_strategyTotalAssets` is overridden for constant accrual, this
-     * is not an accounting boundary. Value changes made here price into
-     * {totalAssets}, conversions and previews through simulated totals and are
-     * realized by the next state-changing accrual (any deposit, mint, withdraw,
-     * redeem, fee configuration change, or report) — not only by report().
-     * Slippage or costs incurred here net against any unrealized profit before
-     * performance fees are charged.
+     * NOTE: With the default `_strategyTotalAssets`, value changes made here
+     * remain report-boundary accounting. If `_strategyTotalAssets` is overridden
+     * for live accounting value changes made here price into {totalAssets}, 
+     * conversions and previews through simulated totals and are realized by 
+     * the next state-changing accrual
      *
      * @param _totalIdle The current amount of idle funds that are available to deploy.
      */
@@ -354,13 +354,11 @@ abstract contract BaseStrategy {
      * This should attempt to free `_amount`, noting that `_amount` may
      * be more than is currently deployed.
      *
-     * NOTE: If `_strategyTotalAssets` is overridden for constant accrual, any
-     * profit or loss caused by the unwind will be reflected in pricing through
-     * simulated totals and realized by the next state-changing accrual without
-     * further action; a {report} is not required but can be used for controlled
-     * realization. If a report may need to be called after a shutdown it is
-     * important to check if the strategy is shutdown during {_harvestAndReport}
-     * so that it does not simply re-deploy all funds that had been freed.
+     * NOTE: With the default `_strategyTotalAssets`, any profit or loss caused
+     * by the unwind remains report-boundary accounting. If `_strategyTotalAssets`
+     * is overridden for live accounting, unwind profit or loss will be reflected
+     * in pricing through simulated totals and realized by the next
+     * state-changing accrual without further action; a {report} is not required.
      *
      * EX:
      *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {
@@ -394,8 +392,9 @@ abstract contract BaseStrategy {
     }
 
     /**
-     * @notice Returns the strategies best current estimate for total assets.
-     * @dev Read-only callback for the TokenizedStrategy.
+     * @notice Returns the strategy's asset estimate used by TokenizedStrategy.
+     * @dev Read-only callback for the TokenizedStrategy. BaseStrategy's default
+     * returns `lastTotalAssets()`, preserving v3.0.4 report-boundary behavior.
      */
     function strategyTotalAssets() external view virtual returns (uint256) {
         return _strategyTotalAssets();

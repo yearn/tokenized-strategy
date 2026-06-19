@@ -1,6 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity >=0.8.18 ^0.8.0;
 
+// lib/openzeppelin-contracts/contracts/utils/Context.sol
+
+// OpenZeppelin Contracts (last updated v4.9.4) (utils/Context.sol)
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+
+    function _contextSuffixLength() internal view virtual returns (uint256) {
+        return 0;
+    }
+}
+
 // lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol
 
 // OpenZeppelin Contracts (last updated v4.9.0) (token/ERC20/IERC20.sol)
@@ -167,34 +195,6 @@ interface IERC20Permit {
      */
     // solhint-disable-next-line func-name-mixedcase
     function DOMAIN_SEPARATOR() external view returns (bytes32);
-}
-
-// lib/openzeppelin-contracts/contracts/utils/Context.sol
-
-// OpenZeppelin Contracts (last updated v4.9.4) (utils/Context.sol)
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
-
-    function _contextSuffixLength() internal view virtual returns (uint256) {
-        return 0;
-    }
 }
 
 // lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol
@@ -823,6 +823,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     event StrategyShutdown();
 
+    event UpdatePaused(bool paused);
+
     event NewTokenizedStrategy(
         address indexed strategy,
         address indexed asset,
@@ -830,6 +832,13 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     );
 
     event Reported(
+        uint256 profit,
+        uint256 loss,
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
+
+    event Accrued(
         uint256 profit,
         uint256 loss,
         uint256 protocolFees,
@@ -946,7 +955,13 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function lastReport() external view returns (uint256);
 
+    function lastAccrual() external view returns (uint256);
+
+    function lastTotalAssets() external view returns (uint256);
+
     function isShutdown() external view returns (bool);
+
+    function isPaused() external view returns (bool);
 
     function unlockedShares() external view returns (uint256);
 
@@ -974,12 +989,268 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function shutdownStrategy() external;
 
+    function setPaused(bool paused) external;
+
     function emergencyWithdraw(uint256 _amount) external;
 }
 
-// src/BaseStrategy.sol
+// src/libraries/TokenizedStrategyLib.sol
 
-// TokenizedStrategy interface used for internal view delegateCalls.
+library TokenizedStrategyLib {
+    bytes32 internal constant BASE_STRATEGY_STORAGE =
+        bytes32(uint256(keccak256("yearn.base.strategy.storage")) - 1);
+
+    uint8 internal constant ENTERED = 2;
+    uint8 internal constant NOT_ENTERED = 1;
+
+    // prettier-ignore
+    struct StrategyData {
+        ERC20 asset;
+        uint8 decimals;
+        string name;
+        uint256 totalSupply;
+        mapping(address => uint256) nonces;
+        mapping(address => uint256) balances;
+        mapping(address => mapping(address => uint256)) allowances;
+        uint256 lastTotalAssets;
+        uint256 profitUnlockingRate;
+        uint96 fullProfitUnlockDate;
+        address keeper;
+        uint32 profitMaxUnlockTime;
+        uint16 performanceFee;
+        address performanceFeeRecipient;
+        uint96 lastReport;
+        address management;
+        address pendingManagement;
+        address emergencyAdmin;
+        uint8 entered;
+        bool shutdown;
+        bool paused;
+        uint72 lastAccrual;
+    }
+
+    function strategyStorage() internal pure returns (StrategyData storage S) {
+        bytes32 slot = BASE_STRATEGY_STORAGE;
+        assembly {
+            S.slot := slot
+        }
+    }
+
+    function asset() internal view returns (address) {
+        return address(strategyStorage().asset);
+    }
+
+    function name() internal view returns (string memory) {
+        return strategyStorage().name;
+    }
+
+    function symbol() internal view returns (string memory) {
+        return ITokenizedStrategy(address(this)).symbol();
+    }
+
+    function decimals() internal view returns (uint8) {
+        return strategyStorage().decimals;
+    }
+
+    function apiVersion() internal view returns (string memory) {
+        return ITokenizedStrategy(address(this)).apiVersion();
+    }
+
+    function MAX_FEE() internal view returns (uint16) {
+        return ITokenizedStrategy(address(this)).MAX_FEE();
+    }
+
+    function FACTORY() internal view returns (address) {
+        return ITokenizedStrategy(address(this)).FACTORY();
+    }
+
+    function management() internal view returns (address) {
+        return strategyStorage().management;
+    }
+
+    function pendingManagement() internal view returns (address) {
+        return strategyStorage().pendingManagement;
+    }
+
+    function keeper() internal view returns (address) {
+        return strategyStorage().keeper;
+    }
+
+    function emergencyAdmin() internal view returns (address) {
+        return strategyStorage().emergencyAdmin;
+    }
+
+    function performanceFee() internal view returns (uint16) {
+        return strategyStorage().performanceFee;
+    }
+
+    function performanceFeeRecipient() internal view returns (address) {
+        return strategyStorage().performanceFeeRecipient;
+    }
+
+    function profitMaxUnlockTime() internal view returns (uint256) {
+        uint256 _profitMaxUnlockTime = strategyStorage().profitMaxUnlockTime;
+        if (_profitMaxUnlockTime == type(uint32).max) {
+            return type(uint256).max;
+        }
+
+        return _profitMaxUnlockTime;
+    }
+
+    function lastReport() internal view returns (uint256) {
+        return uint256(strategyStorage().lastReport);
+    }
+
+    function lastAccrual() internal view returns (uint256) {
+        return uint256(strategyStorage().lastAccrual);
+    }
+
+    function lastTotalAssets() internal view returns (uint256) {
+        return strategyStorage().lastTotalAssets;
+    }
+
+    function fullProfitUnlockDate() internal view returns (uint256) {
+        return uint256(strategyStorage().fullProfitUnlockDate);
+    }
+
+    function profitUnlockingRate() internal view returns (uint256) {
+        return strategyStorage().profitUnlockingRate;
+    }
+
+    function isShutdown() internal view returns (bool) {
+        return strategyStorage().shutdown;
+    }
+
+    function isPaused() internal view returns (bool) {
+        return strategyStorage().paused;
+    }
+
+    function isEntered() internal view returns (bool) {
+        return strategyStorage().entered == ENTERED;
+    }
+
+    function nonReentrantBefore() internal {
+        StrategyData storage S = strategyStorage();
+        // On the first call to nonReentrant, `entered` will be false (2)
+        require(S.entered != ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        S.entered = ENTERED;
+    }
+
+    function nonReentrantAfter() internal {
+        // Reset to false (1) once call has finished.
+        strategyStorage().entered = NOT_ENTERED;
+    }
+
+    function totalAssets() internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).totalAssets();
+    }
+
+    function totalSupply() internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).totalSupply();
+    }
+
+    function balanceOf(address _account) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).balanceOf(_account);
+    }
+
+    function allowance(
+        address _owner,
+        address _spender
+    ) internal view returns (uint256) {
+        return strategyStorage().allowances[_owner][_spender];
+    }
+
+    function nonces(address _owner) internal view returns (uint256) {
+        return strategyStorage().nonces[_owner];
+    }
+
+    function DOMAIN_SEPARATOR() internal view returns (bytes32) {
+        return ITokenizedStrategy(address(this)).DOMAIN_SEPARATOR();
+    }
+
+    function unlockedShares() internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).unlockedShares();
+    }
+
+    function requireManagement(address _sender) internal view {
+        require(_sender == strategyStorage().management, "!management");
+    }
+
+    function requireKeeperOrManagement(address _sender) internal view {
+        StrategyData storage S = strategyStorage();
+        require(_sender == S.keeper || _sender == S.management, "!keeper");
+    }
+
+    function requireEmergencyAuthorized(address _sender) internal view {
+        StrategyData storage S = strategyStorage();
+        require(
+            _sender == S.emergencyAdmin || _sender == S.management,
+            "!emergency authorized"
+        );
+    }
+
+    function pricePerShare() internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).pricePerShare();
+    }
+
+    function convertToShares(uint256 _assets) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).convertToShares(_assets);
+    }
+
+    function convertToAssets(uint256 _shares) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).convertToAssets(_shares);
+    }
+
+    function previewDeposit(uint256 _assets) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).previewDeposit(_assets);
+    }
+
+    function previewMint(uint256 _shares) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).previewMint(_shares);
+    }
+
+    function previewWithdraw(uint256 _assets) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).previewWithdraw(_assets);
+    }
+
+    function previewRedeem(uint256 _shares) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).previewRedeem(_shares);
+    }
+
+    function maxDeposit(address _receiver) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).maxDeposit(_receiver);
+    }
+
+    function maxMint(address _receiver) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).maxMint(_receiver);
+    }
+
+    function maxWithdraw(address _owner) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).maxWithdraw(_owner);
+    }
+
+    function maxWithdraw(
+        address _owner,
+        uint256 _maxLoss
+    ) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).maxWithdraw(_owner, _maxLoss);
+    }
+
+    function maxRedeem(address _owner) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).maxRedeem(_owner);
+    }
+
+    function maxRedeem(
+        address _owner,
+        uint256 _maxLoss
+    ) internal view returns (uint256) {
+        return ITokenizedStrategy(address(this)).maxRedeem(_owner, _maxLoss);
+    }
+}
+
+// src/BaseStrategy.sol
 
 /**
  * @title YearnV3 Base Strategy
@@ -988,8 +1259,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
  *  BaseStrategy implements all of the required functionality to
  *  seamlessly integrate with the `TokenizedStrategy` implementation contract
  *  allowing anyone to easily build a fully permissionless ERC-4626 compliant
- *  Vault by inheriting this contract and overriding three simple functions.
-
+ *  Vault by inheriting this contract and overriding three required functions.
+ *
  *  It utilizes an immutable proxy pattern that allows the BaseStrategy
  *  to remain simple and small. All standard logic is held within the
  *  `TokenizedStrategy` and is reused over any n strategies all using the
@@ -998,17 +1269,18 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
  *
  *  This contract should be inherited and the three main abstract methods
  *  `_deployFunds`, `_freeFunds` and `_harvestAndReport` implemented to adapt
- *  the Strategy to the particular needs it has to generate yield. There are
- *  other optional methods that can be implemented to further customize
- *  the strategy if desired.
+ *  the Strategy to the particular needs it has to generate yield. Optional
+ *  methods can be implemented to further customize the strategy if desired.
+ *  `_strategyTotalAssets` defaults to `lastTotalAssets()` to preserve v3.0.4
+ *  report-boundary accounting and should only be overridden for read-only
+ *  live accounting.
  *
  *  All default storage for the strategy is controlled and updated by the
  *  `TokenizedStrategy`. The implementation holds a storage struct that
  *  contains all needed global variables in a manual storage slot. This
  *  means strategists can feel free to implement their own custom storage
  *  variables as they need with no concern of collisions. All global variables
- *  can be viewed within the Strategy by a simple call using the
- *  `TokenizedStrategy` variable. IE: TokenizedStrategy.globalVariable();.
+ *  can be viewed within the Strategy using `TokenizedStrategy`.
  */
 abstract contract BaseStrategy {
     /*//////////////////////////////////////////////////////////////
@@ -1027,7 +1299,7 @@ abstract contract BaseStrategy {
      * @dev Use to assure that the call is coming from the strategies management.
      */
     modifier onlyManagement() {
-        TokenizedStrategy.requireManagement(msg.sender);
+        TokenizedStrategyLib.requireManagement(msg.sender);
         _;
     }
 
@@ -1036,7 +1308,7 @@ abstract contract BaseStrategy {
      * management or the keeper.
      */
     modifier onlyKeepers() {
-        TokenizedStrategy.requireKeeperOrManagement(msg.sender);
+        TokenizedStrategyLib.requireKeeperOrManagement(msg.sender);
         _;
     }
 
@@ -1045,8 +1317,18 @@ abstract contract BaseStrategy {
      * management or the emergency admin.
      */
     modifier onlyEmergencyAuthorized() {
-        TokenizedStrategy.requireEmergencyAuthorized(msg.sender);
+        TokenizedStrategyLib.requireEmergencyAuthorized(msg.sender);
         _;
+    }
+
+    /**
+     * @dev Reuses the TokenizedStrategy reentrancy guard for custom strategy functions.
+     */
+
+    modifier nonReentrantTokenized() {
+        TokenizedStrategyLib.nonReentrantBefore();
+        _;
+        TokenizedStrategyLib.nonReentrantAfter();
     }
 
     /**
@@ -1072,9 +1354,8 @@ abstract contract BaseStrategy {
      * This address should be the same for every strategy, never be adjusted
      * and always be checked before any integration with the Strategy.
      */
-    // NOTE: This is a holder address based on expected deterministic location for testing
     address public constant tokenizedStrategyAddress =
-        0x2e234DAe75C793f67A35089C9d99245E1C58470b;
+        0x310f5Db015E9d6E542fd41bd4542640790791e76;
 
     /*//////////////////////////////////////////////////////////////
                             IMMUTABLES
@@ -1087,41 +1368,32 @@ abstract contract BaseStrategy {
     ERC20 internal immutable asset;
 
     /**
-     * @dev This variable is set to address(this) during initialization of each strategy.
-     *
-     * This can be used to retrieve storage data within the strategy
-     * contract as if it were a linked library.
-     *
-     *       i.e. uint256 totalAssets = TokenizedStrategy.totalAssets()
-     *
-     * Using address(this) will mean any calls using this variable will lead
-     * to a call to itself. Which will hit the fallback function and
-     * delegateCall that to the actual TokenizedStrategy.
-     */
-    ITokenizedStrategy internal immutable TokenizedStrategy;
-
-    /**
      * @notice Used to initialize the strategy on deployment.
      *
-     * This will set the `TokenizedStrategy` variable for easy
-     * internal view calls to the implementation. As well as
-     * initializing the default storage variables based on the
-     * parameters and using the deployer for the permissioned roles.
+     * This will initialize the default storage variables based on the
+     * parameters and use the deployer for the permissioned roles.
      *
      * @param _asset Address of the underlying asset.
      * @param _name Name the strategy will use.
      */
     constructor(address _asset, string memory _name) {
         asset = ERC20(_asset);
+        _initialize(_asset, _name, msg.sender, msg.sender, msg.sender);
+    }
 
-        // Set instance of the implementation for internal use.
-        TokenizedStrategy = ITokenizedStrategy(address(this));
-
+    /// @dev Internal function to initialize the strategy.
+    function _initialize(
+        address _asset,
+        string memory _name,
+        address _management,
+        address _performanceFeeRecipient,
+        address _keeper
+    ) internal virtual {
         // Initialize the strategy's storage variables.
         _delegateCall(
             abi.encodeCall(
                 ITokenizedStrategy.initialize,
-                (_asset, _name, msg.sender, msg.sender, msg.sender)
+                (_asset, _name, _management, _performanceFeeRecipient, _keeper)
             )
         );
 
@@ -1178,35 +1450,44 @@ abstract contract BaseStrategy {
     function _freeFunds(uint256 _amount) internal virtual;
 
     /**
-     * @dev Internal function to harvest all rewards, redeploy any idle
-     * funds and return an accurate accounting of all funds currently
-     * held by the Strategy.
+     * @dev Internal hook used by explicit {report()} accounting syncs.
      *
-     * This should do any needed harvesting, rewards selling, accrual,
-     * redepositing etc. to get the most accurate view of current assets.
+     * This can harvest rewards, claim fees, realize external position changes
+     * or perform any other mutable work needed before returning the strategy's
+     * up-to-date total assets.
      *
-     * NOTE: All applicable assets including loose assets should be
-     * accounted for in this function.
-     *
-     * Care should be taken when relying on oracles or swap values rather
-     * than actual amounts as all Strategy profit/loss accounting will
-     * be done based on this returned value.
-     *
-     * This can still be called post a shutdown, a strategist can check
-     * `TokenizedStrategy.isShutdown()` to decide if funds should be
-     * redeployed or simply realize any profits/losses.
-     *
-     * @return _totalAssets A trusted and accurate account for the total
+     * @return _reportedAssets A trusted and accurate account for the total
      * amount of 'asset' the strategy currently holds including idle funds.
      */
     function _harvestAndReport()
         internal
         virtual
-        returns (uint256 _totalAssets);
+        returns (uint256 _reportedAssets);
 
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Internal function to return the Strategy's current asset estimate.
+     *
+     * The default returns `TokenizedStrategy.lastTotalAssets()`, preserving
+     * v3.0.4 report-boundary accounting. Strategies that want live accounting
+     * should override this with a strictly read-only estimate of all assets,
+     * including loose funds.
+     *
+     * NOTE: An override must not harvest, claim or otherwise mutate state.
+     *
+     * @return _totalAssets The strategy's current asset estimate.
+     */
+    function _strategyTotalAssets()
+        internal
+        view
+        virtual
+        returns (uint256 _totalAssets)
+    {
+        return TokenizedStrategyLib.lastTotalAssets();
+    }
 
     /**
      * @dev Optional function for strategist to override that can
@@ -1225,7 +1506,14 @@ abstract contract BaseStrategy {
      *       sandwiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
-     * This will have no effect on PPS of the strategy till report() is called.
+     * NOTE: With the default `_strategyTotalAssets`, value changes made here
+     * remain report-boundary accounting. If `_strategyTotalAssets` is overridden
+     * for live accounting, this is not an accounting boundary. Value changes
+     * made here price into {totalAssets}, conversions and previews through
+     * simulated totals and are realized by the next state-changing accrual (any
+     * deposit, mint, withdraw, redeem, fee configuration change, or report), not
+     * only by report(). Slippage or costs incurred here net against any
+     * unrealized profit before performance fees are charged.
      *
      * @param _totalIdle The current amount of idle funds that are available to deploy.
      */
@@ -1266,7 +1554,7 @@ abstract contract BaseStrategy {
      * traditional deposit limit or for implementing a whitelist etc.
      *
      *   EX:
-     *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
+     *      if(isAllowed[receiver]) return super.availableDepositLimit(receiver);
      *
      * This does not need to take into account any conversion rates
      * from shares to assets. But should know that any non max uint256
@@ -1274,11 +1562,11 @@ abstract contract BaseStrategy {
      * custom amounts low enough as not to cause overflow when multiplied
      * by `totalSupply`.
      *
-     * @param . The address that is depositing into the strategy.
-     * @return . The available amount the `_owner` can deposit in terms of `asset`
+     * @param . The address that is receiving the shares from the deposit.
+     * @return . The available amount that can be deposited in terms of `asset`
      */
     function availableDepositLimit(
-        address /*_owner*/
+        address /*receiver*/
     ) public view virtual returns (uint256) {
         return type(uint256).max;
     }
@@ -1289,11 +1577,11 @@ abstract contract BaseStrategy {
      * be overridden by strategists.
      *
      * This function will be called before any withdraw or redeem to enforce
-     * any limits desired by the strategist. This can be used for illiquid
-     * or sandwichable strategies. It should never be lower than `totalIdle`.
+     * any limits desired by the strategist or integrated protocol. This can
+     * be used for illiquid or sandwichable strategies.
      *
      *   EX:
-     *       return TokenIzedStrategy.totalIdle();
+     *       return asset.balanceOf(address(this));
      *
      * This does not need to take into account the `_owner`'s share balance
      * or conversion rates from shares to assets.
@@ -1315,11 +1603,15 @@ abstract contract BaseStrategy {
      * This should attempt to free `_amount`, noting that `_amount` may
      * be more than is currently deployed.
      *
-     * NOTE: This will not realize any profits or losses. A separate
-     * {report} will be needed in order to record any profit/loss. If
-     * a report may need to be called after a shutdown it is important
-     * to check if the strategy is shutdown during {_harvestAndReport}
-     * so that it does not simply re-deploy all funds that had been freed.
+     * NOTE: With the default `_strategyTotalAssets`, any profit or loss caused
+     * by the unwind remains report-boundary accounting. If `_strategyTotalAssets`
+     * is overridden for live accounting, unwind profit or loss will be reflected
+     * in pricing through simulated totals and realized by the next
+     * state-changing accrual without further action; a {report} is not required
+     * but can be used for controlled realization. If a report may need to be
+     * called after a shutdown it is important to check if the strategy is
+     * shutdown during {_harvestAndReport} so that it does not simply re-deploy
+     * all funds that had been freed.
      *
      * EX:
      *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {
@@ -1350,6 +1642,15 @@ abstract contract BaseStrategy {
      */
     function deployFunds(uint256 _amount) external virtual onlySelf {
         _deployFunds(_amount);
+    }
+
+    /**
+     * @notice Returns the strategy's asset estimate used by TokenizedStrategy.
+     * @dev Read-only callback for the TokenizedStrategy. BaseStrategy's default
+     * returns `lastTotalAssets()`, preserving v3.0.4 report-boundary behavior.
+     */
+    function strategyTotalAssets() external view virtual returns (uint256) {
+        return _strategyTotalAssets();
     }
 
     /**
@@ -1391,7 +1692,7 @@ abstract contract BaseStrategy {
      *
      * We name the function `tendThis` so that `tend` calls are forwarded to
      * the TokenizedStrategy.
-
+     *
      * @param _totalIdle The amount of current idle funds that can be
      * deployed during the tend
      */
