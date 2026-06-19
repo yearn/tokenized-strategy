@@ -48,7 +48,7 @@ The base strategy is a simple abstract contract designed to be inherited by the 
 
 `tokenizedStrategyAddress`: This is the address the fallback function will use to delegatecall to and is set before deployment to a constant so it can never be changed.
 
-`TokenizedStrategy`: This is an immutable set on deployment by casting address(this) through an ITokenizedStrategy interface. The variable should be used in a similar manner as a linked library would be to have a simple method to read from the Strategies storage internally. Setting it to address(this) means anything using this variable will static call itself which should hit the fallback and then delegatecall the TokenizedStrategy retrieving the correct variables.
+`TokenizedStrategy`: This is the local `TokenizedStrategyLib` alias used by BaseStrategy to read TokenizedStrategy storage and call TokenizedStrategy views through `address(this)`. It behaves like a linked-library helper for the strategy's own storage; it is not an implementation address variable. Unknown external calls still hit the fallback and delegatecall the `tokenizedStrategyAddress` implementation.
 
 `asset`: The immutable ERC20 instance of the underlying asset being used.
 
@@ -60,9 +60,9 @@ The majority of functions in the BaseStrategy are either external functions with
 
 `freeFunds(uint256)/_freeFunds(uint256)`: Called by the TokenizedStrategy during withdraws to get the amount of the uint256 parameter freed up in order to process the withdraw.
 
-`harvestAndReport()/_harvestAndReport()`: Called during reports to tell the strategy a trusted address has called it and to harvest any rewards re-deploy any loose funds and return the actual amount of funds the strategy holds.
+`harvestAndReport()/_harvestAndReport()`: Called during reports to tell the strategy a trusted address has called it and to harvest any rewards, re-deploy any loose funds and return the actual amount of funds the strategy holds. With the default BaseStrategy accounting this is the point where yield and external position changes are realized, preserving v3.0.4 behavior.
 
-`tendThis(uint256)/_tend(uint256)`: Called by the TokenizedStrategy during tend calls to tell the strategy a trusted address has called tend and it has the uint256 parameter of loose asset available to deposit. NOTE: we use `tendThis` to avoid function signature collisions so that `tend` will be forwarded to the TokenizedStrategy.
+`tendThis(uint256)/_tend(uint256)`: Called by the TokenizedStrategy during tend calls to tell the strategy a trusted address has called tend and it has the uint256 parameter of loose asset available to deposit. NOTE: we use `tendThis` to avoid function signature collisions so that `tend` will be forwarded to the TokenizedStrategy. Under the default `_strategyTotalAssets()` implementation, value changes made by a tend remain report-boundary accounting. If `_strategyTotalAssets()` is overridden for constant accrual, a tend is not an accounting boundary: value changes it makes price into views through simulated totals and are realized by the next state-changing accrual, not only by a report.
 
 `tendTrigger()/_tendTrigger()`: View function to return if a tend call is needed.
 
@@ -86,10 +86,17 @@ Users can deposit ASSET tokens to receive shares.
 
 Deposits are limited by the availableDepositLimit function that can be changed by the strategist if non uint256.max values are desired.
 
-#### Withdrawals / Redeems
-Users can redeem their shares at any point in time if there is liquidity available. 
+#### First Depositor / Donation Protection
+Profit recognized by an accrual while the effective share supply is below `MINIMUM_SUPPLY` (1e3) is minted to a dead address as shares at a flat price per share rather than accruing to holders. This covers both assets that show up before the first deposit (the vault starts from a 1:1 PPS) and donations made while an attacker controls a dust supply, which bounds the classic first-depositor inflation attack: for a donation to move the share price at all the attacker must hold at least 1e3 shares of their own, capping any victim rounding loss at roughly `donation / 1e3`. Confiscated profit is not charged performance fees.
 
-The amount of a withdraw or redeem can be limited by the strategist by overriding the availableWithdrawLimit function.
+This guard lives only in the accrual path, which is the single point where unsolicited value can enter pricing for permissionless flows (every deposit, mint, withdraw and redeem accrues first, and all conversions price off accrued or simulated totals). `report()` is intentionally not guarded: it is keeper-permissioned, and with a non-zero `profitMaxUnlockTime` profit locking already prevents any instant PPS jump.
+
+Because no shares are ever carved from depositors, deposits, mints, previews and max functions remain fully ERC-4626 compliant, there is no minimum first deposit, and a vault that is fully exited holds no locked dead shares from normal operation — dead shares only ever result from pre-deposit donations or attacker donations.
+
+#### Withdrawals / Redeems
+Users can redeem their shares when the strategy is not paused and there is liquidity available.
+
+The amount of a withdraw or redeem can be limited by the strategist by overriding the availableWithdrawLimit function. If the strategy is paused, withdraw and redeem are blocked.
 
 In order to properly comply with the ERC-4626 standard and still allow losses, both withdraw and redeem have an additional optional parameter of 'maxLoss' that can be used. The default for 'maxLoss' is 0 (i.e. revert if any loss) for withdraws, and 10_000 (100%) for redeems.
 
@@ -99,17 +106,16 @@ The strategy issues shares to each depositor to track their relative share of as
 They are ERC4626 compliant. Please read [ERC4626 compliance](https://hackmd.io/cOFvpyR-SxWArfthhLJb5g#ERC4626-compliance) to understand the implications. 
 
 #### Accounting
-The strategy will evaluate profit and losses from the yield generating activities. 
+The strategy stores `lastTotalAssets` as the realized accounting baseline.
 
-This is done comparing the current totalAssets of the strategy with the amount returned from _harvestAndReport()
+With the default BaseStrategy implementation, `_strategyTotalAssets()` returns `TokenizedStrategy.lastTotalAssets()`. This preserves v3.0.4 report-boundary accounting: normal ERC4626 writes use the stored baseline, and yield, donations or external position changes do not enter PPS until a keeper calls `report()` and `_harvestAndReport()` returns the updated total.
 
-If totalAssets < newTotalAssets: the vault will record a profit
-If totalAssets > newTotalAssets: the vault will record a loss
+A strategy can opt into live accounting by overriding `_strategyTotalAssets()` with a strictly read-only estimate of all assets. In that mode, views simulate any delta from `lastTotalAssets` when the current block is not latched, and state-changing flows accrue that delta before continuing. Live profit charges fees immediately and updates `lastTotalAssets`; live loss can burn locked profit shares before updating the baseline.
 
-Both loss and profit will impact strategy's totalAssets, increasing if there are profits, decreasing  if there are losses.
+`report()` always syncs the live estimate first, then calls `_harvestAndReport()` for harvestable or report-only accounting. Profit or loss from the report is the difference between `lastTotalAssets` after the pre-report sync and the amount returned by `_harvestAndReport()`.
 
 #### Fees
-Fee assessment and distribution is handled during each `report` call after profits or losses are recorded. 
+Fee assessment and distribution is handled during each `report` call after profits or losses are recorded. If a strategy opts into live accounting, fee assessment is also handled during state-changing accruals that realize live profit. With the default BaseStrategy implementation, `_strategyTotalAssets()` returns `lastTotalAssets()`, so live accrual does not introduce profit and fees remain report-boundary by default.
 
 It will report the amount of fees that need to be charged and the strategy will issue shares for that amount of fees.
 
@@ -118,7 +124,7 @@ There are two potential fees. Performance fees and protocol fees. Performance fe
 Protocol fees are configured by Yearn governance through the Factory and are taken as a percent of the performanceFees charged. I.E. profit = 100, performance fees = 20% protocol fees = 10%. Then total fees charged = 100 * .2 = 20 of which 10% is sent to the protocol fee recipient (2) and 90% (18) is sent the strategy specific `performanceFeeRecipient`.
 
 ### Profit distribution 
-Profit from report calls will accumulate in a buffer. This buffer will be linearly unlocked over the locking period seconds at profitUnlockingRate. 
+Profit from report calls will accumulate in a buffer. This buffer will be linearly unlocked over the locking period seconds at profitUnlockingRate. Live-accrued profit from an overridden `_strategyTotalAssets()` is not report-locked; it updates the realized baseline immediately after fees.
 
 Profits will be locked for a max period of time of profitMaxUnlockTime seconds and will be gradually distributed. To avoid spending too much gas for profit unlock, the amount of time a profit will be locked is a weighted average between the new profit and the previous profit. 
 
@@ -169,22 +175,22 @@ This can be customized based on the strategy. Based on aspects such as TVL, expe
 Strategy Shares are ERC4626 compliant. 
 
 ## Emergency Operation
-There is default emergency functions built in. First of which is `shutdownStrategy`. This can only ever be called by the management address and is non-reversible.
+There is default emergency functions built in. First of which is `shutdownStrategy`. This can be called by the management address or emergencyAdmin and is non-reversible.
 
-Once this is called it will stop any further deposit or mints but will have no effect on any other functionality including withdraw, redeem, report and tend. This is to allow management to continue potentially recording profits or losses and users to withdraw even post shutdown.
+Once this is called it will stop any further deposit or mints but will have no effect on any other functionality including withdraw, redeem, report and tend. This is to allow management to continue potentially recording profits or losses and users to withdraw even post shutdown. If the strategy is also paused, the pause still blocks deposit, mint, withdraw and redeem until management unpauses.
 
 This can be used in an emergency or simply to retire a vault.
 
-Once a strategy is shutdown management can also call `emergencyWithdraw(amount)`. Which will tell the strategy to withdraw a specified `amount` from the yield source and keep it as idle in the vault. This function will also do any needed updates to totalDebt and totalIdle, based on amounts withdrawn to assure withdraws continue to function properly.
+Once a strategy is shutdown or paused, management or emergencyAdmin can also call `emergencyWithdraw(amount)`. Which will tell the strategy to withdraw a specified `amount` from the yield source and keep it as idle in the vault. This function performs no accounting update at call time, so the rescue path has no dependency on the strategy's asset estimate. With the default `_strategyTotalAssets()` implementation, any profit or loss caused by the unwind remains report-boundary accounting. If `_strategyTotalAssets()` is overridden for live accounting, the unwind can price into views through simulated totals and be realized by the next state-changing accrual or report.
 
 All other emergency functionality is left up to the individual strategist.
 
 ### Withdrawals
-Withdrawals can't be paused under any circumstance unless built in a specific implementation.
+Withdrawals and redemptions are paused by `setPaused(true)`, which can be called by management or emergencyAdmin. Only management can unpause. Shutdown alone does not pause withdrawals or redemptions; liquidity, `availableWithdrawLimit`, and the paused state determine whether a user can withdraw.
 
 
 ## Use
-A strategist can simply inherit the BaseStrategy.sol contract and override 3 simple functions with their specific needs. 
+A strategist can simply inherit the BaseStrategy.sol contract and override 3 required functions with their specific needs. The default `_strategyTotalAssets()` returns `TokenizedStrategy.lastTotalAssets()`, preserving v3.0.4 report-boundary accounting. They can override `_strategyTotalAssets()` if they want live accounting from a read-only current asset estimate.
 
 The strategies code has been designed as a non-opinionated system to distribute funds of depositors to a single yield generating opportunity while managing accounting in a robust way.
 
@@ -209,7 +215,7 @@ Example constraints:
 - ...
 
 ## Development
-Strategists should be able to use a pre-built "Strategy Mix" that will contain the imported BaseStrategy.sol as well as standardized tests for any 4626 vault. Developing a strategy can be as simple as overriding three functions, with the potential for any number of other constraints or actions to be built on top of it. The Base implementation is only ~2KB, meaning there is plenty of room for strategists to build complex implementations while not having to be concerned with the generic functionality.
+Strategists should be able to use a pre-built "Strategy Mix" that will contain the imported BaseStrategy.sol as well as standardized tests for any 4626 vault. Developing a strategy can be as simple as overriding three required functions, with the potential for any number of other constraints or actions to be built on top of it. The Base implementation is only ~2KB, meaning there is plenty of room for strategists to build complex implementations while not having to be concerned with the generic functionality.
 
 
 ### Needed to Override
@@ -224,13 +230,15 @@ Strategists should be able to use a pre-built "Strategy Mix" that will contain t
 
 While it can be possible to deploy a completely ERC-4626 compliant vault with just those three functions it does allow for further customization if the strategist desires.
 
-*_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports.
+*_strategyTotalAssets()*: By default this returns `TokenizedStrategy.lastTotalAssets()`, preserving v3.0.4 report-boundary accounting. Override it only when the strategy needs live accounting from a read-only current asset estimate.
+
+*_tend* and *_tendTrigger* can be overridden to signal to keepers the need for any sort of maintenance or reward selling between reports. With the default `_strategyTotalAssets()` implementation, value changes made during a tend remain report-boundary accounting. If `_strategyTotalAssets()` is overridden for constant accrual, those value changes affect view pricing through simulated totals and are realized by the next state-changing accrual rather than waiting for a report.
 
 *availableDepositLimit(address _owner)* can be overridden to implement any type of deposit limit.
 
 *availableWithdrawLimit(address _owner)* can be used to limit the amount that a user can withdraw at any given moment.
 
-*_emergencyWithdraw(uint256 _amount)* can be overridden to provide a manual method for management to pull funds from a yield source in an emergency when the vault is shutdown.
+*_emergencyWithdraw(uint256 _amount)* can be overridden to provide a manual method for management to pull funds from a yield source in an emergency when the vault is shutdown. It does not perform accounting itself; default strategies realize any unwind profit or loss at report, while live-accounting strategies can realize it through the next state-changing accrual.
 
 ## Deployment
 All strategies deployed will have the address of the deployed 'TokenizedStrategy' set as a constant to be used as the address to forward all external calls to that are not defined in the Strategy.

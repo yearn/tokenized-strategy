@@ -32,6 +32,11 @@ contract Setup is ExtendedTest, IEvents {
     address public protocolFeeRecipient = address(5);
     address public performanceFeeRecipient = address(6);
 
+    // Recipient of shares minted against profit accrued below the supply floor.
+    address public constant DEAD_ADDRESS =
+        0x000000000000000000000000000000000000dEaD;
+    uint256 public constant MINIMUM_SUPPLY = 1e3;
+
     // Integer variables that will be used repeatedly.
     uint256 public decimals = 18;
     uint256 public MAX_BPS = 10_000;
@@ -73,7 +78,7 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(performanceFeeRecipient, "Performance Fee Recipient");
     }
 
-    function setUpStrategy() public returns (address) {
+    function setUpStrategy() public virtual returns (address) {
         // we save the mock base strategy as a IMockStrategy to give it the needed interface
         IMockStrategy _strategy = IMockStrategy(
             address(new MockStrategy(address(asset), address(yieldSource)))
@@ -94,7 +99,7 @@ contract Setup is ExtendedTest, IEvents {
         return address(_strategy);
     }
 
-    function setUpIlliquidStrategy() public returns (address) {
+    function setUpIlliquidStrategy() public virtual returns (address) {
         IMockStrategy _strategy = IMockStrategy(
             address(
                 new MockIlliquidStrategy(address(asset), address(yieldSource))
@@ -172,6 +177,33 @@ contract Setup is ExtendedTest, IEvents {
         assertApproxEq(_strategy.totalSupply(), _totalSupply, 1, "!supply");
     }
 
+    function checkStrategyTotalsApproxAssets(
+        IMockStrategy _strategy,
+        uint256 _totalAssets,
+        uint256 _totalDebt,
+        uint256 _totalIdle,
+        uint256 _totalSupply,
+        uint256 _assetTolerance
+    ) public {
+        uint256 _assets = _strategy.totalAssets();
+        uint256 _balance = ERC20Mock(_strategy.asset()).balanceOf(
+            address(_strategy)
+        );
+        uint256 _idle = _balance > _assets ? _assets : _balance;
+        uint256 _debt = _assets - _idle;
+        assertApproxEq(_assets, _totalAssets, _assetTolerance, "!totalAssets");
+        assertApproxEq(_debt, _totalDebt, _assetTolerance, "!totalDebt");
+        assertEq(_idle, _totalIdle, "!totalIdle");
+        assertApproxEq(
+            _assets,
+            _totalDebt + _totalIdle,
+            _assetTolerance,
+            "!Added"
+        );
+        // We give supply a buffer or 1 wei for rounding
+        assertApproxEq(_strategy.totalSupply(), _totalSupply, 1, "!supply");
+    }
+
     // For checks without totalSupply while profit is unlocking
     function checkStrategyTotals(
         IMockStrategy _strategy,
@@ -198,7 +230,7 @@ contract Setup is ExtendedTest, IEvents {
         uint256 _performanceFees
     ) public {
         uint256 startingAssets = _strategy.totalAssets();
-        asset.mint(address(_strategy), profit);
+        queueHarvestProfit(_strategy, profit);
 
         // Check the event matches the expected values
         vm.expectEmit(true, true, true, true, address(_strategy));
@@ -215,7 +247,19 @@ contract Setup is ExtendedTest, IEvents {
             "total assets wrong"
         );
         assertEq(_strategy.lastReport(), block.timestamp, "last report");
-        assertEq(_strategy.unlockedShares(), 0, "unlocked Shares");
+    }
+
+    function queueHarvestProfit(
+        IMockStrategy _strategy,
+        uint256 profit
+    ) public {
+        MockYieldSource _yieldSource = MockYieldSource(_strategy.yieldSource());
+        ERC20Mock(_strategy.asset()).mint(address(_yieldSource), profit);
+        _yieldSource.queueRewards(profit);
+    }
+
+    function queueHarvestLoss(IMockStrategy _strategy, uint256 loss) public {
+        MockYieldSource(_strategy.yieldSource()).queueLoss(loss);
     }
 
     function createAndCheckLoss(
@@ -226,7 +270,7 @@ contract Setup is ExtendedTest, IEvents {
     ) public {
         uint256 startingAssets = _strategy.totalAssets();
 
-        yieldSource.simulateLoss(loss);
+        queueHarvestLoss(_strategy, loss);
         // Check the event matches the expected values
         vm.expectEmit(true, true, true, _checkFees, address(_strategy));
         emit Reported(0, loss, _protocolFees, 0);

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.18;
 
 import {MockYieldSource} from "./MockYieldSource.sol";
-import {BaseStrategy, ERC20} from "../../BaseStrategy.sol";
+import {BaseStrategy, ERC20, TokenizedStrategy} from "../../BaseStrategy.sol";
 
 interface IPappa {
     function callBack(
@@ -40,14 +40,21 @@ contract MockFaultyStrategy is BaseStrategy {
         MockYieldSource(yieldSource).withdraw(_amount + fault);
     }
 
+    function _strategyTotalAssets() internal view override returns (uint256) {
+        return
+            MockYieldSource(yieldSource).balance() +
+            ERC20(asset).balanceOf(address(this));
+    }
+
     function _harvestAndReport() internal override returns (uint256) {
         uint256 balance = ERC20(asset).balanceOf(address(this));
         if (balance > 0) {
             MockYieldSource(yieldSource).deposit(balance);
         }
-        uint256 total = MockYieldSource(yieldSource).balance();
-        if (doCallBack) callBack(total);
-        return total;
+        // Write paths now sync through harvest before user actions. Keep this
+        // mock focused on deploy/free/tend callbacks so the reentrancy tests
+        // still isolate the path they are named after.
+        return _strategyTotalAssets();
     }
 
     function _tend(uint256 _idle) internal override {

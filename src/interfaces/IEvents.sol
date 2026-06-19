@@ -12,6 +12,11 @@ interface IEvents {
     event StrategyShutdown();
 
     /**
+     * @notice Emitted when a strategies paused status is updated.
+     */
+    event UpdatePaused(bool paused);
+
+    /**
      * @notice Emitted on the initialization of any new `strategy` that uses `asset`
      * with this specific `apiVersion`.
      */
@@ -26,6 +31,13 @@ interface IEvents {
      * `performanceFees` and `protocolFees` are paid out.
      */
     event Reported(
+        uint256 profit,
+        uint256 loss,
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
+
+    event Accrued(
         uint256 profit,
         uint256 loss,
         uint256 protocolFees,

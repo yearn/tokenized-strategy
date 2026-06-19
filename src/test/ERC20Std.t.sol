@@ -23,11 +23,15 @@ contract ERC20BaseTest is Setup {
             string(abi.encodePacked("ys", asset.symbol()))
         );
         assertEq(strategy.decimals(), 18);
-        assertEq(strategy.apiVersion(), "3.0.4");
+        assertEq(strategy.apiVersion(), "3.1.0");
     }
 
     function testFuzz_mint(address account_, uint256 amount_) public {
-        vm.assume(account_ != address(0) && account_ != address(strategy));
+        vm.assume(
+            account_ != address(0) &&
+                account_ != address(strategy) &&
+                account_ != address(yieldSource)
+        );
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
 
         vm.prank(address(strategy));
@@ -42,7 +46,11 @@ contract ERC20BaseTest is Setup {
         uint256 amount0_,
         uint256 amount1_
     ) public {
-        vm.assume(account_ != address(0) && account_ != address(strategy));
+        vm.assume(
+            account_ != address(0) &&
+                account_ != address(strategy) &&
+                account_ != address(yieldSource)
+        );
         amount0_ = bound(amount0_, minFuzzAmount + 1, maxFuzzAmount);
         amount1_ = bound(amount1_, minFuzzAmount, amount0_);
 
@@ -55,7 +63,11 @@ contract ERC20BaseTest is Setup {
     }
 
     function testFuzz_approve(address account_, uint256 amount_) public {
-        vm.assume(account_ != address(0) && account_ != address(strategy));
+        vm.assume(
+            account_ != address(0) &&
+                account_ != address(strategy) &&
+                account_ != address(yieldSource)
+        );
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
 
         assertTrue(strategy.approve(account_, amount_));
@@ -64,7 +76,11 @@ contract ERC20BaseTest is Setup {
     }
 
     function testFuzz_transfer(address account_, uint256 amount_) public {
-        vm.assume(account_ != address(0) && account_ != address(strategy));
+        vm.assume(
+            account_ != address(0) &&
+                account_ != address(strategy) &&
+                account_ != address(yieldSource)
+        );
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
 
         mintAndDepositIntoStrategy(strategy, self, amount_);
@@ -81,12 +97,25 @@ contract ERC20BaseTest is Setup {
         }
     }
 
+    function test_transferFromStrategyReverts() public {
+        address recipient = address(0xBEEF);
+        uint256 lockedShares = _lockStrategyShares();
+
+        vm.prank(address(strategy));
+        vm.expectRevert("ERC20 transfer from strategy");
+        strategy.transfer(recipient, lockedShares);
+    }
+
     function testFuzz_transferFrom(
         address recipient_,
         uint256 approval_,
         uint256 amount_
     ) public {
-        vm.assume(recipient_ != address(0) && recipient_ != address(strategy));
+        vm.assume(
+            recipient_ != address(0) &&
+                recipient_ != address(strategy) &&
+                recipient_ != address(yieldSource)
+        );
 
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
         approval_ = bound(approval_, amount_, type(uint256).max - 1);
@@ -113,11 +142,30 @@ contract ERC20BaseTest is Setup {
         }
     }
 
+    function test_transferFromStrategyWithAllowanceReverts() public {
+        address spender = address(0xCAFE);
+        address recipient = address(0xBEEF);
+        uint256 lockedShares = _lockStrategyShares();
+
+        vm.prank(address(strategy));
+        strategy.approve(spender, lockedShares);
+
+        vm.prank(spender);
+        vm.expectRevert("ERC20 transfer from strategy");
+        strategy.transferFrom(address(strategy), recipient, lockedShares);
+
+        assertEq(strategy.allowance(address(strategy), spender), lockedShares);
+    }
+
     function testFuzz_transferFrom_infiniteApproval(
         address recipient_,
         uint256 amount_
     ) public {
-        vm.assume(recipient_ != address(0) && recipient_ != address(strategy));
+        vm.assume(
+            recipient_ != address(0) &&
+                recipient_ != address(strategy) &&
+                recipient_ != address(yieldSource)
+        );
         uint256 MAX_UINT256 = type(uint256).max;
 
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
@@ -148,7 +196,11 @@ contract ERC20BaseTest is Setup {
         address recipient_,
         uint256 amount_
     ) public {
-        vm.assume(recipient_ != address(0) && recipient_ != address(strategy));
+        vm.assume(
+            recipient_ != address(0) &&
+                recipient_ != address(strategy) &&
+                recipient_ != address(yieldSource)
+        );
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
 
         ERC20User account = new ERC20User();
@@ -168,7 +220,11 @@ contract ERC20BaseTest is Setup {
         address recipient_,
         uint256 amount_
     ) public {
-        vm.assume(recipient_ != address(0) && recipient_ != address(strategy));
+        vm.assume(
+            recipient_ != address(0) &&
+                recipient_ != address(strategy) &&
+                recipient_ != address(yieldSource)
+        );
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
 
         ERC20User owner = new ERC20User();
@@ -190,7 +246,11 @@ contract ERC20BaseTest is Setup {
         address recipient_,
         uint256 amount_
     ) public {
-        vm.assume(recipient_ != address(0) && recipient_ != address(strategy));
+        vm.assume(
+            recipient_ != address(0) &&
+                recipient_ != address(strategy) &&
+                recipient_ != address(yieldSource)
+        );
         amount_ = bound(amount_, minFuzzAmount, maxFuzzAmount);
 
         ERC20User owner = new ERC20User();
@@ -205,6 +265,17 @@ contract ERC20BaseTest is Setup {
         strategy.transferFrom(address(owner), recipient_, amount_);
 
         assertEq(strategy.balanceOf(recipient_), amount_);
+    }
+
+    function _lockStrategyShares() internal returns (uint256 lockedShares) {
+        mintAndDepositIntoStrategy(strategy, self, 100 ether);
+        queueHarvestProfit(strategy, 10 ether);
+
+        vm.prank(keeper);
+        strategy.report();
+
+        lockedShares = strategy.balanceOf(address(strategy));
+        assertGt(lockedShares, 0);
     }
 }
 

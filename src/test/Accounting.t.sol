@@ -1,700 +1,666 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.18;
 
-import "forge-std/console.sol";
-import {Setup, IMockStrategy} from "./utils/Setup.sol";
+import {Setup} from "./utils/Setup.sol";
 
 contract AccountingTest is Setup {
     function setUp() public override {
         super.setUp();
     }
 
-    function test_airdropDoesNotIncreasePPS(
-        address _address,
+    function test_airdropImmediatelyAccruesInViews(
+        address _user,
         uint256 _amount,
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
+            _user != address(0) &&
+                _user != 0x000000000000000000000000000000000000dEaD &&
+                _user != address(strategy) &&
+                _user != keeper &&
+                _user != management &&
+                _user != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
         );
 
-        // set fees to 0 for calculations simplicity
         setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
 
-        // nothing has happened pps should be 1
-        uint256 pricePerShare = strategy.pricePerShare();
-        assertEq(pricePerShare, wad);
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        uint256 pps = strategy.pricePerShare();
 
-        // deposit into the vault
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
+        asset.mint(address(strategy), profit);
 
-        // should still be 1
-        assertEq(strategy.pricePerShare(), pricePerShare);
+        assertEq(strategy.totalAssets(), _amount, "!assets frozen");
+        assertEq(strategy.pricePerShare(), pps, "!pps frozen");
 
-        // airdrop to strategy
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        asset.mint(address(strategy), toAirdrop);
+        skip(1);
 
-        // PPS shouldn't change but the balance does.
-        assertEq(strategy.pricePerShare(), pricePerShare);
-        checkStrategyTotals(
-            strategy,
-            _amount,
-            _amount - toAirdrop,
-            toAirdrop,
-            _amount
-        );
+        assertEq(strategy.totalAssets(), _amount + profit, "!assets");
+        assertGt(strategy.pricePerShare(), pps, "!pps");
 
-        uint256 beforeBalance = asset.balanceOf(_address);
-        vm.prank(_address);
-        strategy.redeem(_amount, _address, _address);
+        uint256 before = asset.balanceOf(_user);
 
-        // should have pulled out just the deposited amount leaving the rest deployed.
-        assertEq(asset.balanceOf(_address), beforeBalance + _amount);
-        assertEq(asset.balanceOf(address(strategy)), 0);
-        assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
+        uint256 shares = strategy.balanceOf(_user);
+
+        vm.prank(_user);
+        strategy.redeem(shares, _user, _user);
+
+        assertEq(asset.balanceOf(_user) - before, _amount + profit, "!out");
         checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
-    function test_airdropDoesNotIncreasePPS_reportRecordsIt(
-        address _address,
+    function test_yieldSourceGainImmediatelyAccruesInViews(
+        address _user,
         uint256 _amount,
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
+            _user != address(0) &&
+                _user != 0x000000000000000000000000000000000000dEaD &&
+                _user != address(strategy) &&
+                _user != keeper &&
+                _user != management &&
+                _user != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
         );
 
-        // set fees to 0 for calculations simplicity
         setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
 
-        // nothing has happened pps should be 1
-        uint256 pricePerShare = strategy.pricePerShare();
-        assertEq(pricePerShare, wad);
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        uint256 pps = strategy.pricePerShare();
 
-        // deposit into the vault
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
+        asset.mint(address(yieldSource), profit);
 
-        // should still be 1
-        assertEq(strategy.pricePerShare(), pricePerShare);
+        assertEq(strategy.totalAssets(), _amount, "!assets frozen");
+        assertEq(strategy.pricePerShare(), pps, "!pps frozen");
 
-        // airdrop to strategy
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        asset.mint(address(strategy), toAirdrop);
+        skip(1);
 
-        // PPS shouldn't change but the balance does.
-        assertEq(strategy.pricePerShare(), pricePerShare);
-        checkStrategyTotals(
-            strategy,
-            _amount,
-            _amount - toAirdrop,
-            toAirdrop,
-            _amount
-        );
+        assertEq(strategy.totalAssets(), _amount + profit, "!assets");
+        assertGt(strategy.pricePerShare(), pps, "!pps");
 
-        // process a report to realize the gain from the airdrop
-        uint256 profit;
-        vm.prank(keeper);
-        (profit, ) = strategy.report();
+        uint256 before = asset.balanceOf(_user);
 
-        assertEq(strategy.pricePerShare(), pricePerShare);
-        assertEq(profit, toAirdrop);
-        checkStrategyTotals(
-            strategy,
-            _amount + toAirdrop,
-            _amount + toAirdrop,
-            0,
-            _amount + toAirdrop
-        );
+        uint256 shares = strategy.balanceOf(_user);
 
-        // allow some profit to come unlocked
-        skip(profitMaxUnlockTime / 2);
+        vm.prank(_user);
+        strategy.redeem(shares, _user, _user);
 
-        assertGt(strategy.pricePerShare(), pricePerShare);
-
-        //air drop again, we should not increase again
-        pricePerShare = strategy.pricePerShare();
-        asset.mint(address(strategy), toAirdrop);
-        assertEq(strategy.pricePerShare(), pricePerShare);
-
-        // skip the rest of the time for unlocking
-        skip(profitMaxUnlockTime / 2);
-
-        // we should get a % return equal to our profit factor
-        assertRelApproxEq(
-            strategy.pricePerShare(),
-            wad + ((wad * _profitFactor) / MAX_BPS),
-            MAX_BPS
-        );
-
-        // Total is the same but balance has adjusted again
-        checkStrategyTotals(strategy, _amount + toAirdrop, _amount, toAirdrop);
-
-        uint256 beforeBalance = asset.balanceOf(_address);
-        vm.prank(_address);
-        strategy.redeem(_amount, _address, _address);
-
-        // should have pulled out the deposit plus profit that was reported but not the second airdrop
-        assertEq(
-            asset.balanceOf(_address),
-            beforeBalance + _amount + toAirdrop
-        );
-        assertEq(asset.balanceOf(address(strategy)), 0);
-        assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
+        assertEq(asset.balanceOf(_user) - before, _amount + profit, "!out");
         checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
-    function test_earningYieldDoesNotIncreasePPS(
-        address _address,
+    function test_previewDepositMatchesSyncAfterAccruedFees(
+        address _user,
+        address _depositor,
         uint256 _amount,
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
+            _user != address(0) &&
+                _depositor != address(0) &&
+                _user != _depositor &&
+                _user != address(strategy) &&
+                _depositor != address(strategy) &&
+                _user != keeper &&
+                _depositor != keeper &&
+                _user != management &&
+                _depositor != management &&
+                _user != emergencyAdmin &&
+                _depositor != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _depositor != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _depositor != performanceFeeRecipient &&
+                _user != address(yieldSource) &&
+                _depositor != address(yieldSource)
         );
 
-        // set fees to 0 for calculations simplicity
-        setFees(0, 0);
+        uint16 performanceFee = 1_000;
+        setFees(0, performanceFee);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
 
-        // nothing has happened pps should be 1
-        uint256 pricePerShare = strategy.pricePerShare();
-        assertEq(pricePerShare, wad);
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        uint256 expectedFeeAssets = (profit * performanceFee) / MAX_BPS;
+        asset.mint(address(strategy), profit);
 
-        // deposit into the strategy
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
+        skip(1);
 
-        // should still be 1
-        assertEq(strategy.pricePerShare(), pricePerShare);
+        uint256 preview = strategy.previewDeposit(_amount);
 
-        // airdrop to strategy
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        asset.mint(address(yieldSource), toAirdrop);
+        asset.mint(_depositor, _amount);
+        vm.prank(_depositor);
+        asset.approve(address(strategy), _amount);
 
-        // nothing should change
-        assertEq(strategy.pricePerShare(), pricePerShare);
-        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
+        vm.prank(_depositor);
+        uint256 minted = strategy.deposit(_amount, _depositor);
 
-        uint256 beforeBalance = asset.balanceOf(_address);
-        vm.prank(_address);
-        strategy.redeem(_amount, _address, _address);
-
-        // should have pulled out just the deposit amount
-        assertEq(asset.balanceOf(_address), beforeBalance + _amount);
-        assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
-        checkStrategyTotals(strategy, 0, 0, 0, 0);
+        assertEq(minted, preview, "!preview");
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedFeeAssets,
+            100
+        );
     }
 
-    function test_earningYieldDoesNotIncreasePPS_reportRecordsIt(
-        address _address,
+    function test_reportReturnsZeroAfterWriteSync(
+        address _user,
+        address _depositor,
         uint256 _amount,
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
         vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
+            _user != address(0) &&
+                _depositor != address(0) &&
+                _user != _depositor &&
+                _user != address(strategy) &&
+                _depositor != address(strategy) &&
+                _user != keeper &&
+                _depositor != keeper &&
+                _user != management &&
+                _depositor != management &&
+                _user != emergencyAdmin &&
+                _depositor != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _depositor != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _depositor != performanceFeeRecipient &&
+                _user != address(yieldSource) &&
+                _depositor != address(yieldSource)
         );
 
-        // set fees to 0 for calculations simplicity
         setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
 
-        // nothing has happened pps should be 1
-        uint256 pricePerShare = strategy.pricePerShare();
-        assertEq(pricePerShare, wad);
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        asset.mint(address(strategy), profit);
 
-        // deposit into the vault
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
+        skip(1);
 
-        // should still be 1
-        assertEq(strategy.pricePerShare(), pricePerShare);
+        asset.mint(_depositor, _amount);
+        vm.prank(_depositor);
+        asset.approve(address(strategy), _amount);
 
-        // airdrop to strategy
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        asset.mint(address(yieldSource), toAirdrop);
-        assertEq(asset.balanceOf(address(yieldSource)), _amount + toAirdrop);
+        vm.prank(_depositor);
+        strategy.deposit(_amount, _depositor);
 
-        // nothing should change
-        assertEq(strategy.pricePerShare(), pricePerShare);
-        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
-
-        // process a report to realize the gain from the airdrop
-        uint256 profit;
         vm.prank(keeper);
-        (profit, ) = strategy.report();
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
 
-        assertEq(strategy.pricePerShare(), pricePerShare);
-        assertEq(profit, toAirdrop);
-
-        checkStrategyTotals(
-            strategy,
-            _amount + toAirdrop,
-            _amount + toAirdrop,
-            0,
-            _amount + toAirdrop
-        );
-
-        // allow some profit to come unlocked
-        skip(profitMaxUnlockTime / 2);
-
-        assertGt(strategy.pricePerShare(), pricePerShare);
-
-        //air drop again, we should not increase again
-        pricePerShare = strategy.pricePerShare();
-        asset.mint(address(yieldSource), toAirdrop);
-        assertEq(strategy.pricePerShare(), pricePerShare);
-
-        // skip the rest of the time for unlocking
-        skip(profitMaxUnlockTime / 2);
-
-        // we should get a % return equal to our profit factor
-        assertRelApproxEq(
-            strategy.pricePerShare(),
-            wad + ((wad * _profitFactor) / MAX_BPS),
-            MAX_BPS
-        );
-
-        // Total is the same.
-        checkStrategyTotals(
-            strategy,
-            _amount + toAirdrop,
-            _amount + toAirdrop,
-            0
-        );
-
-        uint256 beforeBalance = asset.balanceOf(_address);
-        vm.prank(_address);
-        strategy.redeem(_amount, _address, _address);
-
-        // should have pulled out the deposit plus profit that was reported but not the second airdrop
-        assertEq(
-            asset.balanceOf(_address),
-            beforeBalance + _amount + toAirdrop
-        );
-
-        assertEq(asset.balanceOf(address(yieldSource)), toAirdrop);
-        checkStrategyTotals(strategy, 0, 0, 0, 0);
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
     }
 
-    function test_tend_noIdle_harvestProfit(
+    function test_settingFeeSyncsExistingProfit(
+        address _user,
         uint256 _amount,
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _profitFactor = uint16(bound(uint256(_profitFactor), 1, MAX_BPS));
-
-        setFees(0, 0);
-        // nothing has happened pps should be 1
-        uint256 pricePerShare = strategy.pricePerShare();
-        assertEq(pricePerShare, wad);
-
-        // deposit into the vault
-        mintAndDepositIntoStrategy(strategy, user, _amount);
-
-        // should still be 1
-        assertEq(strategy.pricePerShare(), pricePerShare);
-
-        // airdrop to strategy to simulate a harvesting of rewards
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        asset.mint(address(strategy), toAirdrop);
-        assertEq(asset.balanceOf(address(strategy)), toAirdrop);
-        checkStrategyTotals(strategy, _amount, _amount - toAirdrop, toAirdrop);
-
-        vm.prank(keeper);
-        strategy.tend();
-
-        // Should have deposited the toAirdrop amount but no other changes
-        checkStrategyTotals(strategy, _amount, _amount, 0);
-        assertEq(
-            asset.balanceOf(address(yieldSource)),
-            _amount + toAirdrop,
-            "!yieldSource"
-        );
-        assertEq(strategy.pricePerShare(), wad, "!pps");
-
-        // Make sure we now report the profit correctly
-        vm.prank(keeper);
-        strategy.report();
-
-        skip(profitMaxUnlockTime);
-
-        assertRelApproxEq(
-            strategy.pricePerShare(),
-            wad + ((wad * _profitFactor) / MAX_BPS),
-            MAX_BPS
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != keeper &&
+                _user != management &&
+                _user != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
         );
 
-        uint256 beforeBalance = asset.balanceOf(user);
-        vm.prank(user);
-        strategy.redeem(_amount, user, user);
+        uint16 performanceFee = 1_000;
+        setFees(0, performanceFee);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
 
-        // should have pulled out the deposit plus profit that was reported but not the second airdrop
-        assertEq(asset.balanceOf(user), beforeBalance + _amount + toAirdrop);
-        assertEq(asset.balanceOf(address(yieldSource)), 0);
-        checkStrategyTotals(strategy, 0, 0, 0, 0);
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        uint256 expectedFeeAssets = (profit * performanceFee) / MAX_BPS;
+        asset.mint(address(strategy), profit);
+
+        skip(1);
+
+        vm.prank(management);
+        strategy.setPerformanceFee(0);
+
+        assertEq(strategy.performanceFee(), 0, "!fee");
+        assertApproxEq(
+            strategy.convertToAssets(
+                strategy.balanceOf(performanceFeeRecipient)
+            ),
+            expectedFeeAssets,
+            100
+        );
     }
 
-    function test_tend_idleFunds_harvestProfit(
+    function test_settingProfitMaxUnlockTimeSyncsExistingProfit(
+        address _user,
         uint256 _amount,
         uint16 _profitFactor
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _profitFactor = uint16(bound(uint256(_profitFactor), 1, MAX_BPS));
-
-        // Use the illiquid mock strategy so it doesn't deposit all funds
-        strategy = IMockStrategy(setUpIlliquidStrategy());
+        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != keeper &&
+                _user != management &&
+                _user != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
+        );
 
         setFees(0, 0);
-        // nothing has happened pps should be 1
-        uint256 pricePerShare = strategy.pricePerShare();
-        assertEq(pricePerShare, wad);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
 
-        // deposit into the vault
-        mintAndDepositIntoStrategy(strategy, user, _amount);
+        uint256 profit = (_amount * _profitFactor) / MAX_BPS;
+        asset.mint(address(strategy), profit);
 
-        uint256 expectedDeposit = _amount / 2;
-        checkStrategyTotals(
-            strategy,
-            _amount,
-            expectedDeposit,
-            _amount - expectedDeposit,
-            _amount
-        );
+        skip(1);
 
-        assertEq(
-            asset.balanceOf(address(yieldSource)),
-            expectedDeposit,
-            "!yieldSource"
-        );
-        // should still be 1
-        assertEq(strategy.pricePerShare(), wad);
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Accrued(profit, 0, 0, 0);
 
-        // airdrop to strategy to simulate a harvesting of rewards
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        asset.mint(address(strategy), toAirdrop);
-        assertEq(
-            asset.balanceOf(address(strategy)),
-            _amount - expectedDeposit + toAirdrop
-        );
+        vm.prank(management);
+        strategy.setProfitMaxUnlockTime(0);
+
+        assertEq(strategy.profitMaxUnlockTime(), 0, "!unlock time");
+        assertEq(strategy.lastTotalAssets(), _amount + profit, "!synced");
 
         vm.prank(keeper);
-        strategy.tend();
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
 
-        // Should have withdrawn all the funds from the yield source
-        checkStrategyTotals(strategy, _amount, 0, _amount, _amount);
-        assertEq(asset.balanceOf(address(yieldSource)), 0, "!yieldSource");
-        assertEq(asset.balanceOf(address(strategy)), _amount + toAirdrop);
-        assertEq(strategy.pricePerShare(), wad, "!pps");
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+    }
 
-        // Make sure we now report the profit correctly
+    function test_lossHitsViewsImmediately(
+        address _user,
+        uint256 _amount,
+        uint16 _lossFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _lossFactor = uint16(bound(uint256(_lossFactor), 10, 5_000));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != keeper &&
+                _user != management &&
+                _user != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        uint256 loss = (_amount * _lossFactor) / MAX_BPS;
+        yieldSource.simulateLoss(loss);
+
+        assertEq(strategy.totalAssets(), _amount, "!assets frozen");
+        assertEq(strategy.maxWithdraw(_user), _amount, "!withdraw frozen");
+
         vm.prank(keeper);
-        strategy.report();
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
 
-        checkStrategyTotals(
-            strategy,
-            _amount + toAirdrop,
-            (_amount + toAirdrop) / 2,
-            (_amount + toAirdrop) - ((_amount + toAirdrop) / 2)
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, loss, "!loss");
+        assertEq(strategy.totalAssets(), _amount - loss, "!assets");
+        assertEq(strategy.maxWithdraw(_user), _amount - loss, "!withdraw");
+
+        uint256 before = asset.balanceOf(_user);
+        uint256 shares = strategy.balanceOf(_user);
+
+        vm.prank(_user);
+        uint256 assets = strategy.redeem(shares, _user, _user);
+
+        assertEq(assets, _amount - loss, "!redeem");
+        assertEq(asset.balanceOf(_user) - before, _amount - loss, "!out");
+    }
+
+    function test_visibleLossSyncsBeforeReportAfterLatchOpens(
+        address _user,
+        uint256 _amount,
+        uint16 _lossFactor
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _lossFactor = uint16(bound(uint256(_lossFactor), 10, 5_000));
+        vm.assume(
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != keeper &&
+                _user != management &&
+                _user != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
         );
+
+        setFees(0, 0);
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        skip(1);
+
+        uint256 loss = (_amount * _lossFactor) / MAX_BPS;
+        yieldSource.simulateLoss(loss);
+
+        uint256 assetsBeforeReport = strategy.totalAssets();
+        uint256 ppsBeforeReport = strategy.pricePerShare();
+
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Accrued(0, loss, 0, 0);
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit Reported(0, 0, 0, 0);
+
+        vm.prank(keeper);
+        (uint256 reportedProfit, uint256 reportedLoss) = strategy.report();
+
+        assertEq(reportedProfit, 0, "!profit");
+        assertEq(reportedLoss, 0, "!loss");
+        assertEq(strategy.totalAssets(), assetsBeforeReport, "!assets");
+        assertEq(strategy.pricePerShare(), ppsBeforeReport, "!pps");
+    }
+
+    function test_initialDonationMintsDeadShares(
+        address _user,
+        uint256 _amount,
+        uint256 _donation
+    ) public {
+        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
+        _donation = bound(_donation, minFuzzAmount, maxFuzzAmount);
+        vm.assume(
+            _user != address(0) &&
+                _user != 0x000000000000000000000000000000000000dEaD &&
+                _user != address(strategy) &&
+                _user != keeper &&
+                _user != management &&
+                _user != emergencyAdmin &&
+                _user != protocolFeeRecipient &&
+                _user != performanceFeeRecipient &&
+                _user != address(yieldSource)
+        );
+
+        setFees(0, 0);
+
+        skip(1);
+
+        asset.mint(address(strategy), _donation);
+
+        assertEq(strategy.previewDeposit(_amount), _amount, "!preview");
+
+        mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+        assertEq(strategy.balanceOf(_user), _amount, "!shares");
         assertEq(
-            asset.balanceOf(address(yieldSource)),
-            (_amount + toAirdrop) / 2
+            strategy.balanceOf(0x000000000000000000000000000000000000dEaD),
+            _donation,
+            "!dead"
+        );
+        assertEq(strategy.totalAssets(), _amount + _donation, "!assets");
+
+        uint256 before = asset.balanceOf(_user);
+
+        uint256 shares = strategy.balanceOf(_user);
+
+        vm.prank(_user);
+        strategy.redeem(shares, _user, _user);
+
+        assertEq(asset.balanceOf(_user) - before, _amount, "!out");
+        assertEq(strategy.totalAssets(), _donation, "!remaining");
+    }
+
+    /// @dev 1 wei seed + donation: the floor confiscates the donation so
+    /// the victim deposits at ~1:1.
+    function test_accrualFloor_oneWeiSeedAttackConfiscated() public {
+        setFees(0, 1_000);
+        address attacker = address(0xA11CE);
+        address victim = address(0xB0B);
+
+        // No minimum first deposit: 1 wei mints 1 share.
+        asset.mint(attacker, 1);
+        vm.startPrank(attacker);
+        asset.approve(address(strategy), 1);
+        strategy.deposit(1, attacker);
+        vm.stopPrank();
+        assertEq(strategy.balanceOf(attacker), 1, "!seed");
+
+        uint256 donation = 100e18;
+        asset.mint(attacker, donation);
+        vm.prank(attacker);
+        asset.transfer(address(strategy), donation);
+        skip(1);
+
+        uint256 victimDeposit = 200e18;
+        mintAndDepositIntoStrategy(strategy, victim, victimDeposit);
+
+        // The donation was minted to dead shares at a flat PPS.
+        assertEq(strategy.balanceOf(DEAD_ADDRESS), donation, "!dead");
+        assertEq(strategy.balanceOf(victim), victimDeposit, "!victim shares");
+        assertApproxEqAbs(
+            strategy.convertToAssets(strategy.balanceOf(victim)),
+            victimDeposit,
+            2,
+            "!victim value"
         );
 
-        skip(profitMaxUnlockTime);
+        // No performance fees were charged on the confiscated profit.
+        assertEq(strategy.balanceOf(performanceFeeRecipient), 0, "!fee shares");
 
-        assertRelApproxEq(
-            strategy.pricePerShare(),
-            wad + ((wad * _profitFactor) / MAX_BPS),
-            MAX_BPS
+        // The attacker's share is back to ~1 wei: the donation is lost.
+        assertLe(
+            strategy.convertToAssets(strategy.balanceOf(attacker)),
+            1,
+            "!attacker value"
         );
     }
 
-    function test_withdrawWithUnrealizedLoss_reverts(
-        address _address,
-        uint256 _amount,
-        uint16 _lossFactor
-    ) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _lossFactor = uint16(bound(uint256(_lossFactor), 10, MAX_BPS));
-        vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
+    /// @dev At or above the floor a donation accrues, but victim rounding
+    /// loss is bounded by ~donation / MINIMUM_SUPPLY.
+    function test_accrualFloor_supplyAboveFloorBoundsAttack() public {
+        setFees(0, 1_000);
+        address attacker = address(0xA11CE);
+        address victim = address(0xB0B);
+
+        uint256 seed = MINIMUM_SUPPLY;
+        asset.mint(attacker, seed);
+        vm.startPrank(attacker);
+        asset.approve(address(strategy), seed);
+        strategy.deposit(seed, attacker);
+        vm.stopPrank();
+
+        uint256 donation = 100e18;
+        asset.mint(attacker, donation);
+        vm.prank(attacker);
+        asset.transfer(address(strategy), donation);
+        skip(1);
+
+        uint256 victimDeposit = 200e18;
+        mintAndDepositIntoStrategy(strategy, victim, victimDeposit);
+
+        // Supply was at the floor: nothing was confiscated.
+        assertEq(strategy.balanceOf(DEAD_ADDRESS), 0, "!dead");
+
+        // Victim rounding loss is bounded by ~donation / MINIMUM_SUPPLY.
+        assertGe(
+            strategy.convertToAssets(strategy.balanceOf(victim)),
+            victimDeposit - donation / MINIMUM_SUPPLY - 1,
+            "!victim bound"
         );
 
-        setFees(0, 0);
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
-
-        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
-        // Simulate a loss.
-        vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLose);
-
-        vm.expectRevert("too much loss");
-        vm.prank(_address);
-        strategy.withdraw(_amount, _address, _address);
-    }
-
-    function test_withdrawWithUnrealizedLoss_withMaxLoss(
-        address _address,
-        uint256 _amount,
-        uint16 _lossFactor
-    ) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _lossFactor = uint16(bound(uint256(_lossFactor), 10, MAX_BPS));
-        vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
+        // The attacker ends up underwater versus seed + donation.
+        assertLt(
+            strategy.convertToAssets(strategy.balanceOf(attacker)),
+            seed + donation,
+            "!attacker not profitable"
         );
-
-        setFees(0, 0);
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
-
-        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
-        // Simulate a loss.
-        vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLose);
-
-        uint256 beforeBalance = asset.balanceOf(_address);
-        uint256 expectedOut = _amount - toLose;
-        // Withdraw the full amount before the loss is reported.
-        vm.prank(_address);
-        strategy.withdraw(_amount, _address, _address, _lossFactor);
-
-        uint256 afterBalance = asset.balanceOf(_address);
-
-        assertEq(afterBalance - beforeBalance, expectedOut);
-        assertEq(strategy.pricePerShare(), wad);
-        checkStrategyTotals(strategy, 0, 0, 0, 0);
     }
 
-    function test_redeemWithUnrealizedLoss(
-        address _address,
-        uint256 _amount,
-        uint16 _lossFactor
-    ) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _lossFactor = uint16(bound(uint256(_lossFactor), 10, MAX_BPS));
-        vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
-        );
-
-        setFees(0, 0);
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
-
-        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
-        // Simulate a loss.
-        vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLose);
-
-        uint256 beforeBalance = asset.balanceOf(_address);
-        uint256 expectedOut = _amount - toLose;
-        // Withdraw the full amount before the loss is reported.
-        vm.prank(_address);
-        strategy.redeem(_amount, _address, _address);
-
-        uint256 afterBalance = asset.balanceOf(_address);
-
-        assertEq(afterBalance - beforeBalance, expectedOut);
-        assertEq(strategy.pricePerShare(), wad);
-        checkStrategyTotals(strategy, 0, 0, 0, 0);
-    }
-
-    function test_redeemWithUnrealizedLoss_allowNoLoss_reverts(
-        address _address,
-        uint256 _amount,
-        uint16 _lossFactor
-    ) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _lossFactor = uint16(bound(uint256(_lossFactor), 10, MAX_BPS));
-        vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
-        );
-
-        setFees(0, 0);
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
-
-        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
-        // Simulate a loss.
-        vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLose);
-
-        vm.expectRevert("too much loss");
-        vm.prank(_address);
-        strategy.redeem(_amount, _address, _address, 0);
-    }
-
-    function test_redeemWithUnrealizedLoss_customMaxLoss(
-        address _address,
-        uint256 _amount,
-        uint16 _lossFactor
-    ) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        _lossFactor = uint16(bound(uint256(_lossFactor), 10, MAX_BPS));
-        vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
-        );
-
-        setFees(0, 0);
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
-
-        uint256 toLose = (_amount * _lossFactor) / MAX_BPS;
-        // Simulate a loss.
-        vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLose);
-
-        uint256 beforeBalance = asset.balanceOf(_address);
-        uint256 expectedOut = _amount - toLose;
-
-        // First set it to just under the expected loss.
-        vm.expectRevert("too much loss");
-        vm.prank(_address);
-        strategy.redeem(_amount, _address, _address, _lossFactor - 1);
-
-        // Now redeem with the correct loss.
-        vm.prank(_address);
-        strategy.redeem(_amount, _address, _address, _lossFactor);
-
-        uint256 afterBalance = asset.balanceOf(_address);
-
-        assertEq(afterBalance - beforeBalance, expectedOut);
-        assertEq(strategy.pricePerShare(), wad);
-        checkStrategyTotals(strategy, 0, 0, 0, 0);
-    }
-
-    function test_maxUintDeposit_depositsBalance(
-        address _address,
+    /// @dev Full deposit/profit/exit cycles never mint dead shares.
+    function test_accrualFloor_fullCycleLeavesNoDeadShares(
+        address _user,
         uint256 _amount
     ) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
         vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
-        );
-
-        asset.mint(_address, _amount);
-
-        vm.prank(_address);
-        asset.approve(address(strategy), _amount);
-
-        assertEq(asset.balanceOf(_address), _amount);
-
-        vm.prank(_address);
-        strategy.deposit(type(uint256).max, _address);
-
-        // Should just deposit the available amount.
-        checkStrategyTotals(strategy, _amount, _amount, 0, _amount);
-
-        assertEq(asset.balanceOf(_address), 0);
-        assertEq(strategy.balanceOf(_address), _amount);
-        assertEq(asset.balanceOf(address(strategy)), 0);
-
-        assertEq(asset.balanceOf(address(yieldSource)), _amount);
-    }
-
-    function test_deposit_zeroAssetsPositiveSupply_reverts(
-        address _address,
-        uint256 _amount
-    ) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
+            _user != address(0) &&
+                _user != address(strategy) &&
+                _user != address(yieldSource) &&
+                _user != DEAD_ADDRESS
         );
 
         setFees(0, 0);
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 toLose = _amount;
-        // Simulate a loss.
-        vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLose);
+        for (uint256 i; i < 2; ++i) {
+            mintAndDepositIntoStrategy(strategy, _user, _amount);
+
+            // Earn and report a real profit, then let it fully unlock.
+            uint256 profit = _amount / 10;
+            asset.mint(address(yieldSource), profit);
+            skip(1);
+            vm.prank(keeper);
+            strategy.report();
+            skip(profitMaxUnlockTime);
+
+            uint256 shares = strategy.balanceOf(_user);
+            vm.prank(_user);
+            strategy.redeem(shares, _user, _user);
+
+            // Fully emptied: no value stuck in dead shares.
+            assertEq(strategy.balanceOf(DEAD_ADDRESS), 0, "!dead");
+            checkStrategyTotals(strategy, 0, 0, 0, 0);
+        }
+    }
+
+    /// @dev Views simulate the dead mint: previews match actual deposits.
+    function test_accrualFloor_viewsMatchWritePath() public {
+        setFees(0, 1_000);
+        address seeder = address(0xA11CE);
+        address depositor = address(0xB0B);
+
+        uint256 seed = 10;
+        asset.mint(seeder, seed);
+        vm.startPrank(seeder);
+        asset.approve(address(strategy), seed);
+        strategy.deposit(seed, seeder);
+        vm.stopPrank();
+
+        // Pending profit against a dust supply.
+        asset.mint(address(strategy), 1e18);
+        skip(1);
+
+        uint256 amount = 5e18;
+        uint256 preview = strategy.previewDeposit(amount);
+        assertEq(preview, strategy.convertToShares(amount), "!convert");
+        // Flat PPS: the simulated dead mint keeps the price at 1:1.
+        assertEq(preview, amount, "!flat pps");
+
+        asset.mint(depositor, amount);
+        vm.startPrank(depositor);
+        asset.approve(address(strategy), amount);
+        uint256 minted = strategy.deposit(amount, depositor);
+        vm.stopPrank();
+
+        assertEq(minted, preview, "!preview matches");
+        assertEq(strategy.balanceOf(depositor), minted, "!return matches");
+    }
+
+    function test_zeroAssetRecoveryIsFeeFreeAndPreviewMatchesDeposit() public {
+        address depositor = address(0xA11CE);
+        address recoveryDepositor = address(0xB0B);
+        uint256 amount = 100e18;
+
+        setFees(0, 1_000);
+        mintAndDepositIntoStrategy(strategy, depositor, amount);
+
+        skip(1);
+        yieldSource.simulateLoss(amount);
 
         vm.prank(keeper);
         strategy.report();
 
-        // Should still have shares but no assets
-        checkStrategyTotals(strategy, 0, 0, 0, _amount);
+        assertEq(strategy.totalAssets(), 0, "!zero assets");
+        assertEq(strategy.totalSupply(), amount, "!supply remains");
 
-        assertEq(strategy.balanceOf(_address), _amount);
-        assertEq(asset.balanceOf(address(strategy)), 0);
-        assertEq(asset.balanceOf(address(yieldSource)), 0);
+        asset.mint(address(yieldSource), amount);
+        skip(1);
 
-        asset.mint(_address, _amount);
-        vm.prank(_address);
-        asset.approve(address(strategy), _amount);
+        uint256 preview = strategy.previewDeposit(amount);
+        assertEq(preview, amount, "!fee-free preview");
 
-        vm.expectRevert("ZERO_SHARES");
-        vm.prank(_address);
-        strategy.deposit(_amount, _address);
+        asset.mint(recoveryDepositor, amount);
+        vm.prank(recoveryDepositor);
+        asset.approve(address(strategy), amount);
 
-        assertEq(strategy.convertToAssets(_amount), 0);
-        assertEq(strategy.convertToShares(_amount), 0);
-        assertEq(strategy.pricePerShare(), 0);
+        vm.prank(recoveryDepositor);
+        uint256 minted = strategy.deposit(amount, recoveryDepositor);
+
+        assertEq(minted, preview, "!preview");
+        assertEq(minted, amount, "!shares");
+        assertEq(strategy.balanceOf(performanceFeeRecipient), 0, "!fees");
+        assertEq(strategy.totalAssets(), amount * 2, "!assets");
+        assertEq(strategy.totalSupply(), amount * 2, "!supply");
     }
 
-    function test_mint_zeroAssetsPositiveSupply_reverts(
-        address _address,
-        uint256 _amount
-    ) public {
-        _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
-        vm.assume(
-            _address != address(0) &&
-                _address != address(strategy) &&
-                _address != address(yieldSource)
-        );
+    // Invariant: a view quote (e.g. `previewWithdraw`) must match what the
+    // same write path would actually execute in the same block. The
+    // unlatched loss branch of `_simulatedTotals` must simulate the buffer
+    // burn that `_accrue` would perform on the same observed loss.
+    function test_previewWithdrawMatchesWritePathOnVisibleLoss() public {
+        uint256 _amount = 1_000e18;
+        uint256 profit = 200e18;
+        uint256 loss = 50e18;
+        uint256 quoteAssets = 100e18;
+        address depositor = address(0x5678);
 
         setFees(0, 0);
-        mintAndDepositIntoStrategy(strategy, _address, _amount);
 
-        uint256 toLose = _amount;
-        // Simulate a loss.
-        vm.prank(address(yieldSource));
-        asset.transfer(address(69), toLose);
+        mintAndDepositIntoStrategy(strategy, depositor, _amount);
 
-        vm.prank(keeper);
-        strategy.report();
+        // Establish a buffer via report() so a loss has something to burn.
+        createAndCheckProfit(strategy, profit, 0, 0);
 
-        // Should still have shares but no assets
-        checkStrategyTotals(strategy, 0, 0, 0, _amount);
+        // Open the latch (so views run the live `_simulatedTotals` branch)
+        // while keeping the unlock formula in its rate-based regime.
+        skip(profitMaxUnlockTime / 2);
 
-        assertEq(strategy.balanceOf(_address), _amount);
-        assertEq(asset.balanceOf(address(strategy)), 0);
-        assertEq(asset.balanceOf(address(yieldSource)), 0);
+        // Visible loss not yet accrued.
+        yieldSource.simulateLoss(loss);
 
-        asset.mint(_address, _amount);
-        vm.prank(_address);
-        asset.approve(address(strategy), _amount);
+        // Quote BEFORE `_accrue`: must already account for the burn that
+        // `_accrue` would perform on this loss.
+        uint256 sharesBefore = strategy.previewWithdraw(quoteAssets);
 
-        vm.expectRevert("ZERO_ASSETS");
-        vm.prank(_address);
-        strategy.mint(_amount, _address);
+        // Trigger `_accrue` with no other state change.
+        // `setPerformanceFeeRecipient` calls `_accrue(S)` first; passing the
+        // existing recipient makes the rest of the call a no-op.
+        vm.prank(management);
+        strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
 
-        assertEq(strategy.convertToAssets(_amount), 0);
-        assertEq(strategy.convertToShares(_amount), 0);
-        assertEq(strategy.pricePerShare(), 0);
+        // Quote AFTER `_accrue`: latched branch reflects the burned buffer.
+        // The two quotes must agree — view/write parity in the same block.
+        uint256 sharesAfter = strategy.previewWithdraw(quoteAssets);
+
+        assertEq(
+            sharesBefore,
+            sharesAfter,
+            "view quote must match write-path quote"
+        );
     }
 }

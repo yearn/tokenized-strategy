@@ -13,6 +13,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     event StrategyShutdown();
 
+    event UpdatePaused(bool paused);
+
     event NewTokenizedStrategy(
         address indexed strategy,
         address indexed asset,
@@ -20,6 +22,13 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     );
 
     event Reported(
+        uint256 profit,
+        uint256 loss,
+        uint256 protocolFees,
+        uint256 performanceFees
+    );
+
+    event Accrued(
         uint256 profit,
         uint256 loss,
         uint256 protocolFees,
@@ -136,7 +145,13 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
 
     function lastReport() external view returns (uint256);
 
+    function lastAccrual() external view returns (uint256);
+
+    function lastTotalAssets() external view returns (uint256);
+
     function isShutdown() external view returns (bool);
+
+    function isPaused() external view returns (bool);
 
     function unlockedShares() external view returns (uint256);
 
@@ -163,6 +178,8 @@ interface ITokenizedStrategy is IERC4626, IERC20Permit {
     function setName(string calldata _newName) external;
 
     function shutdownStrategy() external;
+
+    function setPaused(bool paused) external;
 
     function emergencyWithdraw(uint256 _amount) external;
 }
