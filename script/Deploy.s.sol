@@ -9,8 +9,8 @@ contract Deploy is Script {
     Deployer public deployer =
         Deployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
-    // Vault factory address for v3.1.0
-    address public factory = 0x310aC28ACF5E514abDbFF9Ab25e21f1bfe22bcAC;
+    // Vault factory address for v3.1.1
+    address public factory = 0x311de24e48C360B9A7765E7aB7eCDBABCd27B134;
 
     function run() external {
         vm.startBroadcast();
@@ -22,11 +22,11 @@ contract Deploy is Script {
         );
 
         // CreateX guards this raw salt to
-        // 0xf45fdd830e8ee48b85bd4c66eb52737e9c490d2bf9485311e0c013ce2b936820,
-        // yielding 0x310f5Db015E9d6E542fd41bd4542640790791e76.
+        // 0x85b3fae1183059d1de0e5bd8b2e4cc17c4e2b84ff59cadfb3dd3092e04609b40,
+        // yielding 0x311A17cD3fDFf03DE9e03bB4Ae801CD83C830170.
         bytes32 salt = bytes32(
             uint256(
-                0x000000000000000000000000000000000000000000000000000000000019fdf1
+                0x0000000000000000000000000000000000000000000000000000000000000991
             )
         );
 
