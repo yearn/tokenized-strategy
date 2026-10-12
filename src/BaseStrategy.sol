@@ -109,7 +109,7 @@ abstract contract BaseStrategy {
      * and always be checked before any integration with the Strategy.
      */
     address public constant tokenizedStrategyAddress =
-        0x311A17cD3fDFf03DE9e03bB4Ae801CD83C830170;
+        0x3110D1Eec90f0651C18e75AD37711A8777342504;
 
     /*//////////////////////////////////////////////////////////////
                             IMMUTABLES

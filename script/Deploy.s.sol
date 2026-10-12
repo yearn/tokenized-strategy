@@ -22,11 +22,11 @@ contract Deploy is Script {
         );
 
         // CreateX guards this raw salt to
-        // 0x85b3fae1183059d1de0e5bd8b2e4cc17c4e2b84ff59cadfb3dd3092e04609b40,
-        // yielding 0x311A17cD3fDFf03DE9e03bB4Ae801CD83C830170.
+        // 0x6b38d02c6d833fcd9319e92fdee40c8b2ca0e465fb7bd0bdf5d856bfb88fc6c2,
+        // yielding 0x3110D1Eec90f0651C18e75AD37711A8777342504.
         bytes32 salt = bytes32(
             uint256(
-                0x0000000000000000000000000000000000000000000000000000000000000991
+                0x0000000000000000000000000000000000000000000000000000000000000a47
             )
         );
 
